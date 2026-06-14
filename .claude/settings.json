@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(npx -y create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --turbopack --import-alias \"@/*\" --use-npm --skip-install)",
+      "Bash(grep -A 30 \"Could not resolve\\\\|While resolving\\\\|Conflicting\" /Users/mikines/.npm/_logs/2026-06-12T18_37_20_460Z-eresolve-report.txt | head -40)",
+      "Read(//Users/mikines/.npm/_logs/**)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({...p.dependencies, ...p.devDependencies}, null, 1\\)\\)\")",
+      "Bash(npx -y shadcn@latest init -y -b neutral)",
+      "Bash(npx -y shadcn@latest init -y -b radix)",
+      "Bash(npx -y shadcn@latest init --help)",
+      "Bash(npx -y shadcn@latest init -d -b radix -s)",
+      "Bash(npx -y shadcn@latest add -y button input label dialog dropdown-menu popover tooltip separator scroll-area select checkbox badge command tabs avatar card sonner skeleton alert-dialog textarea switch)",
+      "Bash(npx drizzle-kit *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(rm -f notion-cookies.txt)",
+      "Bash(curl -s -c notion-cookies.txt -X POST http://localhost:3000/api/auth/sign-up/email -H \"Content-Type: application/json\" -d '{\"name\":\"Miki\",\"email\":\"mikiligero@gmail.com\",\"password\":\"password123\"}')",
+      "Bash(curl -s -b notion-cookies.txt -o /dev/null -w \"home redirect: %{http_code} -> %{redirect_url}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -i http://localhost:3000/api/auth/get-session)"
+    ]
+  }
+}
