@@ -1,4 +1,21 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  jsonb,
+  real,
+  index,
+  pgEnum,
+  type AnyPgColumn,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import type {
+  Block,
+  DatabaseSchema,
+  PropertyValues,
+  ViewConfig,
+} from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Tablas de Better Auth
@@ -55,6 +72,192 @@ export const verifications = pgTable("verifications", {
 });
 
 // ---------------------------------------------------------------------------
-// Tablas de la aplicación
-// (vacío: añade aquí tus tablas de dominio)
+// Enums del dominio
 // ---------------------------------------------------------------------------
+
+export const docSection = pgEnum("doc_section", ["team", "private"]);
+export const docKind = pgEnum("doc_kind", ["page", "database", "calendar"]);
+export const viewType = pgEnum("view_type", [
+  "table",
+  "board",
+  "calendar",
+  "timeline",
+  "chart",
+]);
+export const themePref = pgEnum("theme_pref", ["light", "dark"]);
+export const fontPref = pgEnum("font_pref", ["default", "serif", "mono"]);
+
+// ---------------------------------------------------------------------------
+// Workspace (uno por usuario en el modelo Personal; con ownerId para facilitar
+// una futura migración a multi-tenant).
+// ---------------------------------------------------------------------------
+
+export const workspaces = pgTable("workspaces", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Preferencias por usuario (espejo en localStorage para aplicar sin parpadeo).
+export const preferences = pgTable("preferences", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  theme: themePref("theme").notNull().default("light"),
+  textScale: real("text_scale").notNull().default(1),
+  defaultFont: fontPref("default_font").notNull().default("default"),
+  fullWidthDefault: boolean("full_width_default").notNull().default(false),
+  language: text("language").notNull().default("es"),
+  startupView: text("startup_view").notNull().default("home"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// docs: nodo del árbol + contenido de página a la vez ("todo es página").
+// Las filas de base de datos NO van aquí (ver tabla `rows`).
+// ---------------------------------------------------------------------------
+
+export const docs = pgTable(
+  "docs",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    section: docSection("section").notNull(),
+    parentId: text("parent_id").references((): AnyPgColumn => docs.id, {
+      onDelete: "cascade",
+    }),
+    kind: docKind("kind").notNull().default("page"),
+    emoji: text("emoji"),
+    title: text("title").notNull().default(""),
+    cover: text("cover"),
+    blocks: jsonb("blocks").$type<Block[]>(),
+    // Texto plano extraído de los bloques, para búsqueda full-text.
+    textContent: text("text_content").notNull().default(""),
+    font: fontPref("font").notNull().default("default"),
+    fullWidth: boolean("full_width").notNull().default(false),
+    smallText: boolean("small_text").notNull().default(false),
+    isFavorite: boolean("is_favorite").notNull().default(false),
+    orderKey: text("order_key").notNull().default("a0"),
+    deletedAt: timestamp("deleted_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("docs_tree_idx").on(t.workspaceId, t.section, t.parentId),
+    index("docs_favorite_idx").on(t.workspaceId, t.isFavorite),
+    // Config 'es_unaccent' (unaccent + simple) → búsqueda insensible a acentos.
+    // La configuración se crea en la migración antes de este índice.
+    index("docs_search_idx").using(
+      "gin",
+      sql`to_tsvector('es_unaccent', coalesce(${t.title}, '') || ' ' || coalesce(${t.textContent}, ''))`
+    ),
+  ]
+);
+
+// Una BD por cada doc de kind='database'.
+export const databases = pgTable("databases", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  docId: text("doc_id")
+    .notNull()
+    .unique()
+    .references(() => docs.id, { onDelete: "cascade" }),
+  schema: jsonb("schema").$type<DatabaseSchema>().notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const views = pgTable("views", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  databaseId: text("database_id")
+    .notNull()
+    .references(() => databases.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: viewType("type").notNull().default("table"),
+  config: jsonb("config").$type<ViewConfig>().notNull(),
+  orderKey: text("order_key").notNull().default("a0"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Filas de una BD. Cada fila abre como página (blocks).
+export const rows = pgTable(
+  "rows",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    databaseId: text("database_id")
+      .notNull()
+      .references(() => databases.id, { onDelete: "cascade" }),
+    values: jsonb("values").$type<PropertyValues>(),
+    blocks: jsonb("blocks").$type<Block[]>(),
+    cover: text("cover"),
+    orderKey: text("order_key").notNull().default("a0"),
+    deletedAt: timestamp("deleted_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("rows_database_idx").on(t.databaseId)]
+);
+
+// Comentarios: hilos por doc/fila → respuestas, con resolver/reabrir.
+export const comments = pgTable(
+  "comments",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    docId: text("doc_id").references(() => docs.id, { onDelete: "cascade" }),
+    rowId: text("row_id").references(() => rows.id, { onDelete: "cascade" }),
+    parentId: text("parent_id").references((): AnyPgColumn => comments.id, {
+      onDelete: "cascade",
+    }),
+    blockId: text("block_id"), // ancla a un bloque concreto (opcional)
+    anchoredText: text("anchored_text"),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    resolved: boolean("resolved").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("comments_doc_idx").on(t.docId)]
+);
+
+// Tareas del dashboard de Inicio.
+export const homeTasks = pgTable("home_tasks", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  text: text("text").notNull(),
+  done: boolean("done").notNull().default(false),
+  tag: text("tag"),
+  orderKey: text("order_key").notNull().default("a0"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Tipos inferidos
+// ---------------------------------------------------------------------------
+export type Workspace = typeof workspaces.$inferSelect;
+export type Preferences = typeof preferences.$inferSelect;
+export type Doc = typeof docs.$inferSelect;
+export type DbDatabase = typeof databases.$inferSelect;
+export type View = typeof views.$inferSelect;
+export type Row = typeof rows.$inferSelect;
+export type Comment = typeof comments.$inferSelect;
+export type HomeTask = typeof homeTasks.$inferSelect;

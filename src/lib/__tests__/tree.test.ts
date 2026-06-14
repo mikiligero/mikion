@@ -1,0 +1,71 @@
+import { describe, it, expect } from "vitest";
+import { buildTree, ancestorChain, type TreeDoc } from "@/lib/tree";
+
+function d(p: Partial<TreeDoc> & { id: string }): TreeDoc {
+  return {
+    parentId: null,
+    section: "team",
+    kind: "page",
+    emoji: null,
+    title: "",
+    isFavorite: false,
+    orderKey: "a0",
+    ...p,
+  };
+}
+
+describe("buildTree", () => {
+  const docs: TreeDoc[] = [
+    d({ id: "b", orderKey: "a1" }),
+    d({ id: "a", orderKey: "a0" }),
+    d({ id: "a1", parentId: "a", orderKey: "a1" }),
+    d({ id: "a0", parentId: "a", orderKey: "a0" }),
+    d({ id: "p", section: "private", orderKey: "a0" }),
+  ];
+
+  it("agrupa por sección y ordena raíces por orderKey", () => {
+    const team = buildTree(docs, "team");
+    expect(team.map((n) => n.id)).toEqual(["a", "b"]);
+    const priv = buildTree(docs, "private");
+    expect(priv.map((n) => n.id)).toEqual(["p"]);
+  });
+
+  it("anida hijos por parentId, ordenados por orderKey", () => {
+    const [a] = buildTree(docs, "team");
+    expect(a.children.map((n) => n.id)).toEqual(["a0", "a1"]);
+    expect(a.children.every((n) => n.children.length === 0)).toBe(true);
+  });
+
+  it("ignora docs de otra sección al anidar", () => {
+    const team = buildTree(docs, "team");
+    expect(team.find((n) => n.id === "p")).toBeUndefined();
+  });
+
+  it("devuelve [] si no hay docs en la sección", () => {
+    expect(buildTree([], "team")).toEqual([]);
+  });
+});
+
+describe("ancestorChain", () => {
+  const docs: TreeDoc[] = [
+    d({ id: "root" }),
+    d({ id: "mid", parentId: "root" }),
+    d({ id: "leaf", parentId: "mid" }),
+  ];
+
+  it("devuelve la cadena de raíz a hijo incluido", () => {
+    expect(ancestorChain(docs, "leaf").map((n) => n.id)).toEqual([
+      "root",
+      "mid",
+      "leaf",
+    ]);
+  });
+
+  it("para una raíz devuelve solo ella", () => {
+    expect(ancestorChain(docs, "root").map((n) => n.id)).toEqual(["root"]);
+  });
+
+  it("devuelve [] si el id no existe", () => {
+    expect(ancestorChain(docs, "x")).toEqual([]);
+  });
+});

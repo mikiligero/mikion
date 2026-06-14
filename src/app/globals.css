@@ -4,119 +4,223 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+   Tema Tailwind v4 — expone los tokens de diseño Mikion como utilidades.
+   Los tokens semánticos de shadcn (background, primary, accent…) se mapean a
+   los tokens Mikion en :root/.dark más abajo, para que los primitivos de
+   components/ui hereden la paleta sin tocarlos.
+--------------------------------------------------------------------------- */
 @theme inline {
+  /* Tipografía */
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-serif);
+
+  /* shadcn (semánticos) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Mikion — superficies e ink */
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-ghost: var(--ink-ghost);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+
+  /* Mikion — acento de marca (terracota) */
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-tint: var(--brand-tint);
+
+  /* Mikion — tints semánticos (texto / fondo) */
+  --color-tint-green: var(--tint-green);
+  --color-tint-green-bg: var(--tint-green-bg);
+  --color-tint-blue: var(--tint-blue);
+  --color-tint-blue-bg: var(--tint-blue-bg);
+  --color-tint-amber: var(--tint-amber);
+  --color-tint-amber-bg: var(--tint-amber-bg);
+  --color-tint-purple: var(--tint-purple);
+  --color-tint-purple-bg: var(--tint-purple-bg);
+  --color-tint-rose: var(--tint-rose);
+  --color-tint-rose-bg: var(--tint-rose-bg);
+  --color-tint-teal: var(--tint-teal);
+  --color-tint-teal-bg: var(--tint-teal-bg);
+  --color-tint-gray: var(--tint-gray);
+  --color-tint-gray-bg: var(--tint-gray-bg);
+
+  /* Radios Mikion (5 / 8 / 12 / 18) */
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+
+  /* Sombras Mikion */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
 }
 
+/* ---------------------------------------------------------------------------
+   Tokens — Claro
+--------------------------------------------------------------------------- */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Superficies */
+  --paper: #faf8f5;
+  --surface: #ffffff;
+  --sidebar: #f4f1ec;
+  --sidebar-hover: #ece8e1;
+  --overlay: rgba(34, 30, 26, 0.34);
+
+  /* Ink */
+  --ink: #232019;
+  --ink-soft: #6c655b;
+  --ink-faint: #9a9388;
+  --ink-ghost: #c2bbb0;
+
+  /* Líneas */
+  --line: #e7e2d9;
+  --line-soft: #f0ece4;
+  --line-strong: #d8d2c6;
+
+  /* Acento de marca */
+  --brand: #c75c37;
+  --brand-deep: #ab4a2a;
+  --brand-soft: #f8eae3;
+  --brand-tint: #fcf4ef;
+
+  /* Tints semánticos */
+  --tint-green: #2f7d56;   --tint-green-bg: #e6f1ea;
+  --tint-blue: #2f6bb0;    --tint-blue-bg: #e6eef7;
+  --tint-amber: #b9802a;   --tint-amber-bg: #f6edd8;
+  --tint-purple: #7a51c2;  --tint-purple-bg: #efe9f9;
+  --tint-rose: #c14b73;    --tint-rose-bg: #fae8ee;
+  --tint-teal: #1f8a82;    --tint-teal-bg: #e0f0ee;
+  --tint-gray: #6c655b;    --tint-gray-bg: #eeeae3;
+
+  /* Radios y sombras */
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 18px;
+  --radius: 0.5rem;
+  --shadow-sm: 0 1px 2px rgba(34, 30, 26, 0.06), 0 1px 3px rgba(34, 30, 26, 0.05);
+  --shadow-md: 0 4px 14px rgba(34, 30, 26, 0.09), 0 1px 4px rgba(34, 30, 26, 0.06);
+  --shadow-lg: 0 18px 50px rgba(34, 30, 26, 0.18), 0 4px 14px rgba(34, 30, 26, 0.10);
+
+  /* Layout */
+  --sidebar-w: 268px;
+
+  /* shadcn (semánticos) → Mikion */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--sidebar-hover);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sidebar);
+  --muted-foreground: var(--ink-faint);
+  --accent: var(--sidebar-hover);
+  --accent-foreground: var(--ink);
+  --destructive: #c0392b;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --chart-2: var(--tint-blue);
+  --chart-3: var(--tint-green);
+  --chart-4: var(--tint-amber);
+  --chart-5: var(--tint-purple);
+  --sidebar-foreground: var(--ink-soft);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--sidebar-hover);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--brand);
 }
 
+/* ---------------------------------------------------------------------------
+   Tokens — Oscuro
+--------------------------------------------------------------------------- */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --paper: #1b1916;
+  --surface: #242120;
+  --sidebar: #1e1c19;
+  --sidebar-hover: #2c2926;
+  --overlay: rgba(0, 0, 0, 0.55);
+
+  --ink: #ece6dd;
+  --ink-soft: #a79f93;
+  --ink-faint: #7b736a;
+  --ink-ghost: #564f48;
+
+  --line: #322e29;
+  --line-soft: #28251f;
+  --line-strong: #423c34;
+
+  --brand: #e3784f;
+  --brand-deep: #ef875f;
+  --brand-soft: #3a281f;
+  --brand-tint: #281f1a;
+
+  --tint-green: #6ec394;   --tint-green-bg: #1c2c23;
+  --tint-blue: #6fa6e3;    --tint-blue-bg: #1a2634;
+  --tint-amber: #d8ab5c;   --tint-amber-bg: #2f2819;
+  --tint-purple: #ab8de3;  --tint-purple-bg: #251e33;
+  --tint-rose: #e381a4;    --tint-rose-bg: #2f1d27;
+  --tint-teal: #5ec4ba;    --tint-teal-bg: #182c2a;
+  --tint-gray: #a79f93;    --tint-gray-bg: #2c2926;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.6), 0 4px 14px rgba(0, 0, 0, 0.4);
+
+  --destructive: #e8705f;
 }
 
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -127,4 +231,90 @@
   html {
     @apply font-sans;
   }
+}
+
+::selection {
+  background: var(--brand-soft);
+}
+
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(34, 30, 26, 0.16);
+  border-radius: 20px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 30, 26, 0.28);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  background-clip: padding-box;
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+  background-clip: padding-box;
+}
+
+/* ---------------------------------------------------------------------------
+   Tamaño de texto (preferencia) — escala SOLO el contenido.
+   El control y la persistencia llegan en la pieza 1.2 (Shell); aquí queda
+   listo el mecanismo: una var --text-scale en <html> y el wrapper de contenido.
+--------------------------------------------------------------------------- */
+.content-scroll {
+  font-size: calc(15px * var(--text-scale, 1));
+  font-family: var(--content-font, var(--font-sans));
+}
+.content-scroll > * {
+  zoom: var(--text-scale, 1);
+}
+
+/* Ancho de página completo (preferencia global): anula el max-width de los
+   contenedores de contenido marcados con .page-w. */
+html.mikion-full-width .page-w {
+  max-width: none;
+}
+
+/* ---------------------------------------------------------------------------
+   BlockNote → tokens Mikion. Mapeamos las variables del editor a los tokens
+   del tema (que ya cambian con .dark), para que se funda con la página en
+   vez de mostrarse como una caja con fondo propio. Especificidad
+   .content-scroll .bn-root[data-color-scheme] para ganar a los defaults.
+--------------------------------------------------------------------------- */
+.content-scroll .bn-root[data-color-scheme] {
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-editor-background: transparent;
+  --bn-font-family: var(--content-font, var(--font-sans));
+  --bn-colors-menu-text: var(--ink);
+  --bn-colors-menu-background: var(--surface);
+  --bn-colors-tooltip-text: var(--ink);
+  --bn-colors-tooltip-background: var(--surface);
+  --bn-colors-hovered-text: var(--ink);
+  --bn-colors-hovered-background: var(--sidebar-hover);
+  --bn-colors-selected-text: var(--ink);
+  --bn-colors-selected-background: var(--brand-soft);
+  --bn-colors-disabled-text: var(--ink-ghost);
+  --bn-colors-disabled-background: var(--sidebar);
+  --bn-colors-border: var(--line);
+  --bn-colors-side-menu: var(--ink-faint);
+}
+
+/* El editor se alinea con el título (sin padding lateral ni fondo). */
+.content-scroll .bn-editor {
+  padding-inline: 0;
+  background-color: transparent;
+}
+
+/* Títulos en serif, como el resto de Mikion. */
+.content-scroll .bn-editor h1,
+.content-scroll .bn-editor h2 {
+  font-family: var(--font-serif);
+  font-weight: 580;
 }

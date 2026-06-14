@@ -1,0 +1,352 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Search,
+  Home,
+  Inbox,
+  Star,
+  Plus,
+  Settings,
+  Trash2,
+  FileText,
+  Database,
+  ChevronDown,
+} from "lucide-react";
+import { toast } from "sonner";
+import { buildTree, type TreeDoc } from "@/lib/tree";
+import { createDoc, moveToTrash } from "@/lib/actions/docs";
+import { cn } from "@/lib/utils";
+import { docIcon } from "./doc-icon";
+import { PageTree } from "./page-tree";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type DocKind = "page" | "database";
+
+type Props = {
+  workspace: { id: string; name: string };
+  user: { name: string; email: string };
+  docs: TreeDoc[];
+};
+
+export function AppSidebar({ workspace, user, docs }: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const activeId = pathname.startsWith("/p/") ? pathname.split("/")[2] : null;
+
+  const team = useMemo(() => buildTree(docs, "team"), [docs]);
+  const priv = useMemo(() => buildTree(docs, "private"), [docs]);
+  const favorites = useMemo(() => docs.filter((d) => d.isFavorite), [docs]);
+
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function create(
+    section: "team" | "private",
+    parentId: string | null,
+    kind: DocKind = "page"
+  ) {
+    startTransition(async () => {
+      const { id } = await createDoc({ section, parentId, kind });
+      if (parentId) setExpanded((prev) => new Set(prev).add(parentId));
+      router.push(`/p/${id}`);
+    });
+  }
+
+  function trash(id: string) {
+    startTransition(async () => {
+      await moveToTrash(id);
+      toast.success("Movido a la papelera");
+      if (activeId === id) router.push("/");
+    });
+  }
+
+  const treeProps = {
+    activeId,
+    expanded,
+    onToggle: toggle,
+    onCreateChild: (parentId: string) => create("team", parentId),
+    onTrash: trash,
+  };
+
+  return (
+    <aside className="bg-sidebar border-line hidden h-screen w-(--sidebar-w) shrink-0 flex-col border-r md:flex">
+      {/* Cabecera de workspace + lanzador de apps */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="hover:bg-sidebar-hover flex items-center gap-2 px-3 py-3 text-left">
+            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-sm font-semibold">
+              M
+            </div>
+            <span className="text-ink flex-1 truncate text-sm font-medium">
+              {workspace.name}
+            </span>
+            <ChevronDown className="text-ink-faint size-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-60 p-1">
+          <div className="px-2 py-1.5 text-xs text-ink-faint">{user.email}</div>
+          <AppLauncherItem label="Mikion" active />
+          <AppLauncherItem label="Mikion Calendar" soon />
+          <AppLauncherItem label="Mikion Mail" soon />
+          <div className="bg-line my-1 h-px" />
+          <Link
+            href="/settings"
+            className="hover:bg-sidebar-hover flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+          >
+            <Settings className="size-4 text-ink-faint" /> Ajustes
+          </Link>
+        </PopoverContent>
+      </Popover>
+
+      <nav className="flex-1 overflow-y-auto px-2 pb-4">
+        {/* Accesos rápidos */}
+        <QuickRow
+          icon={<Search className="size-4" />}
+          label="Buscar"
+          onClick={() => window.dispatchEvent(new Event("mikion:command"))}
+        />
+        <QuickRow
+          icon={<Home className="size-4" />}
+          label="Inicio"
+          href="/"
+          active={pathname === "/"}
+        />
+        <QuickRow
+          icon={<Inbox className="size-4" />}
+          label="Bandeja de entrada"
+          href="/inbox"
+          active={pathname === "/inbox"}
+          badge="3"
+        />
+
+        {/* Favoritos */}
+        {favorites.length > 0 && (
+          <Section title="Favoritos">
+            {favorites.map((d) => (
+              <Link
+                key={d.id}
+                href={`/p/${d.id}`}
+                className={cn(
+                  "text-ink-soft hover:bg-sidebar-hover flex items-center gap-2 rounded-sm px-1.5 py-1 text-sm",
+                  activeId === d.id && "bg-sidebar-hover text-ink font-medium"
+                )}
+              >
+                <span className="flex size-[18px] items-center justify-center text-[15px]">
+                  {docIcon(d.kind, d.emoji, activeId === d.id)}
+                </span>
+                <span className="truncate">{d.title || "Sin título"}</span>
+              </Link>
+            ))}
+          </Section>
+        )}
+
+        {/* Espacio de equipo */}
+        <Section
+          title="Espacio de equipo"
+          addMenu={
+            <CreateMenu onPick={(k) => create("team", null, k)}>
+              <button
+                className="text-ink-faint hover:bg-line flex size-5 items-center justify-center rounded-sm opacity-0 group-hover/section:opacity-100"
+                aria-label="Añadir en Espacio de equipo"
+              >
+                <Plus className="size-4" />
+              </button>
+            </CreateMenu>
+          }
+        >
+          {team.length > 0 ? (
+            <PageTree nodes={team} depth={0} {...treeProps} />
+          ) : (
+            <EmptyHint />
+          )}
+        </Section>
+
+        {/* Privado */}
+        <Section
+          title="Privado"
+          addMenu={
+            <CreateMenu onPick={(k) => create("private", null, k)}>
+              <button
+                className="text-ink-faint hover:bg-line flex size-5 items-center justify-center rounded-sm opacity-0 group-hover/section:opacity-100"
+                aria-label="Añadir en Privado"
+              >
+                <Plus className="size-4" />
+              </button>
+            </CreateMenu>
+          }
+        >
+          {priv.length > 0 ? (
+            <PageTree
+              nodes={priv}
+              depth={0}
+              {...treeProps}
+              onCreateChild={(parentId) => create("private", parentId)}
+            />
+          ) : (
+            <EmptyHint />
+          )}
+        </Section>
+
+        <CreateMenu onPick={(k) => create("team", null, k)}>
+          <button className="text-ink-faint hover:bg-sidebar-hover mt-2 flex w-full items-center gap-2 rounded-sm px-1.5 py-1 text-sm">
+            <Plus className="size-4" /> Nueva página
+          </button>
+        </CreateMenu>
+      </nav>
+
+      {/* Pie */}
+      <div className="border-line space-y-0.5 border-t p-2">
+        <QuickRow
+          icon={<Settings className="size-4" />}
+          label="Ajustes"
+          href="/settings"
+          active={pathname === "/settings"}
+        />
+        <QuickRow
+          icon={<Trash2 className="size-4" />}
+          label="Papelera"
+          href="/trash"
+          active={pathname === "/trash"}
+        />
+      </div>
+    </aside>
+  );
+}
+
+function QuickRow({
+  icon,
+  label,
+  href,
+  onClick,
+  active,
+  badge,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  active?: boolean;
+  badge?: string;
+}) {
+  const cls = cn(
+    "text-ink-soft hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-1.5 py-1 text-sm",
+    active && "bg-sidebar-hover text-ink font-medium"
+  );
+  const inner = (
+    <>
+      <span className="text-ink-faint">{icon}</span>
+      <span className="flex-1 text-left">{label}</span>
+      {badge && (
+        <span className="bg-brand-soft text-brand rounded-full px-1.5 text-xs font-medium">
+          {badge}
+        </span>
+      )}
+    </>
+  );
+  return href ? (
+    <Link href={href} className={cls}>
+      {inner}
+    </Link>
+  ) : (
+    <button onClick={onClick} className={cls}>
+      {inner}
+    </button>
+  );
+}
+
+function Section({
+  title,
+  addMenu,
+  children,
+}: {
+  title: string;
+  addMenu?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="group/section mt-5">
+      <div className="flex items-center justify-between px-1.5 pb-1">
+        <span className="text-ink-faint text-[11.5px] font-semibold uppercase tracking-[0.04em]">
+          {title}
+        </span>
+        {addMenu}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CreateMenu({
+  onPick,
+  children,
+}: {
+  onPick: (kind: DocKind) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-44">
+        <DropdownMenuItem onClick={() => onPick("page")}>
+          <FileText className="size-4" /> Página
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onPick("database")}>
+          <Database className="size-4" /> Base de datos
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function EmptyHint() {
+  return (
+    <p className="text-ink-ghost px-1.5 py-1 text-xs">Vacío</p>
+  );
+}
+
+function AppLauncherItem({
+  label,
+  active,
+  soon,
+}: {
+  label: string;
+  active?: boolean;
+  soon?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+        active ? "text-ink" : "text-ink-soft",
+        soon && "opacity-60"
+      )}
+    >
+      <FileText className="size-4 text-ink-faint" />
+      <span className="flex-1">{label}</span>
+      {active && <Star className="size-3.5 text-brand" />}
+      {soon && <span className="text-ink-ghost text-[10px]">pronto</span>}
+    </div>
+  );
+}

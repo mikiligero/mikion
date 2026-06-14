@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Prototipos de referencia del handoff — no son código de producción.
+    "design_handoff_mikion_workspace/**",
   ]),
 ]);
 
