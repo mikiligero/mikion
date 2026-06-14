@@ -16,8 +16,9 @@ export const COVER_KEYS = Object.keys(COVERS) as CoverKey[];
 // Portadas de imagen predefinidas (SVG en /public/covers), seleccionables como
 // los gradientes. El valor guardado en `cover` es la ruta (la sirve coverBackground).
 export const IMAGE_COVERS: { label: string; url: string }[] = [
-  { label: "Espacio", url: "/covers/space.svg" },
-  { label: "Aurora", url: "/covers/aurora.svg" },
+  { label: "Espacio", url: "/covers/fondo-espacio.webp" },
+  { label: "Aurora", url: "/covers/portada-aurora.webp" },
+  { label: "Olas", url: "/covers/portada-olas.webp" },
 ];
 
 /** Resuelve el valor `cover` de un doc a un `background` CSS. Acepta:
