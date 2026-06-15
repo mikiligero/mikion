@@ -20,9 +20,11 @@ import { groupRows, findOption, type RowGroup } from "@/lib/database-view";
 import { getRowTitle } from "@/lib/database-utils";
 import { coverBackground } from "@/lib/covers";
 import { moveRow, createRow } from "@/lib/actions/databases";
+import { cn } from "@/lib/utils";
 import { Tag } from "./property-cell";
 
 const COL_PREFIX = "col:";
+const CARD_PREFIX = "card:";
 
 export function BoardView({
   docId,
@@ -68,12 +70,45 @@ export function BoardView({
     setDragging(null);
     const rowId = String(e.active.id);
     const overId = e.over?.id ? String(e.over.id) : null;
-    if (!overId || !overId.startsWith(COL_PREFIX)) return;
-    const rawValue = overId.slice(COL_PREFIX.length);
-    const groupValue = rawValue === "none" ? null : rawValue;
-    const row = rows.find((r) => r.id === rowId);
-    if (!row || (row.values?.[groupProp] ?? null) === groupValue) return;
-    void moveRow(rowId, { groupPropertyId: groupProp, groupValue });
+    if (!overId || !rows.find((r) => r.id === rowId)) return;
+
+    // Columna destino + (opcional) la tarjeta sobre la que se suelta.
+    let groupValue: string | null;
+    let overRowId: string | null = null;
+    if (overId.startsWith(CARD_PREFIX)) {
+      overRowId = overId.slice(CARD_PREFIX.length);
+      if (overRowId === rowId) return;
+      const overRow = rows.find((r) => r.id === overRowId);
+      if (!overRow) return;
+      groupValue = (overRow.values?.[groupProp] as string) ?? null;
+    } else if (overId.startsWith(COL_PREFIX)) {
+      const raw = overId.slice(COL_PREFIX.length);
+      groupValue = raw === "none" ? null : raw;
+    } else {
+      return;
+    }
+
+    // Vecinos en la columna destino (excluyendo la propia tarjeta arrastrada).
+    const colRows = (
+      groups.find((g) => g.id === groupValue)?.rows ?? []
+    ).filter((r) => r.id !== rowId);
+    let afterId: string | null;
+    let beforeId: string | null;
+    if (overRowId) {
+      const idx = colRows.findIndex((r) => r.id === overRowId);
+      afterId = idx > 0 ? colRows[idx - 1].id : null;
+      beforeId = colRows[idx]?.id ?? null;
+    } else {
+      afterId = colRows.length ? colRows[colRows.length - 1].id : null;
+      beforeId = null;
+    }
+
+    void moveRow(rowId, {
+      groupPropertyId: groupProp,
+      groupValue,
+      afterId,
+      beforeId,
+    });
   }
 
   return (
@@ -171,15 +206,21 @@ function DraggableCard({
   chipProps: PropertyDef[];
   docId: string;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: row.id,
-  });
+  const drag = useDraggable({ id: row.id });
+  const drop = useDroppable({ id: `${CARD_PREFIX}${row.id}` });
+  const setRef = (node: HTMLElement | null) => {
+    drag.setNodeRef(node);
+    drop.setNodeRef(node);
+  };
   return (
     <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className={isDragging ? "opacity-40" : ""}
+      ref={setRef}
+      {...drag.listeners}
+      {...drag.attributes}
+      className={cn(
+        drag.isDragging && "opacity-40",
+        drop.isOver && !drag.isDragging && "ring-brand rounded-md ring-2"
+      )}
     >
       <Card row={row} schema={schema} chipProps={chipProps} docId={docId} />
     </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight, Plus, MoreHorizontal, Trash2 } from "lucide-react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { TreeNode } from "@/lib/tree";
 import { cn } from "@/lib/utils";
 import { docIcon } from "./doc-icon";
@@ -46,12 +47,24 @@ function TreeRow({
   const isOpen = expanded.has(node.id);
   const isActive = activeId === node.id;
 
+  const drag = useDraggable({ id: node.id });
+  const drop = useDroppable({ id: `node:${node.id}` });
+  const setRef = (n: HTMLElement | null) => {
+    drag.setNodeRef(n);
+    drop.setNodeRef(n);
+  };
+
   return (
     <li>
       <div
+        ref={setRef}
+        {...drag.listeners}
+        {...drag.attributes}
         className={cn(
           "group/row text-ink-soft hover:bg-sidebar-hover relative flex items-center gap-1 rounded-sm pr-1 text-sm transition-colors",
-          isActive && "bg-sidebar-hover text-ink font-medium"
+          isActive && "bg-sidebar-hover text-ink font-medium",
+          drag.isDragging && "opacity-40",
+          drop.isOver && !drag.isDragging && "before:bg-brand before:absolute before:inset-x-0 before:-top-px before:h-0.5 before:content-['']"
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >

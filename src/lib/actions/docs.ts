@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { generateKeyBetween } from "fractional-indexing";
 import { db } from "@/db";
 import { docs, databases, views, rows } from "@/db/schema";
 import type { Block } from "@/lib/types";
@@ -244,6 +245,48 @@ async function duplicateSubtree(
     await duplicateSubtree(child.id, copy.id);
   }
   return copy.id;
+}
+
+/** Mueve un doc en el árbol: cambia padre/sección y/o lo coloca entre vecinos
+ * (orden fraccional). Evita ciclos (no se puede mover dentro de sí mismo). */
+export async function moveDoc(input: {
+  docId: string;
+  newParentId: string | null;
+  section?: "team" | "private";
+  afterId?: string | null;
+  beforeId?: string | null;
+}) {
+  const doc = await assertDocAccess(input.docId);
+  if (input.newParentId) {
+    await assertDocAccess(input.newParentId);
+    const descendants = await getDescendantIds(input.docId);
+    if (
+      input.newParentId === input.docId ||
+      descendants.includes(input.newParentId)
+    ) {
+      throw new Error("No se puede mover una página dentro de sí misma");
+    }
+  }
+
+  const section = input.section ?? doc.section;
+  let orderKey: string;
+  if (input.afterId || input.beforeId) {
+    const after = input.afterId
+      ? await db.query.docs.findFirst({ where: eq(docs.id, input.afterId) })
+      : null;
+    const before = input.beforeId
+      ? await db.query.docs.findFirst({ where: eq(docs.id, input.beforeId) })
+      : null;
+    orderKey = generateKeyBetween(after?.orderKey ?? null, before?.orderKey ?? null);
+  } else {
+    orderKey = await nextOrderKey(doc.workspaceId, section, input.newParentId);
+  }
+
+  await db
+    .update(docs)
+    .set({ parentId: input.newParentId, section, orderKey })
+    .where(eq(docs.id, input.docId));
+  revalidateShell();
 }
 
 export async function moveToTrash(docId: string) {

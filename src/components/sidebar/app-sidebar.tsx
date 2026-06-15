@@ -17,8 +17,16 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { buildTree, type TreeDoc } from "@/lib/tree";
-import { createDoc, moveToTrash } from "@/lib/actions/docs";
+import { createDoc, moveToTrash, moveDoc } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
 import { docIcon } from "./doc-icon";
 import { PageTree } from "./page-tree";
@@ -82,6 +90,70 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
       toast.success("Movido a la papelera");
       if (activeId === id) router.push("/");
     });
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+
+  function onDragEnd(e: DragEndEvent) {
+    const activeDocId = String(e.active.id);
+    const overId = e.over?.id ? String(e.over.id) : null;
+    if (!overId) return;
+    const dragged = docs.find((d) => d.id === activeDocId);
+    if (!dragged) return;
+
+    // Descendientes (para evitar mover dentro de sí mismo).
+    const descendants = new Set<string>();
+    const collect = (pid: string) => {
+      for (const d of docs)
+        if (d.parentId === pid) {
+          descendants.add(d.id);
+          collect(d.id);
+        }
+    };
+    collect(activeDocId);
+
+    const byKey = (a: TreeDoc, b: TreeDoc) =>
+      a.orderKey < b.orderKey ? -1 : a.orderKey > b.orderKey ? 1 : 0;
+
+    let newParentId: string | null;
+    let section: "team" | "private";
+    let afterId: string | null = null;
+    let beforeId: string | null = null;
+
+    if (overId.startsWith("root:")) {
+      section = overId.slice(5) as "team" | "private";
+      newParentId = null;
+      const roots = docs
+        .filter((d) => d.section === section && !d.parentId && d.id !== activeDocId)
+        .sort(byKey);
+      afterId = roots.length ? roots[roots.length - 1].id : null;
+    } else if (overId.startsWith("node:")) {
+      const targetId = overId.slice(5);
+      if (targetId === activeDocId || descendants.has(targetId)) return;
+      const target = docs.find((d) => d.id === targetId);
+      if (!target) return;
+      newParentId = target.parentId ?? null;
+      section = target.section;
+      const siblings = docs
+        .filter(
+          (d) =>
+            d.section === section &&
+            (d.parentId ?? null) === newParentId &&
+            d.id !== activeDocId
+        )
+        .sort(byKey);
+      const idx = siblings.findIndex((d) => d.id === targetId);
+      afterId = idx > 0 ? siblings[idx - 1].id : null;
+      beforeId = siblings[idx]?.id ?? null;
+    } else {
+      return;
+    }
+
+    startTransition(() =>
+      moveDoc({ docId: activeDocId, newParentId, section, afterId, beforeId })
+    );
   }
 
   const treeProps = {
@@ -164,52 +236,58 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
           </Section>
         )}
 
-        {/* Espacio de equipo */}
-        <Section
-          title="Espacio de equipo"
-          addMenu={
-            <CreateMenu onPick={(k) => create("team", null, k)}>
-              <button
-                className="text-ink-faint hover:bg-line flex size-5 items-center justify-center rounded-sm opacity-0 group-hover/section:opacity-100"
-                aria-label="Añadir en Espacio de equipo"
-              >
-                <Plus className="size-4" />
-              </button>
-            </CreateMenu>
-          }
-        >
-          {team.length > 0 ? (
-            <PageTree nodes={team} depth={0} {...treeProps} />
-          ) : (
-            <EmptyHint />
-          )}
-        </Section>
+        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+          {/* Espacio de equipo */}
+          <Section
+            title="Espacio de equipo"
+            addMenu={
+              <CreateMenu onPick={(k) => create("team", null, k)}>
+                <button
+                  className="text-ink-faint hover:bg-line flex size-5 items-center justify-center rounded-sm opacity-0 group-hover/section:opacity-100"
+                  aria-label="Añadir en Espacio de equipo"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </CreateMenu>
+            }
+          >
+            <RootDroppable section="team">
+              {team.length > 0 ? (
+                <PageTree nodes={team} depth={0} {...treeProps} />
+              ) : (
+                <EmptyHint />
+              )}
+            </RootDroppable>
+          </Section>
 
-        {/* Privado */}
-        <Section
-          title="Privado"
-          addMenu={
-            <CreateMenu onPick={(k) => create("private", null, k)}>
-              <button
-                className="text-ink-faint hover:bg-line flex size-5 items-center justify-center rounded-sm opacity-0 group-hover/section:opacity-100"
-                aria-label="Añadir en Privado"
-              >
-                <Plus className="size-4" />
-              </button>
-            </CreateMenu>
-          }
-        >
-          {priv.length > 0 ? (
-            <PageTree
-              nodes={priv}
-              depth={0}
-              {...treeProps}
-              onCreateChild={(parentId) => create("private", parentId)}
-            />
-          ) : (
-            <EmptyHint />
-          )}
-        </Section>
+          {/* Privado */}
+          <Section
+            title="Privado"
+            addMenu={
+              <CreateMenu onPick={(k) => create("private", null, k)}>
+                <button
+                  className="text-ink-faint hover:bg-line flex size-5 items-center justify-center rounded-sm opacity-0 group-hover/section:opacity-100"
+                  aria-label="Añadir en Privado"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </CreateMenu>
+            }
+          >
+            <RootDroppable section="private">
+              {priv.length > 0 ? (
+                <PageTree
+                  nodes={priv}
+                  depth={0}
+                  {...treeProps}
+                  onCreateChild={(parentId) => create("private", parentId)}
+                />
+              ) : (
+                <EmptyHint />
+              )}
+            </RootDroppable>
+          </Section>
+        </DndContext>
 
         <CreateMenu onPick={(k) => create("team", null, k)}>
           <button className="text-ink-faint hover:bg-sidebar-hover mt-2 flex w-full items-center gap-2 rounded-sm px-1.5 py-1 text-sm">
@@ -328,6 +406,24 @@ function CreateMenu({
 function EmptyHint() {
   return (
     <p className="text-ink-ghost px-1.5 py-1 text-xs">Vacío</p>
+  );
+}
+
+function RootDroppable({
+  section,
+  children,
+}: {
+  section: "team" | "private";
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `root:${section}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn("min-h-6 rounded-sm", isOver && "bg-sidebar-hover/50")}
+    >
+      {children}
+    </div>
   );
 }
 
