@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { versions, docs, users } from "@/db/schema";
-import { assertDocAccess, requireUserId } from "./helpers";
+import { assertDocAccess, requireUserId, pruneVersions } from "./helpers";
 
 export type VersionItem = {
   id: string;
@@ -54,6 +54,7 @@ export async function restoreVersion(versionId: string) {
       textContent: doc.textContent,
       authorId: userId,
     });
+    await pruneVersions(v.docId);
   }
 
   await db

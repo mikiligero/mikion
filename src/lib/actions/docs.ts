@@ -14,6 +14,7 @@ import {
   nextOrderKey,
   requireUserId,
   createNotification,
+  pruneVersions,
 } from "./helpers";
 
 function revalidateShell() {
@@ -99,7 +100,7 @@ export async function renameDoc(docId: string, title: string) {
 /** Autosave del contenido del editor. Sin revalidate: el editor ya tiene el
  * contenido en cliente; revalidar en cada pulsación recargaría el shell. */
 // Snapshots de versión como mucho cada N minutos (evita una por pulsación).
-const VERSION_THROTTLE_MS = 3 * 60 * 1000;
+const VERSION_THROTTLE_MS = 5 * 60 * 1000;
 
 export async function savePageContent(
   docId: string,
@@ -126,6 +127,7 @@ export async function savePageContent(
     await db
       .insert(versions)
       .values({ docId, blocks, textContent, authorId: userId });
+    await pruneVersions(docId);
   }
 
   // Notifica las menciones nuevas (las que no estaban en la versión anterior).

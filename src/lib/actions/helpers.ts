@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
@@ -11,6 +11,7 @@ import {
   views,
   notifications,
   preferences,
+  versions,
 } from "@/db/schema";
 import type { Doc, DbDatabase, Row, View } from "@/db/schema";
 import { sendTelegramMessage } from "@/lib/telegram";
@@ -48,6 +49,25 @@ export async function createNotification(input: {
       ? `<b>${input.title}</b>\n${input.body}`
       : `<b>${input.title}</b>`;
     await sendTelegramMessage(pref.telegramChatId, text).catch(() => {});
+  }
+}
+
+/** Conserva solo las N versiones más recientes de un doc (poda el resto). */
+export const VERSIONS_KEEP = 15;
+export async function pruneVersions(docId: string) {
+  const old = await db
+    .select({ id: versions.id })
+    .from(versions)
+    .where(eq(versions.docId, docId))
+    .orderBy(desc(versions.createdAt))
+    .offset(VERSIONS_KEEP);
+  if (old.length) {
+    await db.delete(versions).where(
+      inArray(
+        versions.id,
+        old.map((r) => r.id)
+      )
+    );
   }
 }
 
