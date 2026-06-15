@@ -1,6 +1,6 @@
 # Despliegue de producción (pensado para el LXC de Proxmox).
 # Uso:
-#   cp .env.example .env   # y rellena BETTER_AUTH_SECRET y URLs
+#   cp .env.example .env   # y rellena POSTGRES_PASSWORD, BETTER_AUTH_SECRET y URLs
 #   docker compose -f docker-compose.prod.yml up -d --build
 services:
   app:
@@ -9,7 +9,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgres://notion:${POSTGRES_PASSWORD:-notion}@db:5432/notion
+      DATABASE_URL: postgres://notion:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}@db:5432/notion
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Define BETTER_AUTH_SECRET en .env}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       NEXT_PUBLIC_APP_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: notion
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
       POSTGRES_DB: notion
     volumes:
       - notion-db-data:/var/lib/postgresql/data
