@@ -12,7 +12,8 @@ export default async function RowDocPage({
   params: Promise<{ docId: string; rowId: string }>;
 }) {
   const { docId, rowId } = await params;
-  const { workspace } = await requireWorkspace();
+  const { session, workspace } = await requireWorkspace();
+  const mentionUsers = [{ id: session.user.id, name: session.user.name }];
 
   const doc = await db.query.docs.findFirst({
     where: and(eq(docs.id, docId), eq(docs.workspaceId, workspace.id)),
@@ -43,6 +44,7 @@ export default async function RowDocPage({
         cover: row.cover,
         blocks: (row.blocks as Block[] | null) ?? null,
       }}
+      mentionUsers={mentionUsers}
     />
   );
 }

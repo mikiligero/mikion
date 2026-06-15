@@ -119,11 +119,54 @@ export type ViewConfig = {
   groupBy?: string; // propiedad select/status/person (board / agrupación)
   hiddenProperties?: string[];
   propertyOrder?: string[];
+  datePropertyId?: string; // propiedad de fecha (vista calendario / cronograma)
   chartType?: "bar" | "donut"; // type === "chart"
   chartGroupBy?: string;
 };
 
 // --- Colores de opciones (mapean a tints del tema) ------------------------
+// --- Automatizaciones (por base de datos) ---------------------------------
+export type AutomationTrigger =
+  | "status_done"
+  | "item_added"
+  | "due_2days"
+  | "priority_changed"
+  | "assignee_set"
+  | "due_passed";
+
+export type AutomationAction =
+  | "set_end_date"
+  | "assign_me"
+  | "slack_reminder"
+  | "status_review"
+  | "notify_assignee"
+  | "create_subtask";
+
+export type Automation = {
+  id: string;
+  when: AutomationTrigger;
+  then: AutomationAction;
+  enabled: boolean;
+};
+
+export const AUTOMATION_TRIGGERS: { value: AutomationTrigger; label: string }[] = [
+  { value: "status_done", label: "El estado cambia a «Hecho»" },
+  { value: "item_added", label: "Se añade un elemento" },
+  { value: "due_2days", label: "La entrega es en 2 días" },
+  { value: "priority_changed", label: "Cambia la prioridad" },
+  { value: "assignee_set", label: "Se asigna un responsable" },
+  { value: "due_passed", label: "Pasa la fecha de entrega" },
+];
+
+export const AUTOMATION_ACTIONS: { value: AutomationAction; label: string }[] = [
+  { value: "set_end_date", label: "Marcar la fecha de fin con hoy" },
+  { value: "assign_me", label: "Autoasignarme" },
+  { value: "slack_reminder", label: "Enviar recordatorio a Slack" },
+  { value: "status_review", label: "Cambiar estado a «En revisión»" },
+  { value: "notify_assignee", label: "Notificar al responsable" },
+  { value: "create_subtask", label: "Crear subtarea" },
+];
+
 export const SELECT_COLOR_KEYS = [
   "green",
   "blue",

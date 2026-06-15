@@ -157,6 +157,12 @@ export function CommandPalette() {
       { id: "inbox", label: "Ir a Bandeja de entrada", icon: <Inbox className="size-4" />, run: () => go("/inbox") },
       { id: "settings", label: "Abrir Ajustes", icon: <Settings className="size-4" />, run: () => go("/settings") },
       {
+        id: "templates",
+        label: "Plantillas",
+        icon: <FileText className="size-4" />,
+        run: () => run(() => window.dispatchEvent(new Event("mikion:templates"))),
+      },
+      {
         id: "theme",
         label: "Cambiar tema",
         icon: <Moon className="size-4" />,

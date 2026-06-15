@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { db } from "@/db";
-import { rows, databases, views } from "@/db/schema";
+import { rows, databases, views, docs } from "@/db/schema";
 import type {
+  Automation,
   Block,
   DatabaseSchema,
   PropertyDef,
@@ -14,12 +15,15 @@ import type {
   ViewConfig,
   ViewType,
 } from "@/lib/types";
-import { newPropertyDef } from "@/lib/database-utils";
+import { newPropertyDef, defaultDatabaseSchema } from "@/lib/database-utils";
 import {
   assertDatabaseAccess,
+  assertDocAccess,
   assertRowAccess,
   assertViewAccess,
+  nextOrderKey,
 } from "./helpers";
+import type { Row } from "@/db/schema";
 
 function revalidateShell() {
   revalidatePath("/", "layout");
@@ -159,6 +163,67 @@ export async function updateView(
     .update(views)
     .set({ config: { ...view.config, ...patch } })
     .where(eq(views.id, viewId));
+  revalidateShell();
+}
+
+// Crea una BD en línea: un doc hijo (kind=database) bajo la página actual +
+// esquema por defecto + vista tabla. Devuelve los ids para el bloque.
+export async function createInlineDatabase(parentDocId: string) {
+  const parent = await assertDocAccess(parentDocId);
+  const orderKey = await nextOrderKey(
+    parent.workspaceId,
+    parent.section,
+    parentDocId
+  );
+  const [doc] = await db
+    .insert(docs)
+    .values({
+      workspaceId: parent.workspaceId,
+      section: parent.section,
+      parentId: parentDocId,
+      kind: "database",
+      title: "Base de datos",
+      orderKey,
+    })
+    .returning();
+  const [database] = await db
+    .insert(databases)
+    .values({ docId: doc.id, schema: defaultDatabaseSchema() })
+    .returning();
+  await db.insert(views).values({
+    databaseId: database.id,
+    name: "Tabla",
+    type: "table",
+    config: { filters: [], sorts: [] },
+  });
+  revalidateShell();
+  return { databaseId: database.id, docId: doc.id };
+}
+
+// Carga el esquema + filas de una BD (para refrescar el bloque en cliente).
+export async function getInlineDatabase(databaseId: string): Promise<{
+  schema: DatabaseSchema;
+  rows: Row[];
+  docId: string;
+}> {
+  const { database, docId } = await assertDatabaseAccess(databaseId);
+  const rowRows = await db
+    .select()
+    .from(rows)
+    .where(and(eq(rows.databaseId, databaseId), isNull(rows.deletedAt)))
+    .orderBy(asc(rows.orderKey));
+  return { schema: database.schema, rows: rowRows, docId };
+}
+
+export async function setAutomations(
+  databaseId: string,
+  automations: Automation[]
+) {
+  await assertDatabaseAccess(databaseId);
+  await db
+    .update(databases)
+    .set({ automations })
+    .where(eq(databases.id, databaseId));
   revalidateShell();
 }
 

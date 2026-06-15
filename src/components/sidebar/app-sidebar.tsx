@@ -13,6 +13,7 @@ import {
   Trash2,
   FileText,
   Database,
+  Calendar,
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,7 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type DocKind = "page" | "database";
+type DocKind = "page" | "database" | "calendar";
 
 type Props = {
   workspace: { id: string; name: string };
@@ -314,6 +315,9 @@ function CreateMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onPick("database")}>
           <Database className="size-4" /> Base de datos
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onPick("calendar")}>
+          <Calendar className="size-4" /> Calendario
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { docs, databases, views } from "@/db/schema";
 import type { Block } from "@/lib/types";
 import { defaultDatabaseSchema } from "@/lib/database-utils";
+import { extractText } from "@/lib/blocknote-utils";
 import {
   assertDocAccess,
   getDescendantIds,
@@ -54,6 +55,32 @@ export async function createDoc(input: {
     });
   }
 
+  revalidateShell();
+  return { id: doc.id };
+}
+
+export async function createPageFromTemplate(input: {
+  section?: "team" | "private";
+  title: string;
+  emoji: string;
+  blocks: Block[];
+}) {
+  const ws = await getUserWorkspace();
+  const section = input.section ?? "team";
+  const orderKey = await nextOrderKey(ws.id, section, null);
+  const [doc] = await db
+    .insert(docs)
+    .values({
+      workspaceId: ws.id,
+      section,
+      kind: "page",
+      title: input.title,
+      emoji: input.emoji,
+      blocks: input.blocks,
+      textContent: extractText(input.blocks),
+      orderKey,
+    })
+    .returning();
   revalidateShell();
   return { id: doc.id };
 }

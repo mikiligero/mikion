@@ -215,6 +215,8 @@ Lista de versiones (autor/fecha/nota) + vista previa + «Restaurar esta versión
 ---
 
 ## 7. IA (Mikion AI) 🟡
+> **⏸️ APARCADO — TODO a futuro.** Decisión del usuario (2026-06-15): la IA queda **pendiente**, sin implementar todavía. El resto del item 8 del checklist (comentarios, plantillas, automatizaciones) sí está hecho. Cuando se retome: definir proveedor (Claude/Anthropic u otro) + API key, e implementar la ruta server de Next (no `window.claude`).
+
 - **Bloque IA** (`AIBlock`) con modos: preguntar, resumir, traducir, mejorar, continuar, lluvia de ideas. Input + «Generar»; chips de modos rápidos; estados de carga; resultado con «Insertar debajo» / «Descartar».
 - **Integración real:** en el prototipo usa `window.claude.complete(prompt)` con *fallback* offline. En producción, conectar a tu proveedor (la skill «Claude API in prototypes» describe `window.claude.complete`, pero en la app real será una ruta server de Next que llame al modelo). Los prompts ya están construidos por modo (`buildPrompt`).
 - **Mail con IA:** «Resumir con IA» y «Responder con IA» en Mikion Mail.
@@ -260,9 +262,11 @@ Tokens completos (claro + oscuro), tipografía, radios, sombras y mapeo de compo
 > **Pendientes de Fase 1 (pulido):** localización del editor BlockNote al español · gestión de papelera (restaurar / vaciar; ahora `/trash` es placeholder y `moveToTrash` funciona) · drag&drop de reordenar en sidebar y dentro de columnas del tablero.
 
 **Fase 2 — Importante 🟡**
-6. Vistas Calendario / Cronograma / Gráfico + Calendario del equipo (Mes + **Lista**).
-7. Bloques avanzados (toggle, toc, embeds, tabla simple, BD en línea, columnas, chips, ecuación).
-8. Comentarios, Plantillas, **Automatizaciones** (con panel de nueva automatización), IA (bloque + endpoint).
+6. ✅ Vistas Calendario / Cronograma / Gráfico + Calendario del equipo (Mes + **Lista**).
+7. ✅ Bloques avanzados: Llamada, Tabla de contenidos, Toggle (nativo BlockNote), Embeds/marcadores (autodetección + auto-incrustar al pegar), Columnas (`@blocknote/xl-multi-column`, GPL), Ecuación (KaTeX), chips Mención/Fecha, **BD en línea**. *(La «tabla simple» nativa de BlockNote también está disponible en el menú «/».)*
+8. ✅ Comentarios (panel, a nivel de página) · ✅ Plantillas (galería 6 plantillas) · ✅ **Automatizaciones** (reglas persistidas + panel de nueva automatización; motor de ejecución → Fase 3) · ⏸️ **IA aparcada — TODO a futuro** (ver §7).
+
+> **Pendientes de Fase 2 (pulido):** comentarios anclados a un **bloque** concreto (ahora a nivel de página) · motor de ejecución de automatizaciones.
 
 **Fase 3 — Secundario ⚪**
 9. Historial de versiones, Mikion Calendar, Mikion Mail, Bandeja, conexiones/API/offline en Ajustes.

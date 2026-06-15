@@ -3,22 +3,36 @@
 import "@blocknote/shadcn/style.css";
 import { useCallback, useRef } from "react";
 import { useTheme } from "next-themes";
-import { useCreateBlockNote } from "@blocknote/react";
+import { useCreateBlockNote, SuggestionMenuController } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import type { PartialBlock } from "@blocknote/core";
+import { filterSuggestionItems, type PartialBlock } from "@blocknote/core";
+import { es } from "@blocknote/core/locales";
+import {
+  multiColumnDropCursor,
+  locales as multiColumnLocales,
+} from "@blocknote/xl-multi-column";
 import type { Block } from "@/lib/types";
 import { extractText } from "@/lib/blocknote-utils";
+import { embedInfo } from "@/lib/embed";
+import { schema, getSlashItems, getMentionItems } from "./blocks";
 
 export function BlockNoteEditor({
   initialContent,
   onSave,
+  mentionUsers = [],
+  pageDocId,
 }: {
   initialContent: Block[] | null;
   onSave: (blocks: Block[], text: string) => void;
+  mentionUsers?: { id: string; name: string }[];
+  pageDocId?: string;
 }) {
   const { resolvedTheme } = useTheme();
 
   const editor = useCreateBlockNote({
+    schema,
+    dropCursor: multiColumnDropCursor,
+    dictionary: { ...es, multi_column: multiColumnLocales.es },
     initialContent:
       initialContent && initialContent.length
         ? (initialContent as unknown as PartialBlock[])
@@ -35,11 +49,47 @@ export function BlockNoteEditor({
     }, 600);
   }, [editor, onSave]);
 
+  // Pegar un enlace de proveedor conocido (YouTube, Spotify, Maps…) lo incrusta
+  // directamente como bloque embed en vez de dejarlo como enlace.
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const text = e.clipboardData.getData("text/plain").trim();
+      if (!text || /\s/.test(text)) return;
+      const info = embedInfo(text);
+      if (!info || info.kind !== "iframe") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const cur = editor.getTextCursorPosition().block;
+      const empty =
+        !cur.content || (Array.isArray(cur.content) && cur.content.length === 0);
+      const block = { type: "embed" as const, props: { url: text } };
+      if (cur.type === "paragraph" && empty) editor.updateBlock(cur, block);
+      else editor.insertBlocks([block], cur, "after");
+    },
+    [editor]
+  );
+
   return (
-    <BlockNoteView
-      editor={editor}
-      theme={resolvedTheme === "dark" ? "dark" : "light"}
-      onChange={handleChange}
-    />
+    <div onPasteCapture={handlePaste}>
+      <BlockNoteView
+        editor={editor}
+        theme={resolvedTheme === "dark" ? "dark" : "light"}
+        onChange={handleChange}
+        slashMenu={false}
+      >
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={(query) => getSlashItems(editor, query, pageDocId)}
+        />
+        {mentionUsers.length > 0 && (
+          <SuggestionMenuController
+            triggerCharacter="@"
+            getItems={async (query) =>
+              filterSuggestionItems(getMentionItems(editor, mentionUsers), query)
+            }
+          />
+        )}
+      </BlockNoteView>
+    </div>
   );
 }

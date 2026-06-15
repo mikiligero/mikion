@@ -15,6 +15,13 @@
       "when": 1781454347298,
       "tag": "0001_unaccent_search",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781522847689,
+      "tag": "0002_automations",
+      "breakpoints": true
     }
   ]
 }

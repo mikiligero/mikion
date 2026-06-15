@@ -11,6 +11,7 @@ import {
   Sun,
   Bell,
   Users,
+  MessageSquare,
   MoreHorizontal,
   ChevronRight,
   Copy,
@@ -139,6 +140,15 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
           </IconButton>
         )}
 
+        {docId && (
+          <IconButton
+            label="Comentarios"
+            onClick={() => window.dispatchEvent(new Event("mikion:comments"))}
+          >
+            <MessageSquare className="size-4" />
+          </IconButton>
+        )}
+
         <IconButton
           label="Tema"
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
@@ -175,7 +185,9 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onClick={() => toast("Plantillas · 1.5")}>
+            <DropdownMenuItem
+              onClick={() => window.dispatchEvent(new Event("mikion:templates"))}
+            >
               <Files className="size-4" /> Plantillas
             </DropdownMenuItem>
             {doc && (

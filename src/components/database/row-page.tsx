@@ -24,6 +24,7 @@ export function RowPage({
   databaseId,
   schema,
   row,
+  mentionUsers,
 }: {
   databaseId: string;
   schema: DatabaseSchema;
@@ -33,6 +34,7 @@ export function RowPage({
     cover: string | null;
     blocks: Block[] | null;
   };
+  mentionUsers?: { id: string; name: string }[];
 }) {
   const [, startTransition] = useTransition();
   const tp = titleProperty(schema);
@@ -61,7 +63,8 @@ export function RowPage({
     <div className="pb-32">
       {coverBg && <div className="h-[180px] w-full" style={{ background: coverBg }} />}
 
-      <div className="page-w mx-auto max-w-3xl px-12 pt-10">
+      <div className="page-w mx-auto max-w-3xl pt-10">
+        <div className="px-[54px]">
         {/* Título */}
         <textarea
           value={title}
@@ -97,11 +100,13 @@ export function RowPage({
             </div>
           ))}
         </div>
+        </div>
 
-        {/* Contenido de la fila */}
+        {/* Contenido de la fila (su propio padding 54px) */}
         <div className="mt-4">
           <BlockNoteEditor
             initialContent={row.blocks}
+            mentionUsers={mentionUsers}
             onSave={(blocks) => void saveRowContent(row.id, blocks)}
           />
         </div>

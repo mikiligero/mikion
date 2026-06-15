@@ -1,15 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Table2, Columns3 } from "lucide-react";
+import {
+  Plus,
+  Table2,
+  Columns3,
+  CalendarDays,
+  GanttChartSquare,
+  PieChart,
+  Zap,
+} from "lucide-react";
 import type { Row } from "@/db/schema";
-import type { DatabaseSchema, ViewConfig, ViewType } from "@/lib/types";
+import type { Automation, DatabaseSchema, ViewConfig, ViewType } from "@/lib/types";
 import { applyView, visibleProperties } from "@/lib/database-view";
 import { updateView, createView } from "@/lib/actions/databases";
 import { cn } from "@/lib/utils";
 import { TableView } from "./table-view";
 import { BoardView } from "./board-view";
+import { CalendarView } from "./calendar-view";
+import { TimelineView } from "./timeline-view";
+import { ChartView } from "./chart-view";
 import { DatabaseToolbar } from "./toolbar";
+import { AutomationsDialog } from "./automations-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,11 +43,12 @@ export function DatabaseContainer({
   rows,
 }: {
   doc: { id: string; emoji: string | null; title: string };
-  database: { id: string; schema: DatabaseSchema };
+  database: { id: string; schema: DatabaseSchema; automations: Automation[] };
   views: ViewMeta[];
   rows: Row[];
 }) {
   const [activeId, setActiveId] = useState(views[0]?.id ?? null);
+  const [autoOpen, setAutoOpen] = useState(false);
   const [configs, setConfigs] = useState<Record<string, ViewConfig>>(() =>
     Object.fromEntries(views.map((v) => [v.id, v.config]))
   );
@@ -69,6 +82,12 @@ export function DatabaseContainer({
     );
   }, [config.groupBy, database.schema]);
 
+  // Para el calendario: propiedad de fecha (config o primera de tipo date).
+  const datePropertyId = useMemo(() => {
+    if (config.datePropertyId) return config.datePropertyId;
+    return database.schema.properties.find((p) => p.type === "date")?.id ?? null;
+  }, [config.datePropertyId, database.schema]);
+
   return (
     <div className="px-10 py-8">
       {/* Cabecera */}
@@ -99,14 +118,27 @@ export function DatabaseContainer({
           <AddViewMenu databaseId={database.id} />
         </div>
 
-        <div className="pb-1.5">
+        <div className="flex items-center gap-0.5 pb-1.5">
           <DatabaseToolbar
             schema={database.schema}
             config={config}
             onChange={patchConfig}
           />
+          <button
+            onClick={() => setAutoOpen(true)}
+            className="text-ink-soft hover:bg-sidebar-hover flex items-center gap-1.5 rounded-sm px-2 py-1 text-[13px]"
+          >
+            <Zap className="size-3.5" /> Automatizar
+          </button>
         </div>
       </div>
+
+      <AutomationsDialog
+        databaseId={database.id}
+        automations={database.automations}
+        open={autoOpen}
+        onOpenChange={setAutoOpen}
+      />
 
       {/* Vista activa */}
       <div className="mt-3">
@@ -118,6 +150,28 @@ export function DatabaseContainer({
             rows={viewRows}
             groupPropertyId={groupPropertyId}
             visibleProps={visibleProperties(database.schema, config)}
+          />
+        ) : activeView?.type === "calendar" ? (
+          <CalendarView
+            docId={doc.id}
+            databaseId={database.id}
+            schema={database.schema}
+            rows={viewRows}
+            datePropertyId={datePropertyId}
+          />
+        ) : activeView?.type === "timeline" ? (
+          <TimelineView
+            docId={doc.id}
+            schema={database.schema}
+            rows={viewRows}
+            datePropertyId={datePropertyId}
+          />
+        ) : activeView?.type === "chart" ? (
+          <ChartView
+            schema={database.schema}
+            rows={viewRows}
+            config={config}
+            onChange={patchConfig}
           />
         ) : (
           <TableView
@@ -150,6 +204,15 @@ function AddViewMenu({ databaseId }: { databaseId: string }) {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => createView(databaseId, "board")}>
           <Columns3 className="size-4" /> Tablero
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => createView(databaseId, "calendar")}>
+          <CalendarDays className="size-4" /> Calendario
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => createView(databaseId, "timeline")}>
+          <GanttChartSquare className="size-4" /> Cronograma
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => createView(databaseId, "chart")}>
+          <PieChart className="size-4" /> Gráfico
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

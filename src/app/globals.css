@@ -306,9 +306,9 @@ html.mikion-full-width .page-w {
   --bn-colors-side-menu: var(--ink-faint);
 }
 
-/* El editor se alinea con el título (sin padding lateral ni fondo). */
+/* Fondo transparente; se conserva el padding lateral del editor (54px), donde
+   BlockNote coloca los controles de bloque (arrastrar / +). */
 .content-scroll .bn-editor {
-  padding-inline: 0;
   background-color: transparent;
 }
 
@@ -317,4 +317,17 @@ html.mikion-full-width .page-w {
 .content-scroll .bn-editor h2 {
   font-family: var(--font-serif);
   font-weight: 580;
+}
+
+/* Columnas (xl-multi-column): layout robusto. `min-width:0` evita que los
+   hijos flex no se encojan y se descuadren; align-items las alinea arriba. */
+.content-scroll .bn-block-column-list {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+.content-scroll .bn-block-column {
+  flex: 1 1 0;
+  min-width: 0;
 }

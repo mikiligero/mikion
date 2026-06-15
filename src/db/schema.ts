@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type {
+  Automation,
   Block,
   DatabaseSchema,
   PropertyValues,
@@ -173,6 +174,10 @@ export const databases = pgTable("databases", {
     .unique()
     .references(() => docs.id, { onDelete: "cascade" }),
   schema: jsonb("schema").$type<DatabaseSchema>().notNull(),
+  automations: jsonb("automations")
+    .$type<Automation[]>()
+    .notNull()
+    .default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -5,6 +5,8 @@ import { requireWorkspace } from "@/lib/session";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Topbar } from "@/components/topbar/topbar";
 import { CommandPalette } from "@/components/search/command-palette";
+import { CommentsHost } from "@/components/comments/comments-host";
+import { TemplatesHost } from "@/components/templates/templates-host";
 
 export default async function AppLayout({
   children,
@@ -40,6 +42,8 @@ export default async function AppLayout({
         <Topbar docs={tree} />
         <div className="content-scroll flex-1 overflow-y-auto">{children}</div>
       </main>
+      <CommentsHost />
+      <TemplatesHost />
       <CommandPalette />
     </div>
   );
