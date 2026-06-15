@@ -10,8 +10,10 @@ import {
   rows,
   views,
   notifications,
+  preferences,
 } from "@/db/schema";
 import type { Doc, DbDatabase, Row, View } from "@/db/schema";
+import { sendTelegramMessage } from "@/lib/telegram";
 
 /**
  * Punto ÚNICO de creación de notificaciones. Inserta en BD y es el lugar donde
@@ -36,7 +38,17 @@ export async function createNotification(input: {
     rowId: input.rowId ?? null,
     actorId: input.actorId ?? null,
   });
-  // TODO(Telegram): si el usuario tiene chat de Telegram configurado, enviar aquí.
+
+  // Envío por Telegram si el destinatario tiene chat_id configurado.
+  const pref = await db.query.preferences.findFirst({
+    where: eq(preferences.userId, input.userId),
+  });
+  if (pref?.telegramChatId) {
+    const text = input.body
+      ? `<b>${input.title}</b>\n${input.body}`
+      : `<b>${input.title}</b>`;
+    await sendTelegramMessage(pref.telegramChatId, text).catch(() => {});
+  }
 }
 
 /** Id del usuario autenticado o lanza error. */

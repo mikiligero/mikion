@@ -20,6 +20,7 @@ export default async function SettingsPage() {
         fullWidthDefault: prefs?.fullWidthDefault ?? false,
         language: prefs?.language ?? "es",
         startupView: prefs?.startupView ?? "home",
+        telegramChatId: prefs?.telegramChatId ?? "",
       }}
     />
   );

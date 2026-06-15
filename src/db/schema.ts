@@ -115,6 +115,7 @@ export const preferences = pgTable("preferences", {
   fullWidthDefault: boolean("full_width_default").notNull().default(false),
   language: text("language").notNull().default("es"),
   startupView: text("startup_view").notNull().default("home"),
+  telegramChatId: text("telegram_chat_id"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

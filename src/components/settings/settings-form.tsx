@@ -4,7 +4,12 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import type { ThemePref, FontPref } from "@/lib/types";
-import { updatePreferences, updateAccountName } from "@/lib/actions/preferences";
+import {
+  updatePreferences,
+  updateAccountName,
+  testTelegram,
+} from "@/lib/actions/preferences";
+import { toast } from "sonner";
 import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -25,6 +30,7 @@ type Prefs = {
   defaultFont: FontPref;
   fullWidthDefault: boolean;
   language: string;
+  telegramChatId: string;
   startupView: string;
 };
 
@@ -135,6 +141,8 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
   const [scale, setScale] = useState(prefs.textScale);
   const [language, setLanguage] = useState(prefs.language);
   const [startupView, setStartupView] = useState(prefs.startupView);
+  const [telegram, setTelegram] = useState(prefs.telegramChatId);
+  const [testing, setTesting] = useState(false);
   // Guard de hidratación para next-themes (resolvedTheme fiable tras montar).
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
@@ -257,6 +265,39 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
           ]}
         />
       </Row>
+
+      <div className="border-line border-b py-3.5">
+        <p className="text-ink text-sm font-medium">Notificaciones por Telegram</p>
+        <p className="text-ink-faint text-xs">
+          Recibe tus notificaciones en Telegram. Pega tu <strong>chat_id</strong>{" "}
+          (escribe a{" "}
+          <span className="text-ink-soft">@userinfobot</span> en Telegram para
+          obtenerlo) y pulsa Probar.
+        </p>
+        <div className="mt-2 flex items-center gap-2">
+          <Input
+            value={telegram}
+            onChange={(e) => setTelegram(e.target.value)}
+            onBlur={() => void updatePreferences({ telegramChatId: telegram.trim() || null })}
+            placeholder="p. ej. 123456789"
+            className="max-w-xs"
+          />
+          <Button
+            variant="outline"
+            disabled={testing || !telegram.trim()}
+            onClick={async () => {
+              setTesting(true);
+              await updatePreferences({ telegramChatId: telegram.trim() || null });
+              const res = await testTelegram(telegram);
+              setTesting(false);
+              if (res.ok) toast.success("Mensaje de prueba enviado ✅");
+              else toast.error(res.error ?? "No se pudo enviar");
+            }}
+          >
+            {testing ? "Enviando…" : "Probar"}
+          </Button>
+        </div>
+      </div>
     </section>
   );
 }
