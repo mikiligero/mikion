@@ -220,7 +220,7 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
 
       {doc && (
         <VersionHistoryDialog
-          docId={doc.id}
+          target={{ docId: doc.id }}
           open={showVersions}
           onOpenChange={setShowVersions}
         />

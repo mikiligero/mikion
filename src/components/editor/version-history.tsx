@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import {
   getVersions,
+  getRowVersions,
   restoreVersion,
   type VersionItem,
 } from "@/lib/actions/versions";
@@ -24,27 +25,35 @@ function formatDateTime(iso: string): string {
   });
 }
 
+type Target = { docId: string } | { rowId: string };
+
 export function VersionHistoryDialog({
-  docId,
+  target,
   open,
   onOpenChange,
 }: {
-  docId: string;
+  target: Target;
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
   const [items, setItems] = useState<VersionItem[] | null>(null);
+  const key = "docId" in target ? target.docId : target.rowId;
 
   useEffect(() => {
     if (!open) return;
     let active = true;
-    getVersions(docId).then((v) => {
+    const p =
+      "docId" in target
+        ? getVersions(target.docId)
+        : getRowVersions(target.rowId);
+    p.then((v) => {
       if (active) setItems(v);
     });
     return () => {
       active = false;
     };
-  }, [open, docId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, key]);
 
   async function restore(id: string) {
     await restoreVersion(id);

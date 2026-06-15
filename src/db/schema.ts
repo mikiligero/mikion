@@ -287,9 +287,8 @@ export const versions = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    docId: text("doc_id")
-      .notNull()
-      .references(() => docs.id, { onDelete: "cascade" }),
+    docId: text("doc_id").references(() => docs.id, { onDelete: "cascade" }),
+    rowId: text("row_id").references(() => rows.id, { onDelete: "cascade" }),
     blocks: jsonb("blocks").$type<Block[]>(),
     textContent: text("text_content").notNull().default(""),
     authorId: text("author_id").references(() => users.id, {
@@ -297,7 +296,10 @@ export const versions = pgTable(
     }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("versions_doc_idx").on(t.docId, t.createdAt)]
+  (t) => [
+    index("versions_doc_idx").on(t.docId, t.createdAt),
+    index("versions_row_idx").on(t.rowId, t.createdAt),
+  ]
 );
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
+import { History } from "lucide-react";
 import type { DatabaseSchema, PropertyValue, PropertyValues, Block } from "@/lib/types";
 import { titleProperty } from "@/lib/database-utils";
 import { coverBackground } from "@/lib/covers";
@@ -9,6 +10,7 @@ import { updateCell, updateProperty, saveRowContent } from "@/lib/actions/databa
 import { randomSelectColor } from "@/lib/types";
 import { PropertyCell } from "./property-cell";
 import { propertyIcon } from "./property-icon";
+import { VersionHistoryDialog } from "@/components/editor/version-history";
 
 const BlockNoteEditor = dynamic(
   () => import("@/components/editor/blocknote-editor").then((m) => m.BlockNoteEditor),
@@ -45,6 +47,7 @@ export function RowPage({
   );
   const coverBg = coverBackground(row.cover);
   const otherProps = schema.properties.filter((p) => p.type !== "title");
+  const [showVersions, setShowVersions] = useState(false);
 
   function setCell(propertyId: string, value: PropertyValue) {
     startTransition(() => updateCell(row.id, propertyId, value));
@@ -65,6 +68,14 @@ export function RowPage({
 
       <div className="page-w mx-auto max-w-3xl pt-10">
         <div className="px-[54px]">
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowVersions(true)}
+            className="text-ink-faint hover:bg-sidebar-hover flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs"
+          >
+            <History className="size-3.5" /> Historial
+          </button>
+        </div>
         {/* Título */}
         <textarea
           value={title}
@@ -111,6 +122,12 @@ export function RowPage({
           />
         </div>
       </div>
+
+      <VersionHistoryDialog
+        target={{ rowId: row.id }}
+        open={showVersions}
+        onOpenChange={setShowVersions}
+      />
     </div>
   );
 }

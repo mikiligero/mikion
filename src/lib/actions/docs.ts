@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { docs, databases, views, versions } from "@/db/schema";
+import { docs, databases, views } from "@/db/schema";
 import type { Block } from "@/lib/types";
 import { defaultDatabaseSchema } from "@/lib/database-utils";
 import { extractText, extractMentions } from "@/lib/blocknote-utils";
@@ -14,7 +14,7 @@ import {
   nextOrderKey,
   requireUserId,
   createNotification,
-  pruneVersions,
+  snapshotVersion,
 } from "./helpers";
 
 function revalidateShell() {
@@ -99,9 +99,6 @@ export async function renameDoc(docId: string, title: string) {
 
 /** Autosave del contenido del editor. Sin revalidate: el editor ya tiene el
  * contenido en cliente; revalidar en cada pulsación recargaría el shell. */
-// Snapshots de versión como mucho cada N minutos (evita una por pulsación).
-const VERSION_THROTTLE_MS = 5 * 60 * 1000;
-
 export async function savePageContent(
   docId: string,
   blocks: Block[],
@@ -116,19 +113,7 @@ export async function savePageContent(
     .set({ blocks, textContent, updatedAt: new Date() })
     .where(eq(docs.id, docId));
 
-  // Historial de versiones: añade un snapshot si el último es antiguo (o no hay).
-  const [last] = await db
-    .select({ createdAt: versions.createdAt })
-    .from(versions)
-    .where(eq(versions.docId, docId))
-    .orderBy(desc(versions.createdAt))
-    .limit(1);
-  if (!last || Date.now() - last.createdAt.getTime() > VERSION_THROTTLE_MS) {
-    await db
-      .insert(versions)
-      .values({ docId, blocks, textContent, authorId: userId });
-    await pruneVersions(docId);
-  }
+  await snapshotVersion({ docId }, blocks, textContent, userId);
 
   // Notifica las menciones nuevas (las que no estaban en la versión anterior).
   for (const mentionedId of extractMentions(blocks)) {

@@ -16,12 +16,15 @@ import type {
   ViewType,
 } from "@/lib/types";
 import { newPropertyDef, defaultDatabaseSchema } from "@/lib/database-utils";
+import { extractText } from "@/lib/blocknote-utils";
 import {
   assertDatabaseAccess,
   assertDocAccess,
   assertRowAccess,
   assertViewAccess,
   nextOrderKey,
+  requireUserId,
+  snapshotVersion,
 } from "./helpers";
 import type { Row } from "@/db/schema";
 
@@ -114,6 +117,8 @@ export async function saveRowContent(rowId: string, blocks: Block[]) {
     .update(rows)
     .set({ blocks, updatedAt: new Date() })
     .where(eq(rows.id, rowId));
+  const userId = await requireUserId();
+  await snapshotVersion({ rowId }, blocks, extractText(blocks), userId);
 }
 
 async function setSchema(databaseId: string, schema: DatabaseSchema) {

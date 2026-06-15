@@ -14,6 +14,7 @@ import {
   versions,
 } from "@/db/schema";
 import type { Doc, DbDatabase, Row, View } from "@/db/schema";
+import type { Block } from "@/lib/types";
 import { sendTelegramMessage } from "@/lib/telegram";
 
 /**
@@ -52,13 +53,47 @@ export async function createNotification(input: {
   }
 }
 
-/** Conserva solo las N versiones más recientes de un doc (poda el resto). */
+// Historial de versiones: máx. por doc/fila y throttle entre snapshots.
 export const VERSIONS_KEEP = 15;
-export async function pruneVersions(docId: string) {
+const VERSION_THROTTLE_MS = 5 * 60 * 1000;
+
+/**
+ * Crea un snapshot de versión (para un doc o una fila) si el último es antiguo,
+ * y poda dejando solo los VERSIONS_KEEP más recientes. Único punto de versionado.
+ */
+export async function snapshotVersion(
+  target: { docId: string } | { rowId: string },
+  blocks: Block[] | null,
+  textContent: string,
+  authorId: string,
+  opts?: { throttleMs?: number }
+) {
+  const cond =
+    "docId" in target
+      ? eq(versions.docId, target.docId)
+      : eq(versions.rowId, target.rowId);
+  const throttle = opts?.throttleMs ?? VERSION_THROTTLE_MS;
+
+  const [last] = await db
+    .select({ createdAt: versions.createdAt })
+    .from(versions)
+    .where(cond)
+    .orderBy(desc(versions.createdAt))
+    .limit(1);
+  if (last && Date.now() - last.createdAt.getTime() <= throttle) return;
+
+  await db.insert(versions).values({
+    docId: "docId" in target ? target.docId : null,
+    rowId: "rowId" in target ? target.rowId : null,
+    blocks,
+    textContent,
+    authorId,
+  });
+
   const old = await db
     .select({ id: versions.id })
     .from(versions)
-    .where(eq(versions.docId, docId))
+    .where(cond)
     .orderBy(desc(versions.createdAt))
     .offset(VERSIONS_KEEP);
   if (old.length) {

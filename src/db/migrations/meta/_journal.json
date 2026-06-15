@@ -43,6 +43,13 @@
       "when": 1781532111597,
       "tag": "0005_telegram",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781533580024,
+      "tag": "0006_row_versions",
+      "breakpoints": true
     }
   ]
 }
