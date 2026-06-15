@@ -113,6 +113,7 @@ export function BoardView({
 
   return (
     <DndContext
+      id="board-dnd"
       sensors={sensors}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}

@@ -236,7 +236,7 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
           </Section>
         )}
 
-        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+        <DndContext id="sidebar-tree-dnd" sensors={sensors} onDragEnd={onDragEnd}>
           {/* Espacio de equipo */}
           <Section
             title="Espacio de equipo"
