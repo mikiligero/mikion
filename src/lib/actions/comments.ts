@@ -4,7 +4,32 @@ import { revalidatePath } from "next/cache";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { comments, docs, users, workspaces } from "@/db/schema";
-import { assertDocAccess, requireUserId } from "./helpers";
+import { assertDocAccess, requireUserId, createNotification } from "./helpers";
+
+async function notifyOwner(
+  docId: string,
+  authorId: string,
+  type: "comment" | "reply",
+  body: string
+) {
+  const doc = await db.query.docs.findFirst({ where: eq(docs.id, docId) });
+  if (!doc) return;
+  const ws = await db.query.workspaces.findFirst({
+    where: eq(workspaces.id, doc.workspaceId),
+  });
+  if (!ws || ws.ownerId === authorId) return; // no notificarse a uno mismo
+  await createNotification({
+    userId: ws.ownerId,
+    type,
+    title:
+      type === "reply"
+        ? `Nueva respuesta en "${doc.title || "Sin título"}"`
+        : `Nuevo comentario en "${doc.title || "Sin título"}"`,
+    body: body.slice(0, 120),
+    docId,
+    actorId: authorId,
+  });
+}
 
 export type CommentItem = {
   id: string;
@@ -53,6 +78,7 @@ export async function addComment(docId: string, body: string) {
   await assertDocAccess(docId);
   const authorId = await requireUserId();
   await db.insert(comments).values({ docId, body: body.trim(), authorId });
+  await notifyOwner(docId, authorId, "comment", body.trim());
   revalidatePath("/", "layout");
 }
 
@@ -63,6 +89,7 @@ export async function addReply(parentId: string, body: string) {
   await db
     .insert(comments)
     .values({ docId, parentId, body: body.trim(), authorId });
+  await notifyOwner(docId, authorId, "reply", body.trim());
   revalidatePath("/", "layout");
 }
 

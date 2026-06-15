@@ -40,9 +40,10 @@ type Props = {
   workspace: { id: string; name: string };
   user: { name: string; email: string };
   docs: TreeDoc[];
+  unread: number;
 };
 
-export function AppSidebar({ workspace, user, docs }: Props) {
+export function AppSidebar({ workspace, user, docs, unread }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -139,7 +140,7 @@ export function AppSidebar({ workspace, user, docs }: Props) {
           label="Bandeja de entrada"
           href="/inbox"
           active={pathname === "/inbox"}
-          badge="3"
+          badge={unread > 0 ? String(unread) : undefined}
         />
 
         {/* Favoritos */}

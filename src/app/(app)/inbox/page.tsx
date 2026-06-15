@@ -1,13 +1,9 @@
-// Placeholder de Bandeja de entrada (Fase 2/3).
-export default function InboxPage() {
-  return (
-    <div className="mx-auto max-w-3xl px-8 py-16">
-      <h1 className="font-serif text-ink text-[32px] font-[560]">
-        Bandeja de entrada
-      </h1>
-      <p className="text-ink-faint mt-2 text-sm">
-        Menciones, actualizaciones y recordatorios. Pendiente de implementar.
-      </p>
-    </div>
-  );
+import { requireSession } from "@/lib/session";
+import { getNotifications } from "@/lib/actions/notifications";
+import { InboxList } from "@/components/inbox/inbox-list";
+
+export default async function InboxPage() {
+  await requireSession();
+  const items = await getNotifications();
+  return <InboxList items={items} />;
 }

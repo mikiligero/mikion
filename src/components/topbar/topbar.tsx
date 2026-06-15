@@ -16,12 +16,14 @@ import {
   ChevronRight,
   Copy,
   Files,
+  History,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ancestorChain, type TreeDoc } from "@/lib/tree";
 import { toggleFavorite, moveToTrash } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
+import { VersionHistoryDialog } from "@/components/editor/version-history";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +46,7 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
   const [, startTransition] = useTransition();
   // Guard de hidratación para next-themes (resolvedTheme solo es fiable tras montar).
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -195,6 +198,11 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
                 <Copy className="size-4" /> Duplicar página
               </DropdownMenuItem>
             )}
+            {doc && doc.kind === "page" && (
+              <DropdownMenuItem onClick={() => setShowVersions(true)}>
+                <History className="size-4" /> Historial de versiones
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={copyLink}>
               <Copy className="size-4" /> Copiar enlace
             </DropdownMenuItem>
@@ -209,6 +217,14 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {doc && (
+        <VersionHistoryDialog
+          docId={doc.id}
+          open={showVersions}
+          onOpenChange={setShowVersions}
+        />
+      )}
     </header>
   );
 }

@@ -3,8 +3,41 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { docs, workspaces, databases, rows, views } from "@/db/schema";
+import {
+  docs,
+  workspaces,
+  databases,
+  rows,
+  views,
+  notifications,
+} from "@/db/schema";
 import type { Doc, DbDatabase, Row, View } from "@/db/schema";
+
+/**
+ * Punto ÚNICO de creación de notificaciones. Inserta en BD y es el lugar donde
+ * en el futuro se enviará también por Telegram (u otros canales).
+ */
+export async function createNotification(input: {
+  userId: string;
+  type: "mention" | "comment" | "reply" | "reminder";
+  title: string;
+  body?: string | null;
+  docId?: string | null;
+  rowId?: string | null;
+  actorId?: string | null;
+}) {
+  if (!input.userId) return;
+  await db.insert(notifications).values({
+    userId: input.userId,
+    type: input.type,
+    title: input.title,
+    body: input.body ?? null,
+    docId: input.docId ?? null,
+    rowId: input.rowId ?? null,
+    actorId: input.actorId ?? null,
+  });
+  // TODO(Telegram): si el usuario tiene chat de Telegram configurado, enviar aquí.
+}
 
 /** Id del usuario autenticado o lanza error. */
 export async function requireUserId(): Promise<string> {

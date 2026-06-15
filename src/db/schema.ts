@@ -255,6 +255,50 @@ export const homeTasks = pgTable("home_tasks", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Notificaciones (bandeja de entrada): menciones, comentarios, recordatorios.
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(), // mention | comment | reply | reminder
+    title: text("title").notNull(),
+    body: text("body"),
+    docId: text("doc_id").references(() => docs.id, { onDelete: "set null" }),
+    rowId: text("row_id").references(() => rows.id, { onDelete: "set null" }),
+    actorId: text("actor_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    read: boolean("read").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.read, t.createdAt)]
+);
+
+// Historial de versiones: snapshots del contenido de un doc.
+export const versions = pgTable(
+  "versions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    docId: text("doc_id")
+      .notNull()
+      .references(() => docs.id, { onDelete: "cascade" }),
+    blocks: jsonb("blocks").$type<Block[]>(),
+    textContent: text("text_content").notNull().default(""),
+    authorId: text("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("versions_doc_idx").on(t.docId, t.createdAt)]
+);
+
 // ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
@@ -266,3 +310,5 @@ export type View = typeof views.$inferSelect;
 export type Row = typeof rows.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type HomeTask = typeof homeTasks.$inferSelect;
+export type Version = typeof versions.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;

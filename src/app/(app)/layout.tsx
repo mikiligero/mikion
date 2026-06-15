@@ -1,6 +1,6 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { docs } from "@/db/schema";
+import { docs, notifications } from "@/db/schema";
 import { requireWorkspace } from "@/lib/session";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Topbar } from "@/components/topbar/topbar";
@@ -31,12 +31,23 @@ export default async function AppLayout({
     .where(and(eq(docs.workspaceId, workspace.id), isNull(docs.deletedAt)))
     .orderBy(asc(docs.orderKey));
 
+  const [unread] = await db
+    .select({ value: count() })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, session.user.id),
+        eq(notifications.read, false)
+      )
+    );
+
   return (
     <div className="bg-paper flex h-screen overflow-hidden">
       <AppSidebar
         workspace={{ id: workspace.id, name: workspace.name }}
         user={{ name: session.user.name, email: session.user.email }}
         docs={tree}
+        unread={unread?.value ?? 0}
       />
       <main className="flex min-w-0 flex-1 flex-col">
         <Topbar docs={tree} />

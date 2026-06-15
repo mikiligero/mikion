@@ -271,4 +271,6 @@ Tokens completos (claro + oscuro), tipografía, radios, sombras y mapeo de compo
 **Fase 3 — Secundario ⚪**
 9. Historial de versiones, Mikion Calendar, Mikion Mail, Bandeja, conexiones/API/offline en Ajustes.
 
+> **Plan Fase 3 (decidido 2026-06-15):** se implementan **Historial de versiones** (3.1) y **Bandeja de entrada** (3.3). Quedan como **⏸️ TODO a futuro**: **Mikion Calendar** (§8.1, app de pantalla completa con eventos propios por hora — requiere tabla `events`), **Mikion Mail** (§8.2, maqueta — sin servidor de correo), y **Ajustes avanzados** (API/desarrolladores, Conexiones, Sin conexión).
+
 > **Recordatorio Next.js 16:** hay breaking changes respecto a versiones conocidas; antes de tocar código de Next, leer las guías en `node_modules/next/dist/docs/` (según el `AGENTS.md` del repo).
