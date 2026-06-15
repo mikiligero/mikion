@@ -331,3 +331,13 @@ html.mikion-full-width .page-w {
   flex: 1 1 0;
   min-width: 0;
 }
+
+/* Resalta brevemente un bloque al ir a su comentario anclado. */
+@keyframes comment-flash {
+  0% { background: var(--brand-tint); }
+  100% { background: transparent; }
+}
+.comment-flash {
+  animation: comment-flash 1.2s ease-out;
+  border-radius: 6px;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { X, Check, RotateCcw, Trash2, Send } from "lucide-react";
+import { X, Check, RotateCcw, Trash2, Send, Quote } from "lucide-react";
 import {
   getComments,
   addComment,
@@ -11,6 +11,17 @@ import {
   type CommentItem,
 } from "@/lib/actions/comments";
 import { cn } from "@/lib/utils";
+
+export type CommentAnchor = { blockId: string; anchoredText: string };
+
+/** Lleva el foco al bloque anclado dentro del editor y lo resalta un instante. */
+function scrollToBlock(blockId: string) {
+  const el = document.querySelector<HTMLElement>(`[data-id="${blockId}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("comment-flash");
+  window.setTimeout(() => el.classList.remove("comment-flash"), 1200);
+}
 
 function relTime(iso: string): string {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -23,9 +34,13 @@ function relTime(iso: string): string {
 
 export function CommentsPanel({
   docId,
+  anchor,
+  onClearAnchor,
   onClose,
 }: {
   docId: string;
+  anchor: CommentAnchor | null;
+  onClearAnchor: () => void;
   onClose: () => void;
 }) {
   const [items, setItems] = useState<CommentItem[]>([]);
@@ -44,8 +59,14 @@ export function CommentsPanel({
   async function add() {
     if (!text.trim()) return;
     const value = text.trim();
+    const a = anchor;
     setText("");
-    await addComment(docId, value);
+    onClearAnchor();
+    await addComment(
+      docId,
+      value,
+      a ? { blockId: a.blockId, anchoredText: a.anchoredText } : undefined
+    );
     refresh();
   }
 
@@ -79,6 +100,21 @@ export function CommentsPanel({
       </div>
 
       <div className="border-line border-t p-3">
+        {anchor && (
+          <div className="border-line bg-paper mb-2 flex items-start gap-1.5 rounded-md border px-2 py-1.5">
+            <Quote className="text-brand mt-0.5 size-3.5 shrink-0" />
+            <span className="text-ink-soft min-w-0 flex-1 truncate text-[12px] italic">
+              {anchor.anchoredText || "Bloque"}
+            </span>
+            <button
+              onClick={onClearAnchor}
+              className="text-ink-faint hover:text-ink shrink-0"
+              aria-label="Quitar ancla"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -189,6 +225,15 @@ function CommentRow({
           </button>
         </div>
       </div>
+      {c.blockId && c.anchoredText && (
+        <button
+          onClick={() => scrollToBlock(c.blockId!)}
+          className="border-brand/40 text-ink-faint hover:text-ink mt-1 ml-7 flex w-[calc(100%-1.75rem)] items-start gap-1.5 border-l-2 pl-2 text-left text-[12px] italic"
+          title="Ir al bloque"
+        >
+          <span className="truncate">{c.anchoredText}</span>
+        </button>
+      )}
       <p className="text-ink-soft mt-1 whitespace-pre-wrap pl-7 text-sm">{c.body}</p>
     </div>
   );

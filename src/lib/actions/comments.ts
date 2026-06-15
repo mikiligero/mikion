@@ -34,6 +34,8 @@ async function notifyOwner(
 export type CommentItem = {
   id: string;
   parentId: string | null;
+  blockId: string | null;
+  anchoredText: string | null;
   body: string;
   resolved: boolean;
   authorId: string;
@@ -60,6 +62,8 @@ export async function getComments(docId: string): Promise<CommentItem[]> {
     .select({
       id: comments.id,
       parentId: comments.parentId,
+      blockId: comments.blockId,
+      anchoredText: comments.anchoredText,
       body: comments.body,
       resolved: comments.resolved,
       authorId: comments.authorId,
@@ -73,11 +77,21 @@ export async function getComments(docId: string): Promise<CommentItem[]> {
   return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
 }
 
-export async function addComment(docId: string, body: string) {
+export async function addComment(
+  docId: string,
+  body: string,
+  anchor?: { blockId: string; anchoredText: string }
+) {
   if (!body.trim()) return;
   await assertDocAccess(docId);
   const authorId = await requireUserId();
-  await db.insert(comments).values({ docId, body: body.trim(), authorId });
+  await db.insert(comments).values({
+    docId,
+    body: body.trim(),
+    authorId,
+    blockId: anchor?.blockId ?? null,
+    anchoredText: anchor?.anchoredText?.slice(0, 200) ?? null,
+  });
   await notifyOwner(docId, authorId, "comment", body.trim());
   revalidatePath("/", "layout");
 }

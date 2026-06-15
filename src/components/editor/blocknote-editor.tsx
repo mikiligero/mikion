@@ -3,9 +3,18 @@
 import "@blocknote/shadcn/style.css";
 import { useCallback, useRef } from "react";
 import { useTheme } from "next-themes";
-import { useCreateBlockNote, SuggestionMenuController } from "@blocknote/react";
+import {
+  useCreateBlockNote,
+  SuggestionMenuController,
+  FormattingToolbar,
+  FormattingToolbarController,
+  getFormattingToolbarItems,
+  useComponentsContext,
+  useBlockNoteEditor,
+} from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import { filterSuggestionItems, type PartialBlock } from "@blocknote/core";
+import { MessageSquarePlus } from "lucide-react";
 import { es } from "@blocknote/core/locales";
 import {
   multiColumnDropCursor,
@@ -15,6 +24,34 @@ import type { Block } from "@/lib/types";
 import { extractText } from "@/lib/blocknote-utils";
 import { embedInfo } from "@/lib/embed";
 import { schema, getSlashItems, getMentionItems } from "./blocks";
+
+/** Botón "Comentar" en la barra de formato: ancla un comentario al bloque del
+ * cursor (con el texto seleccionado, o el del bloque, como cita). Emite un
+ * evento que el panel de comentarios escucha para abrirse pre-anclado. */
+function CommentToolbarButton() {
+  const editor = useBlockNoteEditor();
+  const Components = useComponentsContext()!;
+  return (
+    <Components.FormattingToolbar.Button
+      className="bn-button"
+      label="Comentar"
+      mainTooltip="Comentar"
+      onClick={() => {
+        const block = editor.getTextCursorPosition().block;
+        const selected = editor.getSelectedText().trim();
+        const anchored =
+          selected || extractText([block as unknown as Block]).slice(0, 200);
+        window.dispatchEvent(
+          new CustomEvent("mikion:comment-block", {
+            detail: { blockId: block.id, text: anchored },
+          })
+        );
+      }}
+    >
+      <MessageSquarePlus size={16} />
+    </Components.FormattingToolbar.Button>
+  );
+}
 
 export function BlockNoteEditor({
   initialContent,
@@ -76,7 +113,16 @@ export function BlockNoteEditor({
         theme={resolvedTheme === "dark" ? "dark" : "light"}
         onChange={handleChange}
         slashMenu={false}
+        formattingToolbar={false}
       >
+        <FormattingToolbarController
+          formattingToolbar={() => (
+            <FormattingToolbar>
+              <CommentToolbarButton />
+              {getFormattingToolbarItems()}
+            </FormattingToolbar>
+          )}
+        />
         <SuggestionMenuController
           triggerCharacter="/"
           getItems={(query) => getSlashItems(editor, query, pageDocId)}
