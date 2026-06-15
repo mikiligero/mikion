@@ -13,6 +13,26 @@ export function isoDay(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** Fecha a medianoche local (descarta la hora). */
+export function atMidnight(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** Días enteros entre a y b (a - b), ignorando la hora. */
+export function dayDiff(a: Date, b: Date): number {
+  return Math.round(
+    (atMidnight(a).getTime() - atMidnight(b).getTime()) / 86400000
+  );
+}
+
+/** Parsea "YYYY-MM-DD" (o ISO con hora) a Date local, o null si no es válida. */
+export function parseDay(v: unknown): Date | null {
+  if (typeof v !== "string" || v.length < 10) return null;
+  const [y, m, d] = v.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
 /** Matriz de 6 semanas × 7 días (lunes primero) del mes (month: 0-11). */
 export function monthMatrix(
   year: number,

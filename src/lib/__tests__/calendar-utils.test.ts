@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   isoDay,
   monthMatrix,
+  atMidnight,
+  dayDiff,
+  parseDay,
   MONTHS,
   WEEKDAYS,
 } from "@/lib/calendar-utils";
@@ -51,5 +54,43 @@ describe("monthMatrix", () => {
     expect(Math.min(...inMonthDays)).toBe(1);
     expect(Math.max(...inMonthDays)).toBe(30); // junio = 30 días
     expect(weeks.flat().every((d) => (d.date.getMonth() === 5) === d.inMonth)).toBe(true);
+  });
+});
+
+describe("atMidnight / dayDiff", () => {
+  it("atMidnight descarta la hora", () => {
+    const d = atMidnight(new Date(2026, 5, 15, 23, 59));
+    expect(d.getHours()).toBe(0);
+    expect(isoDay(d)).toBe("2026-06-15");
+  });
+
+  it("dayDiff cuenta días enteros con signo", () => {
+    expect(dayDiff(new Date(2026, 5, 18), new Date(2026, 5, 15))).toBe(3);
+    expect(dayDiff(new Date(2026, 5, 15), new Date(2026, 5, 18))).toBe(-3);
+    expect(dayDiff(new Date(2026, 5, 15, 23), new Date(2026, 5, 15, 1))).toBe(0);
+  });
+
+  it("dayDiff cruza meses correctamente", () => {
+    expect(dayDiff(new Date(2026, 6, 1), new Date(2026, 5, 30))).toBe(1);
+  });
+});
+
+describe("parseDay", () => {
+  it("parsea YYYY-MM-DD a fecha local", () => {
+    const d = parseDay("2026-06-15");
+    expect(d?.getFullYear()).toBe(2026);
+    expect(d?.getMonth()).toBe(5);
+    expect(d?.getDate()).toBe(15);
+  });
+
+  it("acepta ISO con hora (toma los primeros 10 chars)", () => {
+    expect(isoDay(parseDay("2026-06-15T10:30:00Z")!)).toBe("2026-06-15");
+  });
+
+  it("devuelve null para valores no válidos", () => {
+    expect(parseDay(null)).toBeNull();
+    expect(parseDay("")).toBeNull();
+    expect(parseDay("hola")).toBeNull();
+    expect(parseDay(123)).toBeNull();
   });
 });

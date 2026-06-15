@@ -7,6 +7,7 @@ import type { Row } from "@/db/schema";
 import type { DatabaseSchema } from "@/lib/types";
 import { findOption } from "@/lib/database-view";
 import { getRowTitle } from "@/lib/database-utils";
+import { atMidnight, dayDiff, parseDay } from "@/lib/calendar-utils";
 import { cn } from "@/lib/utils";
 
 const DAYS = 30;
@@ -14,17 +15,6 @@ const DAY_W = 40; // px por día
 const LABEL_W = 200; // px columna de títulos
 const ROW_H = 36;
 const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-
-const atMidnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const dayDiff = (a: Date, b: Date) =>
-  Math.round((atMidnight(a).getTime() - atMidnight(b).getTime()) / 86400000);
-
-function parseDay(v: unknown): Date | null {
-  if (typeof v !== "string" || v.length < 10) return null;
-  const [y, m, d] = v.slice(0, 10).split("-").map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
 
 export function TimelineView({
   docId,
