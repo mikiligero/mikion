@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { prefixTsQuery, leadTrim } from "@/lib/search-utils";
+import {
+  prefixTsQuery,
+  leadTrim,
+  normalize,
+  looseIncludes,
+} from "@/lib/search-utils";
 
 describe("prefixTsQuery", () => {
   it("convierte cada término en prefijo unido por &", () => {
@@ -37,5 +42,17 @@ describe("leadTrim", () => {
   it("contexto previo corto (≤4 palabras) no se recorta", () => {
     const s = "uno dos tres <b>match</b> final";
     expect(leadTrim(s)).toBe(s);
+  });
+});
+
+describe("normalize / looseIncludes", () => {
+  it("normalize quita acentos y pasa a minúsculas", () => {
+    expect(normalize("Señor Pérez ÁÉÍÓÚñ")).toBe("senor perez aeioun");
+  });
+  it("looseIncludes ignora acentos y mayúsculas en ambos sentidos", () => {
+    expect(looseIncludes("Reunión semanal", "reunion")).toBe(true);
+    expect(looseIncludes("Reunion semanal", "reunión")).toBe(true);
+    expect(looseIncludes("Proyectos", "PROYE")).toBe(true);
+    expect(looseIncludes("Hola", "adios")).toBe(false);
   });
 });

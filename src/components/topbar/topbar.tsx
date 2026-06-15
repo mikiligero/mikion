@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ancestorChain, type TreeDoc } from "@/lib/tree";
-import { toggleFavorite, moveToTrash } from "@/lib/actions/docs";
+import { toggleFavorite, moveToTrash, duplicateDoc } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
 import {
@@ -194,7 +194,14 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
               <Files className="size-4" /> Plantillas
             </DropdownMenuItem>
             {doc && (
-              <DropdownMenuItem onClick={() => toast("Duplicar · próximamente")}>
+              <DropdownMenuItem
+                onClick={() =>
+                  startTransition(async () => {
+                    const { id } = await duplicateDoc(doc.id);
+                    router.push(`/p/${id}`);
+                  })
+                }
+              >
                 <Copy className="size-4" /> Duplicar página
               </DropdownMenuItem>
             )}

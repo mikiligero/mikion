@@ -1,11 +1,74 @@
 import Link from "next/link";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { docs, homeTasks } from "@/db/schema";
+import { docs, databases, rows, homeTasks } from "@/db/schema";
 import { requireWorkspace } from "@/lib/session";
 import { coverBackground } from "@/lib/covers";
+import { findOption } from "@/lib/database-view";
+import { getRowTitle } from "@/lib/database-utils";
+import { isoDay } from "@/lib/calendar-utils";
 import { QuickActions } from "@/components/home/quick-actions";
 import { HomeTasks } from "@/components/home/home-tasks";
+
+type Upcoming = {
+  id: string;
+  docId: string;
+  title: string;
+  date: string;
+  color?: string;
+};
+
+async function getUpcoming(
+  workspaceId: string,
+  todayIso: string
+): Promise<Upcoming[]> {
+  const dbs = await db
+    .select({ id: databases.id, schema: databases.schema, docId: databases.docId })
+    .from(databases)
+    .innerJoin(docs, eq(databases.docId, docs.id))
+    .where(and(eq(docs.workspaceId, workspaceId), isNull(docs.deletedAt)));
+  if (!dbs.length) return [];
+
+  const allRows = await db
+    .select()
+    .from(rows)
+    .where(
+      and(
+        inArray(
+          rows.databaseId,
+          dbs.map((d) => d.id)
+        ),
+        isNull(rows.deletedAt)
+      )
+    );
+  const dbById = new Map(dbs.map((d) => [d.id, d]));
+  const out: Upcoming[] = [];
+  for (const r of allRows) {
+    const parent = dbById.get(r.databaseId)!;
+    const dateProp = parent.schema.properties.find((p) => p.type === "date");
+    const v = dateProp ? r.values?.[dateProp.id] : null;
+    if (typeof v !== "string" || v.slice(0, 10) < todayIso) continue;
+    const colorProp = parent.schema.properties.find(
+      (p) => p.type === "status" || p.type === "select"
+    );
+    const opt = colorProp ? findOption(colorProp, r.values?.[colorProp.id]) : undefined;
+    out.push({
+      id: r.id,
+      docId: parent.docId,
+      title: getRowTitle(r.values, parent.schema),
+      date: v.slice(0, 10),
+      color: opt?.color,
+    });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+}
+
+function formatEventDate(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "short",
+  });
+}
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -52,6 +115,7 @@ export default async function HomePage() {
   ]);
 
   const now = new Date();
+  const upcoming = await getUpcoming(workspace.id, isoDay(now));
   const pending = tasks.filter((t) => !t.done).length;
   const dateLabel = now.toLocaleDateString("es-ES", {
     weekday: "long",
@@ -125,9 +189,30 @@ export default async function HomePage() {
           <h2 className="text-ink-soft text-[13px] font-semibold uppercase tracking-[0.03em]">
             Próximamente
           </h2>
-          <p className="text-ink-ghost mt-3 text-sm">
-            Los próximos eventos del calendario aparecerán aquí (Fase 2).
-          </p>
+          <div className="mt-3 space-y-1">
+            {upcoming.length === 0 ? (
+              <p className="text-ink-ghost text-sm">
+                No hay eventos próximos. Añade fechas en tus bases de datos.
+              </p>
+            ) : (
+              upcoming.map((e) => (
+                <Link
+                  key={e.id}
+                  href={`/p/${e.docId}/${e.id}`}
+                  className="hover:bg-sidebar-hover flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-sm"
+                >
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: e.color ? `var(--tint-${e.color})` : "var(--brand)" }}
+                  />
+                  <span className="text-ink min-w-0 flex-1 truncate">{e.title}</span>
+                  <span className="text-ink-faint shrink-0 text-xs">
+                    {formatEventDate(e.date)}
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
         </section>
       </div>
     </div>

@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { docs, databases, views } from "@/db/schema";
+import { docs, databases, views, rows } from "@/db/schema";
 import type { Block } from "@/lib/types";
 import { defaultDatabaseSchema } from "@/lib/database-utils";
 import { extractText, extractMentions } from "@/lib/blocknote-utils";
@@ -149,6 +149,101 @@ export async function toggleFavorite(docId: string) {
     .set({ isFavorite: !doc.isFavorite })
     .where(eq(docs.id, docId));
   revalidateShell();
+}
+
+/** Duplica un doc y todo su subárbol (subpáginas + BD con vistas y filas). */
+export async function duplicateDoc(docId: string) {
+  const doc = await assertDocAccess(docId);
+  const newId = await duplicateSubtree(doc.id, doc.parentId, `${doc.title} (copia)`);
+  revalidateShell();
+  return { id: newId };
+}
+
+async function duplicateSubtree(
+  docId: string,
+  newParentId: string | null,
+  titleOverride?: string
+): Promise<string> {
+  const original = await db.query.docs.findFirst({ where: eq(docs.id, docId) });
+  if (!original) throw new Error("Doc no encontrado");
+
+  const orderKey = await nextOrderKey(
+    original.workspaceId,
+    original.section,
+    newParentId
+  );
+  const [copy] = await db
+    .insert(docs)
+    .values({
+      workspaceId: original.workspaceId,
+      section: original.section,
+      parentId: newParentId,
+      kind: original.kind,
+      emoji: original.emoji,
+      title: titleOverride ?? original.title,
+      cover: original.cover,
+      blocks: original.blocks,
+      textContent: original.textContent,
+      font: original.font,
+      fullWidth: original.fullWidth,
+      smallText: original.smallText,
+      orderKey,
+    })
+    .returning();
+
+  // Si es una BD, copia su esquema/automatizaciones, vistas y filas.
+  if (original.kind === "database") {
+    const database = await db.query.databases.findFirst({
+      where: eq(databases.docId, docId),
+    });
+    if (database) {
+      const [dbCopy] = await db
+        .insert(databases)
+        .values({
+          docId: copy.id,
+          schema: database.schema,
+          automations: database.automations,
+        })
+        .returning();
+      const oldViews = await db
+        .select()
+        .from(views)
+        .where(eq(views.databaseId, database.id));
+      for (const v of oldViews) {
+        await db.insert(views).values({
+          databaseId: dbCopy.id,
+          name: v.name,
+          type: v.type,
+          config: v.config,
+          orderKey: v.orderKey,
+        });
+      }
+      const oldRows = await db
+        .select()
+        .from(rows)
+        .where(and(eq(rows.databaseId, database.id), isNull(rows.deletedAt)));
+      for (const r of oldRows) {
+        await db.insert(rows).values({
+          databaseId: dbCopy.id,
+          values: r.values,
+          blocks: r.blocks,
+          cover: r.cover,
+          orderKey: r.orderKey,
+        });
+      }
+    }
+  }
+
+  // Copia recursiva de subpáginas (hijos en docs, no filas de BD).
+  const children = await db
+    .select({ id: docs.id })
+    .from(docs)
+    .where(and(eq(docs.parentId, docId), isNull(docs.deletedAt)))
+    .orderBy(asc(docs.orderKey));
+  for (const child of children) {
+    await duplicateSubtree(child.id, copy.id);
+  }
+  return copy.id;
 }
 
 export async function moveToTrash(docId: string) {

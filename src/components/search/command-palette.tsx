@@ -31,11 +31,9 @@ import {
   type PaletteRow,
   type ContentResult,
 } from "@/lib/actions/search";
+import { looseIncludes as includes } from "@/lib/search-utils";
 
 export const OPEN_COMMAND_EVENT = "mikion:command";
-
-const includes = (text: string, q: string) =>
-  text.toLowerCase().includes(q.toLowerCase());
 
 // Renderiza el fragmento de ts_headline marcando en negrita las coincidencias
 // (<b>…</b>), parseando el texto en vez de inyectar HTML.

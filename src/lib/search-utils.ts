@@ -1,6 +1,19 @@
 // Utilidades puras de búsqueda (sin acceso a BD), separadas de la server
 // action para poder testearlas y reutilizarlas.
 
+/** Minúsculas + sin acentos/diacríticos (para comparar títulos en cliente). */
+export function normalize(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+/** ¿`text` contiene `query` ignorando mayúsculas y acentos? */
+export function looseIncludes(text: string, query: string): boolean {
+  return normalize(text).includes(normalize(query));
+}
+
 /**
  * Construye la cadena de un `to_tsquery` por prefijo a partir de texto libre:
  * cada término se sanea a letras/dígitos y se le añade `:*`, unidos por ` & `.
