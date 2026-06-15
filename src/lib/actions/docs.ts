@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { docs, databases, views, versions } from "@/db/schema";
 import type { Block } from "@/lib/types";
@@ -173,5 +173,44 @@ export async function moveToTrash(docId: string) {
     .update(docs)
     .set({ deletedAt: new Date(), isFavorite: false })
     .where(inArray(docs.id, ids));
+  revalidateShell();
+}
+
+/** Restaura un doc (y su subárbol). Si su padre sigue en la papelera o ya no
+ * existe, lo mueve a la raíz de su sección. */
+export async function restoreDoc(docId: string) {
+  const doc = await assertDocAccess(docId);
+  const ids = [docId, ...(await getDescendantIds(docId))];
+  await db.update(docs).set({ deletedAt: null }).where(inArray(docs.id, ids));
+
+  if (doc.parentId) {
+    const parent = await db.query.docs.findFirst({
+      where: eq(docs.id, doc.parentId),
+    });
+    if (!parent || parent.deletedAt) {
+      const orderKey = await nextOrderKey(doc.workspaceId, doc.section, null);
+      await db
+        .update(docs)
+        .set({ parentId: null, orderKey })
+        .where(eq(docs.id, docId));
+    }
+  }
+  revalidateShell();
+}
+
+/** Borra definitivamente un doc y su subárbol. */
+export async function deleteDocPermanently(docId: string) {
+  await assertDocAccess(docId);
+  const ids = [docId, ...(await getDescendantIds(docId))];
+  await db.delete(docs).where(inArray(docs.id, ids));
+  revalidateShell();
+}
+
+/** Vacía la papelera del workspace (borra definitivamente todo lo eliminado). */
+export async function emptyTrash() {
+  const ws = await getUserWorkspace();
+  await db
+    .delete(docs)
+    .where(and(eq(docs.workspaceId, ws.id), isNotNull(docs.deletedAt)));
   revalidateShell();
 }
