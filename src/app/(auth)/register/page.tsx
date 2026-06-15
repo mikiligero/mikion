@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
@@ -26,6 +26,11 @@ const schema = z.object({
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  // Igual que en login: evita el envío nativo (GET con credenciales en la URL)
+  // antes de que React hidrate, inhabilitando el botón hasta montar.
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,7 +66,7 @@ export default function RegisterPage() {
         <CardDescription>Tu espacio de trabajo personal.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form method="post" onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="name">Nombre</Label>
             <Input
@@ -94,7 +99,11 @@ export default function RegisterPage() {
               required
             />
           </div>
-          <Button type="submit" disabled={loading} className="mt-1 w-full">
+          <Button
+            type="submit"
+            disabled={loading || !mounted}
+            className="mt-1 w-full"
+          >
             {loading ? "Creando…" : "Crear cuenta"}
           </Button>
         </form>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
@@ -25,6 +25,12 @@ const schema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  // Evita el envío nativo del formulario antes de que React hidrate (que caería
+  // a un GET con las credenciales en la URL): el botón queda inhabilitado —y con
+  // él el submit con Enter— hasta montar en cliente.
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -59,7 +65,7 @@ export default function LoginPage() {
         <CardDescription>Vuelve a tu espacio de trabajo.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form method="post" onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="email">Correo</Label>
             <Input
@@ -81,7 +87,11 @@ export default function LoginPage() {
               required
             />
           </div>
-          <Button type="submit" disabled={loading} className="mt-1 w-full">
+          <Button
+            type="submit"
+            disabled={loading || !mounted}
+            className="mt-1 w-full"
+          >
             {loading ? "Entrando…" : "Iniciar sesión"}
           </Button>
         </form>
