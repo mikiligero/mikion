@@ -21,10 +21,12 @@ import {
   MoreVertical,
   PanelRight,
   FileText,
+  Palette,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Row } from "@/db/schema";
 import type {
+  CalcType,
   DatabaseSchema,
   PropertyDef,
   PropertyType,
@@ -35,6 +37,10 @@ import { PROPERTY_TYPES, randomSelectColor } from "@/lib/types";
 import {
   groupRows,
   visibleProperties,
+  findOption,
+  computeCalc,
+  calcsForProperty,
+  CALC_LABELS,
   type RowGroup,
 } from "@/lib/database-view";
 import {
@@ -180,6 +186,17 @@ export function TableView({
   });
 
   const colCount = props.length + 2;
+  const colorByProp = config.colorBy
+    ? props.find((p) => p.id === config.colorBy)
+    : undefined;
+  const calculations = config.calculations ?? {};
+
+  function setCalc(propertyId: string, calc: CalcType | null) {
+    const next = { ...calculations };
+    if (calc) next[propertyId] = calc;
+    else delete next[propertyId];
+    onConfigChange?.({ calculations: next });
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -226,13 +243,23 @@ export function TableView({
         <tbody>
           {table.getRowModel().rows.map((row) => {
             const header = groupHeaders.get(row.original.id);
+            const colorOpt = colorByProp
+              ? findOption(colorByProp, row.original.values?.[colorByProp.id])
+              : undefined;
             return (
               <FragmentRow
                 key={row.id}
                 header={header}
                 colCount={colCount}
               >
-                <tr className="border-line group/row border-b">
+                <tr
+                  className="border-line group/row border-b"
+                  style={
+                    colorOpt
+                      ? { background: `var(--tint-${colorOpt.color}-bg)` }
+                      : undefined
+                  }
+                >
                   <td className="w-8 align-middle">
                     <RowActionsMenu
                       docId={docId}
@@ -254,6 +281,22 @@ export function TableView({
             );
           })}
         </tbody>
+        <tfoot>
+          <tr className="border-line text-ink-faint border-t text-[12px]">
+            <td className="w-8" />
+            {props.map((prop) => (
+              <td key={prop.id} className="border-line border-r p-0">
+                <CalcFooterCell
+                  prop={prop}
+                  calc={calculations[prop.id]}
+                  rows={data}
+                  onChange={(c) => setCalc(prop.id, c)}
+                />
+              </td>
+            ))}
+            <td />
+          </tr>
+        </tfoot>
       </table>
 
       <button
@@ -276,6 +319,55 @@ export function TableView({
   );
 }
 
+// --- Pie de columna: cálculo (contar, suma, %, etc.) ----------------------
+function CalcFooterCell({
+  prop,
+  calc,
+  rows,
+  onChange,
+}: {
+  prop: PropertyDef;
+  calc: CalcType | undefined;
+  rows: Row[];
+  onChange: (calc: CalcType | null) => void;
+}) {
+  const value = calc ? computeCalc(calc, prop, rows) : null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="hover:bg-sidebar-hover group/calc flex w-full items-center justify-end gap-1.5 px-2 py-1.5 text-right">
+          {calc ? (
+            <>
+              <span className="text-ink-faint">{CALC_LABELS[calc]}</span>
+              <span className="text-ink-soft font-medium">{value}</span>
+            </>
+          ) : (
+            <span className="text-ink-faint opacity-0 group-hover/calc:opacity-100">
+              Calcular
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-72 w-48 overflow-y-auto">
+        <DropdownMenuItem onClick={() => onChange(null)}>
+          Ninguno
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {calcsForProperty(prop).map((c) => (
+          <DropdownMenuItem
+            key={c}
+            onClick={() => onChange(c)}
+            className="flex items-center justify-between"
+          >
+            <span>{CALC_LABELS[c]}</span>
+            <span className="text-ink-faint">{computeCalc(c, prop, rows)}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // --- Menú de cabecera de columna ------------------------------------------
 function ColumnHeaderMenu({
   prop,
@@ -291,6 +383,7 @@ function ColumnHeaderMenu({
   const [, startTransition] = useTransition();
   const [name, setName] = useState(prop.name);
   const isGrouped = config.groupBy === prop.id;
+  const isColored = config.colorBy === prop.id;
 
   function saveName() {
     if (name.trim() && name !== prop.name) {
@@ -358,6 +451,16 @@ function ColumnHeaderMenu({
           <Rows3 className="size-4" />
           {isGrouped ? "Quitar agrupación" : "Agrupar"}
         </DropdownMenuItem>
+        {(prop.type === "select" || prop.type === "status") && (
+          <DropdownMenuItem
+            onClick={() =>
+              onConfigChange?.({ colorBy: isColored ? undefined : prop.id })
+            }
+          >
+            <Palette className="size-4" />
+            {isColored ? "Quitar color de fila" : "Colorear filas por esta"}
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
 

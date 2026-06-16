@@ -113,6 +113,21 @@ export type Sort = {
   direction: "asc" | "desc";
 };
 
+// Cálculo al pie de una columna (vista tabla).
+export type CalcType =
+  | "count"
+  | "countNotEmpty"
+  | "countEmpty"
+  | "percentNotEmpty"
+  | "percentEmpty"
+  | "countUnique"
+  | "sum"
+  | "average"
+  | "min"
+  | "max"
+  | "median"
+  | "range";
+
 export type ViewConfig = {
   filters: Filter[];
   sorts: Sort[];
@@ -122,6 +137,8 @@ export type ViewConfig = {
   datePropertyId?: string; // propiedad de fecha (vista calendario / cronograma)
   chartType?: "bar" | "donut"; // type === "chart"
   chartGroupBy?: string;
+  calculations?: Record<string, CalcType>; // propertyId → cálculo al pie (tabla)
+  colorBy?: string; // propiedad select/status que tiñe la fila (tabla)
 };
 
 // --- Colores de opciones (mapean a tints del tema) ------------------------
