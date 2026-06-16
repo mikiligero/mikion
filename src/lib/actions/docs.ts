@@ -63,6 +63,56 @@ export async function createDoc(input: {
   return { id: doc.id };
 }
 
+/** Crea una subpágina bajo `parentDocId` (para enlazarla en línea desde el
+ * editor, p. ej. el comando "/página"). Hereda workspace y sección del padre. */
+export async function createSubPage(parentDocId: string) {
+  const parent = await assertDocAccess(parentDocId);
+  const orderKey = await nextOrderKey(
+    parent.workspaceId,
+    parent.section,
+    parentDocId
+  );
+  const [doc] = await db
+    .insert(docs)
+    .values({
+      workspaceId: parent.workspaceId,
+      section: parent.section,
+      parentId: parentDocId,
+      kind: "page",
+      title: "Nueva página",
+      orderKey,
+    })
+    .returning();
+  revalidateShell();
+  return { id: doc.id, title: doc.title, emoji: doc.emoji };
+}
+
+/** Título/emoji actuales de un doc, para que el chip de enlace en línea
+ * (comando "/página") se mantenga sincronizado si la página se renombra. */
+export async function getDocTitle(docId: string) {
+  const doc = await assertDocAccess(docId);
+  return { title: doc.title, emoji: doc.emoji };
+}
+
+/** Datos para la tarjeta de previsualización del chip de enlace en línea:
+ * título/emoji en vivo, ruta de ancestros (migas) y un fragmento del contenido. */
+export async function getDocPreview(docId: string) {
+  const doc = await assertDocAccess(docId);
+  const path: string[] = [];
+  let parentId = doc.parentId;
+  while (parentId) {
+    const parent = await db.query.docs.findFirst({
+      where: eq(docs.id, parentId),
+      columns: { title: true, parentId: true },
+    });
+    if (!parent) break;
+    path.unshift(parent.title || "Sin título");
+    parentId = parent.parentId;
+  }
+  const snippet = (doc.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160);
+  return { title: doc.title, emoji: doc.emoji, path, snippet };
+}
+
 export async function createPageFromTemplate(input: {
   section?: "team" | "private";
   title: string;

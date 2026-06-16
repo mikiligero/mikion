@@ -25,13 +25,15 @@ import {
   Table2,
   Columns2,
   Columns3,
+  FileText,
 } from "lucide-react";
 import { createInlineDatabase } from "@/lib/actions/databases";
+import { createSubPage } from "@/lib/actions/docs";
 import { EmojiPickerPopover } from "./emoji-picker";
 import { Embed } from "./embed-block";
 import { Equation } from "./equation-block";
 import { InlineDatabase } from "./inline-db-block";
-import { Mention, DateChip } from "./inline-content";
+import { Mention, DateChip, PageLink } from "./inline-content";
 
 // --- Llamada (callout) ----------------------------------------------------
 const Callout = createReactBlockSpec(
@@ -125,6 +127,7 @@ export const schema = withMultiColumn(
       ...defaultInlineContentSpecs,
       mention: Mention,
       date: DateChip,
+      pageLink: PageLink,
     },
   })
 );
@@ -210,7 +213,8 @@ export async function getSlashItems(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   editor: BlockNoteEditor<any, any, any>,
   query: string,
-  pageDocId?: string
+  pageDocId?: string,
+  navigate?: (href: string) => void
 ): Promise<DefaultReactSuggestionItem[]> {
   const custom: DefaultReactSuggestionItem[] = [
     {
@@ -275,8 +279,24 @@ export async function getSlashItems(
     },
   ];
 
-  // BD en línea: solo en páginas (necesita el doc padre para anidarla).
+  // Subpágina + enlace: solo en páginas (necesita el doc padre para anidarla).
   if (pageDocId) {
+    custom.push({
+      title: "Página",
+      subtext: "Crear una subpágina y enlazarla aquí",
+      aliases: ["pagina", "página", "page", "subpagina", "subpágina"],
+      group: "Básico",
+      icon: <FileText className="size-4" />,
+      onItemClick: async () => {
+        const { id, title, emoji } = await createSubPage(pageDocId);
+        editor.insertInlineContent([
+          { type: "pageLink", props: { docId: id, title: title ?? "", emoji: emoji ?? "" } },
+          " ",
+        ]);
+        // Abre la nueva página para editarla directamente.
+        navigate?.(`/p/${id}`);
+      },
+    });
     custom.push({
       title: "Base de datos en línea",
       subtext: "Incrusta una base de datos dentro de la página",

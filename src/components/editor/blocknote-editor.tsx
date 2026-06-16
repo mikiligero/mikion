@@ -2,6 +2,7 @@
 
 import "@blocknote/shadcn/style.css";
 import { useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   useCreateBlockNote,
@@ -65,6 +66,7 @@ export function BlockNoteEditor({
   pageDocId?: string;
 }) {
   const { resolvedTheme } = useTheme();
+  const router = useRouter();
 
   const editor = useCreateBlockNote({
     schema,
@@ -125,7 +127,9 @@ export function BlockNoteEditor({
         />
         <SuggestionMenuController
           triggerCharacter="/"
-          getItems={(query) => getSlashItems(editor, query, pageDocId)}
+          getItems={(query) =>
+            getSlashItems(editor, query, pageDocId, (href) => router.push(href))
+          }
         />
         {mentionUsers.length > 0 && (
           <SuggestionMenuController

@@ -247,6 +247,20 @@
   background: var(--brand-soft);
 }
 
+/* Chip de enlace a página (comando "/página"): el CSS de @blocknote/shadcn
+   fuerza `.bn-shadcn .bn-editor a { color: revert; text-decoration: revert }`,
+   devolviendo el enlace al morado subrayado del navegador. Esta regla sin
+   @layer lo neutraliza (el color real lo pone la utilidad text-ink/brand). */
+.bn-shadcn .bn-editor a.page-link-chip,
+.bn-shadcn .bn-editor a.page-link-chip:hover,
+.bn-shadcn .bn-editor a.page-link-chip:visited {
+  text-decoration: none;
+  color: inherit;
+}
+.bn-shadcn .bn-editor a.page-link-chip:hover {
+  color: var(--brand);
+}
+
 *::-webkit-scrollbar {
   width: 11px;
   height: 11px;
