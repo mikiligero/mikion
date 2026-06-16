@@ -15,6 +15,11 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
   },
+  user: {
+    deleteUser: {
+      enabled: true,
+    },
+  },
   databaseHooks: {
     user: {
       create: {

@@ -10,7 +10,7 @@ import {
   testTelegram,
 } from "@/lib/actions/preferences";
 import { toast } from "sonner";
-import { signOut } from "@/lib/auth-client";
+import { signOut, deleteUser } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Prefs = {
   theme: ThemePref;
@@ -87,11 +98,25 @@ function AccountPanel({ user }: { user: { name: string; email: string } }) {
   const router = useRouter();
   const [name, setName] = useState(user.name);
   const [, startTransition] = useTransition();
+  const [password, setPassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   function saveName() {
     if (name.trim() && name !== user.name) {
       startTransition(() => updateAccountName(name));
     }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    const { error } = await deleteUser({ password });
+    setDeleting(false);
+    if (error) {
+      toast.error(error.message ?? "No se pudo eliminar la cuenta");
+      return;
+    }
+    router.push("/login");
+    router.refresh();
   }
 
   return (
@@ -117,7 +142,7 @@ function AccountPanel({ user }: { user: { name: string; email: string } }) {
         <span className="text-ink-soft text-sm">{user.email}</span>
       </Row>
 
-      <div className="border-line border-t pt-6">
+      <div className="border-line flex items-center gap-3 border-t pt-6">
         <Button
           variant="outline"
           onClick={async () => {
@@ -128,6 +153,46 @@ function AccountPanel({ user }: { user: { name: string; email: string } }) {
         >
           Cerrar sesión
         </Button>
+
+        <AlertDialog
+          onOpenChange={(open) => {
+            if (!open) setPassword("");
+          }}
+        >
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="text-red-600 hover:text-red-600">
+              Eliminar cuenta
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Eliminar cuenta</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción borra tu cuenta y todo su contenido (páginas, bases
+                de datos, comentarios). No se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="grid gap-2">
+              <Label htmlFor="delete-password">Confirma tu contraseña</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!password || deleting}
+                onClick={handleDeleteAccount}
+                className="bg-red-600 hover:bg-red-600/90"
+              >
+                {deleting ? "Eliminando…" : "Eliminar definitivamente"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </section>
   );
