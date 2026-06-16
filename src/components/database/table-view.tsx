@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   useReactTable,
@@ -8,7 +8,20 @@ import {
   flexRender,
   createColumnHelper,
 } from "@tanstack/react-table";
-import { Plus, Maximize2 } from "lucide-react";
+import {
+  Plus,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  Rows3,
+  Trash2,
+  Copy,
+  Link2,
+  MoreVertical,
+  PanelRight,
+} from "lucide-react";
+import { toast } from "sonner";
 import type { Row } from "@/db/schema";
 import type {
   DatabaseSchema,
@@ -27,13 +40,23 @@ import {
   createRow,
   updateCell,
   addProperty,
+  addPropertyAt,
   updateProperty,
+  deleteProperty,
+  duplicateRow,
+  deleteRow,
 } from "@/lib/actions/databases";
 import { PropertyCell, Tag } from "./property-cell";
+import { propertyIcon } from "./property-icon";
+import { RowSidePeek } from "./row-side-peek";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -45,15 +68,26 @@ export function TableView({
   schema,
   rows,
   config,
+  onConfigChange,
+  mentionUsers,
 }: {
   docId: string;
   databaseId: string;
   schema: DatabaseSchema;
   rows: Row[];
   config: ViewConfig;
+  onConfigChange?: (patch: Partial<ViewConfig>) => void;
+  mentionUsers?: { id: string; name: string }[];
 }) {
   const [, startTransition] = useTransition();
   const props = useMemo(() => visibleProperties(schema, config), [schema, config]);
+  // Guardamos solo el id; la fila se deriva del estado más reciente para que
+  // el panel refleje los cambios de celdas hechos en la tabla.
+  const [peekId, setPeekId] = useState<string | null>(null);
+  const peekRow = useMemo(
+    () => rows.find((r) => r.id === peekId) ?? null,
+    [rows, peekId]
+  );
 
   function setCell(rowId: string, propertyId: string, value: PropertyValue) {
     startTransition(() => updateCell(rowId, propertyId, value));
@@ -85,20 +119,37 @@ export function TableView({
         columnHelper.accessor((row) => row.values?.[prop.id] ?? null, {
           id: prop.id,
           header: prop.name,
-          cell: (ctx) => (
-            <PropertyCell
-              property={prop}
-              value={ctx.getValue() as PropertyValue}
-              onChange={(v) => setCell(ctx.row.original.id, prop.id, v)}
-              onAddOption={
-                prop.type === "select" ||
-                prop.type === "status" ||
-                prop.type === "multiselect"
-                  ? (name) => addOption(prop, name)
-                  : undefined
-              }
-            />
-          ),
+          cell: (ctx) => {
+            const cell = (
+              <PropertyCell
+                property={prop}
+                value={ctx.getValue() as PropertyValue}
+                onChange={(v) => setCell(ctx.row.original.id, prop.id, v)}
+                onAddOption={
+                  prop.type === "select" ||
+                  prop.type === "status" ||
+                  prop.type === "multiselect"
+                    ? (name) => addOption(prop, name)
+                    : undefined
+                }
+              />
+            );
+            // En la columna de título se muestra el botón "Abrir" al pasar el ratón.
+            if (prop.type === "title") {
+              return (
+                <div className="flex items-center gap-1">
+                  <div className="min-w-0 flex-1">{cell}</div>
+                  <button
+                    onClick={() => setPeekId(ctx.row.original.id)}
+                    className="text-ink-faint hover:bg-sidebar-hover ring-line mr-1 flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium opacity-0 ring-1 group-hover/row:opacity-100"
+                  >
+                    <PanelRight className="size-3" /> ABRIR
+                  </button>
+                </div>
+              );
+            }
+            return cell;
+          },
         })
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,17 +171,29 @@ export function TableView({
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id} className="border-line border-b">
               <th className="w-8" />
-              {hg.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="text-ink-faint border-line min-w-[160px] border-r px-2 py-1.5 text-left text-[12.5px] font-medium"
-                >
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-                </th>
-              ))}
+              {hg.headers.map((header) => {
+                const prop = props.find((p) => p.id === header.id);
+                return (
+                  <th
+                    key={header.id}
+                    className="border-line min-w-[160px] border-r p-0 text-left"
+                  >
+                    {prop ? (
+                      <ColumnHeaderMenu
+                        prop={prop}
+                        databaseId={databaseId}
+                        config={config}
+                        onConfigChange={onConfigChange}
+                      />
+                    ) : (
+                      flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )
+                    )}
+                  </th>
+                );
+              })}
               <th className="w-10 px-1">
                 <AddPropertyButton
                   onAdd={(type) =>
@@ -154,13 +217,11 @@ export function TableView({
               >
                 <tr className="border-line group/row border-b">
                   <td className="w-8 align-middle">
-                    <Link
-                      href={`/p/${docId}/${row.original.id}`}
-                      className="text-ink-faint hover:bg-sidebar-hover mx-auto flex size-6 items-center justify-center rounded-sm opacity-0 group-hover/row:opacity-100"
-                      aria-label="Abrir fila"
-                    >
-                      <Maximize2 className="size-3.5" />
-                    </Link>
+                    <RowActionsMenu
+                      docId={docId}
+                      row={row.original}
+                      onOpenPeek={() => setPeekId(row.original.id)}
+                    />
                   </td>
                   {row.getVisibleCells().map((cell) => (
                     <td
@@ -184,7 +245,209 @@ export function TableView({
       >
         <Plus className="size-4" /> Nueva fila
       </button>
+
+      <RowSidePeek
+        open={peekRow !== null}
+        onOpenChange={(o) => !o && setPeekId(null)}
+        databaseId={databaseId}
+        schema={schema}
+        row={peekRow}
+        docId={docId}
+        mentionUsers={mentionUsers}
+      />
     </div>
+  );
+}
+
+// --- Menú de cabecera de columna ------------------------------------------
+function ColumnHeaderMenu({
+  prop,
+  databaseId,
+  config,
+  onConfigChange,
+}: {
+  prop: PropertyDef;
+  databaseId: string;
+  config: ViewConfig;
+  onConfigChange?: (patch: Partial<ViewConfig>) => void;
+}) {
+  const [, startTransition] = useTransition();
+  const [name, setName] = useState(prop.name);
+  const isGrouped = config.groupBy === prop.id;
+
+  function saveName() {
+    if (name.trim() && name !== prop.name) {
+      startTransition(() => updateProperty(databaseId, prop.id, { name }));
+    }
+  }
+
+  function setSort(direction: "asc" | "desc") {
+    onConfigChange?.({ sorts: [{ propertyId: prop.id, direction }] });
+  }
+
+  function insertAt(side: "left" | "right", type: PropertyType) {
+    startTransition(() => {
+      void addPropertyAt(databaseId, type, prop.id, side);
+    });
+  }
+
+  const insertableTypes = PROPERTY_TYPES.filter((t) => t.value !== "title");
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="text-ink-faint hover:bg-sidebar-hover flex w-full items-center gap-1.5 px-2 py-1.5 text-[12.5px] font-medium">
+          {propertyIcon(prop.type)}
+          <span className="truncate">{prop.name}</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-60">
+        {/* Renombrar */}
+        <div
+          className="flex items-center gap-1.5 p-1"
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <span className="text-ink-faint flex size-7 shrink-0 items-center justify-center">
+            {propertyIcon(prop.type)}
+          </span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                saveName();
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            className="border-line focus:ring-ring w-full rounded-md border bg-transparent px-2 py-1 text-sm outline-none focus:ring-2"
+          />
+        </div>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={() => setSort("asc")}>
+          <ArrowUp className="size-4" /> Ordenar ascendente
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setSort("desc")}>
+          <ArrowDown className="size-4" /> Ordenar descendente
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            onConfigChange?.({ groupBy: isGrouped ? undefined : prop.id })
+          }
+        >
+          <Rows3 className="size-4" />
+          {isGrouped ? "Quitar agrupación" : "Agrupar"}
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <ArrowLeftToLine className="size-4" /> Insertar a la izquierda
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+            {insertableTypes.map((t) => (
+              <DropdownMenuItem
+                key={t.value}
+                onClick={() => insertAt("left", t.value)}
+              >
+                {propertyIcon(t.value)} {t.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <ArrowRightToLine className="size-4" /> Insertar a la derecha
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+            {insertableTypes.map((t) => (
+              <DropdownMenuItem
+                key={t.value}
+                onClick={() => insertAt("right", t.value)}
+              >
+                {propertyIcon(t.value)} {t.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+
+        {prop.type !== "title" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() =>
+                startTransition(() => deleteProperty(databaseId, prop.id))
+              }
+            >
+              <Trash2 className="size-4" /> Eliminar propiedad
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// --- Menú de acciones de fila ---------------------------------------------
+function RowActionsMenu({
+  docId,
+  row,
+  onOpenPeek,
+}: {
+  docId: string;
+  row: Row;
+  onOpenPeek: () => void;
+}) {
+  const [, startTransition] = useTransition();
+
+  function copyLink() {
+    const url = `${window.location.origin}/p/${docId}/${row.id}`;
+    void navigator.clipboard.writeText(url);
+    toast.success("Enlace copiado");
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="text-ink-faint hover:bg-sidebar-hover mx-auto flex size-6 items-center justify-center rounded-sm opacity-0 group-hover/row:opacity-100 data-[state=open]:opacity-100"
+          aria-label="Acciones de fila"
+        >
+          <MoreVertical className="size-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-52">
+        <DropdownMenuItem onClick={onOpenPeek}>
+          <PanelRight className="size-4" /> Abrir en vista lateral
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/p/${docId}/${row.id}`}>
+            <ArrowRightToLine className="size-4" /> Abrir como página
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={copyLink}>
+          <Link2 className="size-4" /> Copiar enlace
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => startTransition(() => void duplicateRow(row.id))}
+        >
+          <Copy className="size-4" /> Duplicar
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => startTransition(() => void deleteRow(row.id))}
+        >
+          <Trash2 className="size-4" /> Mover a la papelera
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -236,7 +499,7 @@ function AddPropertyButton({ onAdd }: { onAdd: (type: PropertyType) => void }) {
       <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
         {PROPERTY_TYPES.filter((t) => t.value !== "title").map((t) => (
           <DropdownMenuItem key={t.value} onClick={() => onAdd(t.value)}>
-            {t.label}
+            {propertyIcon(t.value)} {t.label}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

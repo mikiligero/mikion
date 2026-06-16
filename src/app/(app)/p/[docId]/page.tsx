@@ -79,6 +79,7 @@ export default async function DocPage({
         }}
         views={viewRows}
         rows={rowRows}
+        mentionUsers={mentionUsers}
       />
     );
   }

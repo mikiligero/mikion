@@ -54,6 +54,36 @@ export async function createRow(
   return { id: row.id };
 }
 
+/** Duplica una fila (valores + contenido + portada) y la coloca justo debajo. */
+export async function duplicateRow(rowId: string) {
+  const { row } = await assertRowAccess(rowId);
+  const [next] = await db
+    .select({ orderKey: rows.orderKey })
+    .from(rows)
+    .where(
+      and(
+        eq(rows.databaseId, row.databaseId),
+        isNull(rows.deletedAt),
+        sql`${rows.orderKey} > ${row.orderKey}`
+      )
+    )
+    .orderBy(asc(rows.orderKey))
+    .limit(1);
+  const orderKey = generateKeyBetween(row.orderKey, next?.orderKey ?? null);
+  const [copy] = await db
+    .insert(rows)
+    .values({
+      databaseId: row.databaseId,
+      values: row.values ?? {},
+      blocks: row.blocks ?? null,
+      cover: row.cover ?? null,
+      orderKey,
+    })
+    .returning();
+  revalidateShell();
+  return { id: copy.id };
+}
+
 export async function updateCell(
   rowId: string,
   propertyId: string,
@@ -136,6 +166,24 @@ export async function addProperty(databaseId: string, type: PropertyType) {
   await setSchema(databaseId, {
     properties: [...schema.properties, prop],
   });
+  return { id: prop.id };
+}
+
+/** Inserta una propiedad nueva junto a otra (a izquierda/derecha), p. ej. desde
+ * el menú de la cabecera de columna en la tabla. */
+export async function addPropertyAt(
+  databaseId: string,
+  type: PropertyType,
+  refPropertyId: string,
+  side: "left" | "right"
+) {
+  const { database } = await assertDatabaseAccess(databaseId);
+  const props = database.schema.properties;
+  const prop = newPropertyDef(type);
+  const refIndex = props.findIndex((p) => p.id === refPropertyId);
+  const at = refIndex < 0 ? props.length : refIndex + (side === "right" ? 1 : 0);
+  const next = [...props.slice(0, at), prop, ...props.slice(at)];
+  await setSchema(databaseId, { properties: next });
   return { id: prop.id };
 }
 

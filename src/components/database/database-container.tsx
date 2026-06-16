@@ -43,11 +43,13 @@ export function DatabaseContainer({
   database,
   views,
   rows,
+  mentionUsers,
 }: {
   doc: { id: string; emoji: string | null; title: string };
   database: { id: string; schema: DatabaseSchema; automations: Automation[] };
   views: ViewMeta[];
   rows: Row[];
+  mentionUsers?: { id: string; name: string }[];
 }) {
   const [activeId, setActiveId] = useState(views[0]?.id ?? null);
   const [autoOpen, setAutoOpen] = useState(false);
@@ -209,6 +211,8 @@ export function DatabaseContainer({
             schema={database.schema}
             rows={viewRows}
             config={config}
+            onConfigChange={patchConfig}
+            mentionUsers={mentionUsers}
           />
         )}
       </div>
