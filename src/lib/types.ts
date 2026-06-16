@@ -72,10 +72,21 @@ export type PropertyDef = {
   formula?: FormulaKind; // type === "formula"
   relationDatabaseId?: string; // type === "relation"
   rollup?: RollupConfig; // type === "rollup"
+  includeTime?: boolean; // type === "date": guardar/mostrar la hora
+  dateRange?: boolean; // type === "date": rango (valor = [inicio, fin])
 };
 
 export type DatabaseSchema = {
   properties: PropertyDef[];
+};
+
+// Plantilla de fila: valores + contenido por defecto al crear una fila nueva.
+export type DbTemplate = {
+  id: string;
+  name: string;
+  emoji?: string | null;
+  values: PropertyValues;
+  blocks?: Block[] | null;
 };
 
 // Valor de una propiedad en una fila. Según el tipo:

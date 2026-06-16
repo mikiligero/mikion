@@ -9,6 +9,7 @@ import type {
   Automation,
   Block,
   DatabaseSchema,
+  DbTemplate,
   PropertyDef,
   PropertyType,
   PropertyValue,
@@ -95,6 +96,60 @@ export async function updateCell(
     .update(rows)
     .set({ values: nextValues, updatedAt: new Date() })
     .where(eq(rows.id, rowId));
+  revalidateShell();
+}
+
+/** Guarda una fila como plantilla reutilizable de su base de datos. */
+export async function saveRowAsTemplate(rowId: string, name: string) {
+  const { row } = await assertRowAccess(rowId);
+  const { database } = await assertDatabaseAccess(row.databaseId);
+  const template: DbTemplate = {
+    id: crypto.randomUUID(),
+    name: name.trim() || "Plantilla",
+    emoji: row.emoji ?? null,
+    values: row.values ?? {},
+    blocks: row.blocks ?? null,
+  };
+  await db
+    .update(databases)
+    .set({ templates: [...(database.templates ?? []), template] })
+    .where(eq(databases.id, database.id));
+  revalidateShell();
+  return { id: template.id };
+}
+
+/** Crea una fila a partir de una plantilla (valores + contenido + emoji). */
+export async function createRowFromTemplate(
+  databaseId: string,
+  templateId: string
+) {
+  const { database } = await assertDatabaseAccess(databaseId);
+  const template = (database.templates ?? []).find((t) => t.id === templateId);
+  if (!template) throw new Error("Plantilla no encontrada");
+  const orderKey = await nextRowOrderKey(databaseId);
+  const [row] = await db
+    .insert(rows)
+    .values({
+      databaseId,
+      emoji: template.emoji ?? null,
+      values: template.values ?? {},
+      blocks: template.blocks ?? null,
+      orderKey,
+    })
+    .returning();
+  revalidateShell();
+  return { id: row.id };
+}
+
+/** Elimina una plantilla de la base de datos. */
+export async function deleteTemplate(databaseId: string, templateId: string) {
+  const { database } = await assertDatabaseAccess(databaseId);
+  await db
+    .update(databases)
+    .set({
+      templates: (database.templates ?? []).filter((t) => t.id !== templateId),
+    })
+    .where(eq(databases.id, database.id));
   revalidateShell();
 }
 

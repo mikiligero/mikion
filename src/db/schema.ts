@@ -14,6 +14,7 @@ import type {
   Automation,
   Block,
   DatabaseSchema,
+  DbTemplate,
   PropertyValues,
   ViewConfig,
 } from "@/lib/types";
@@ -177,6 +178,10 @@ export const databases = pgTable("databases", {
   schema: jsonb("schema").$type<DatabaseSchema>().notNull(),
   automations: jsonb("automations")
     .$type<Automation[]>()
+    .notNull()
+    .default([]),
+  templates: jsonb("templates")
+    .$type<DbTemplate[]>()
     .notNull()
     .default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),

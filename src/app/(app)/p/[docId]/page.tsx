@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { docs, databases, views, rows as rowsTable } from "@/db/schema";
 import { requireWorkspace } from "@/lib/session";
 import { findOption } from "@/lib/database-view";
+import { dateStart } from "@/lib/calendar-utils";
 import { getRowTitle } from "@/lib/database-utils";
 import { PageEditor } from "@/components/editor/page-editor";
 import { DatabaseContainer } from "@/components/database/database-container";
@@ -76,6 +77,7 @@ export default async function DocPage({
           id: database.id,
           schema: database.schema,
           automations: database.automations,
+          templates: database.templates,
         }}
         views={viewRows}
         rows={rowRows}
@@ -110,8 +112,8 @@ export default async function DocPage({
     for (const r of allRows) {
       const parent = dbById.get(r.databaseId)!;
       const dateProp = parent.schema.properties.find((p) => p.type === "date");
-      const v = dateProp ? r.values?.[dateProp.id] : null;
-      if (typeof v !== "string" || !v) continue;
+      const start = dateProp ? dateStart(r.values?.[dateProp.id]) : null;
+      if (!start) continue;
       const colorProp = parent.schema.properties.find(
         (p) => p.type === "status" || p.type === "select"
       );
@@ -120,7 +122,7 @@ export default async function DocPage({
         id: r.id,
         docId: parent.docId,
         title: getRowTitle(r.values, parent.schema),
-        date: v.slice(0, 10),
+        date: start.slice(0, 10),
         color: opt?.color,
       });
     }

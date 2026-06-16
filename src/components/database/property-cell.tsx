@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Plus, X } from "lucide-react";
 import type { PropertyDef, PropertyValue, SelectOption } from "@/lib/types";
+import { dateStart, dateEnd } from "@/lib/calendar-utils";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -49,7 +50,9 @@ export function PropertyCell({
     case "checkbox":
       return <CheckboxCell value={value} onChange={onChange} />;
     case "date":
-      return <DateCell value={value} onChange={onChange} />;
+      return (
+        <DateCell property={property} value={value} onChange={onChange} />
+      );
     case "select":
     case "status":
       return (
@@ -139,20 +142,80 @@ function CheckboxCell({
 }
 
 function DateCell({
+  property,
   value,
   onChange,
 }: {
+  property: PropertyDef;
   value: PropertyValue;
   onChange: (v: PropertyValue) => void;
 }) {
-  const v = typeof value === "string" ? value.slice(0, 10) : "";
+  const withTime = !!property.includeTime;
+  const range = !!property.dateRange;
+  const inputType = withTime ? "datetime-local" : "date";
+  const sliceTo = withTime ? 16 : 10;
+
+  // Estado local para que editar un extremo del rango no use un valor obsoleto
+  // del otro mientras el servidor revalida.
+  const [start, setStart] = useState((dateStart(value) ?? "").slice(0, sliceTo));
+  const [end, setEnd] = useState((dateEnd(value) ?? "").slice(0, sliceTo));
+  const key = `${dateStart(value) ?? ""}|${dateEnd(value) ?? ""}`;
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) {
+    // El valor del servidor cambió: re-sincroniza los campos.
+    setLastKey(key);
+    setStart((dateStart(value) ?? "").slice(0, sliceTo));
+    setEnd((dateEnd(value) ?? "").slice(0, sliceTo));
+  }
+
+  function commit(nextStart: string, nextEnd: string) {
+    if (range) {
+      if (!nextStart && !nextEnd) onChange(null);
+      else onChange([nextStart || null, nextEnd || null] as PropertyValue);
+    } else {
+      onChange(nextStart || null);
+    }
+  }
+
+  const inputCls =
+    "text-ink-soft min-w-0 bg-transparent px-2 py-1 text-sm outline-none";
+
+  if (!range) {
+    return (
+      <input
+        type={inputType}
+        value={start}
+        onChange={(e) => {
+          setStart(e.target.value);
+          commit(e.target.value, "");
+        }}
+        className={cn(inputCls, "w-full")}
+      />
+    );
+  }
+
   return (
-    <input
-      type="date"
-      value={v}
-      onChange={(e) => onChange(e.target.value || null)}
-      className="text-ink-soft w-full bg-transparent px-2 py-1 text-sm outline-none"
-    />
+    <div className="flex items-center gap-0.5">
+      <input
+        type={inputType}
+        value={start}
+        onChange={(e) => {
+          setStart(e.target.value);
+          commit(e.target.value, end);
+        }}
+        className={inputCls}
+      />
+      <span className="text-ink-faint shrink-0">→</span>
+      <input
+        type={inputType}
+        value={end}
+        onChange={(e) => {
+          setEnd(e.target.value);
+          commit(start, e.target.value);
+        }}
+        className={inputCls}
+      />
+    </div>
   );
 }
 

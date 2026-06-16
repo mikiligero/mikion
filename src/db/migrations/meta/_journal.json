@@ -57,6 +57,13 @@
       "when": 1781627342910,
       "tag": "0007_row_emoji",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781628384987,
+      "tag": "0008_db_templates",
+      "breakpoints": true
     }
   ]
 }

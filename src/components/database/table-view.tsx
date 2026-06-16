@@ -22,12 +22,16 @@ import {
   PanelRight,
   FileText,
   Palette,
+  ChevronDown,
+  LayoutTemplate,
+  Bookmark,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Row } from "@/db/schema";
 import type {
   CalcType,
   DatabaseSchema,
+  DbTemplate,
   PropertyDef,
   PropertyType,
   PropertyValue,
@@ -53,6 +57,9 @@ import {
   duplicateRow,
   deleteRow,
   setRowEmoji,
+  saveRowAsTemplate,
+  createRowFromTemplate,
+  deleteTemplate,
 } from "@/lib/actions/databases";
 import { PropertyCell, Tag } from "./property-cell";
 import { propertyIcon } from "./property-icon";
@@ -62,12 +69,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const columnHelper = createColumnHelper<Row>();
 
@@ -77,6 +93,7 @@ export function TableView({
   schema,
   rows,
   config,
+  templates,
   onConfigChange,
   mentionUsers,
 }: {
@@ -85,6 +102,7 @@ export function TableView({
   schema: DatabaseSchema;
   rows: Row[];
   config: ViewConfig;
+  templates?: DbTemplate[];
   onConfigChange?: (patch: Partial<ViewConfig>) => void;
   mentionUsers?: { id: string; name: string }[];
 }) {
@@ -299,12 +317,64 @@ export function TableView({
         </tfoot>
       </table>
 
-      <button
-        onClick={() => startTransition(() => void createRow(databaseId))}
-        className="text-ink-faint hover:bg-sidebar-hover flex w-full items-center gap-2 px-2 py-2 text-sm"
-      >
-        <Plus className="size-4" /> Nueva fila
-      </button>
+      <div className="flex w-fit items-center">
+        <button
+          onClick={() => startTransition(() => void createRow(databaseId))}
+          className="text-ink-faint hover:bg-sidebar-hover flex items-center gap-2 px-2 py-2 text-sm"
+        >
+          <Plus className="size-4" /> Nueva fila
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="text-ink-faint hover:bg-sidebar-hover flex items-center rounded-sm px-1.5 py-2"
+              aria-label="Plantillas"
+            >
+              <ChevronDown className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="text-ink-faint px-2 py-1 text-xs font-medium">
+              Plantillas
+            </div>
+            {(templates ?? []).length === 0 ? (
+              <div className="text-ink-faint px-2 py-1 text-[13px]">
+                Aún no hay plantillas. Guarda una fila como plantilla desde su
+                menú.
+              </div>
+            ) : (
+              (templates ?? []).map((t) => (
+                <DropdownMenuItem
+                  key={t.id}
+                  onClick={() =>
+                    startTransition(() =>
+                      createRowFromTemplate(databaseId, t.id).then(() => {})
+                    )
+                  }
+                  className="flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    {t.emoji || <LayoutTemplate className="size-4" />}
+                    <span className="truncate">{t.name}</span>
+                  </span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startTransition(() => deleteTemplate(databaseId, t.id));
+                    }}
+                    className="text-ink-faint hover:text-destructive ml-2 shrink-0"
+                    aria-label="Eliminar plantilla"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </span>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <RowSidePeek
         open={peekRow !== null}
@@ -461,6 +531,30 @@ function ColumnHeaderMenu({
             {isColored ? "Quitar color de fila" : "Colorear filas por esta"}
           </DropdownMenuItem>
         )}
+        {prop.type === "date" && (
+          <>
+            <DropdownMenuCheckboxItem
+              checked={!!prop.includeTime}
+              onCheckedChange={(c) =>
+                startTransition(() =>
+                  updateProperty(databaseId, prop.id, { includeTime: c })
+                )
+              }
+            >
+              Incluir hora
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={!!prop.dateRange}
+              onCheckedChange={(c) =>
+                startTransition(() =>
+                  updateProperty(databaseId, prop.id, { dateRange: c })
+                )
+              }
+            >
+              Rango de fechas
+            </DropdownMenuCheckboxItem>
+          </>
+        )}
 
         <DropdownMenuSeparator />
 
@@ -524,6 +618,8 @@ function RowActionsMenu({
   onOpenPeek: () => void;
 }) {
   const [, startTransition] = useTransition();
+  const [tplOpen, setTplOpen] = useState(false);
+  const [tplName, setTplName] = useState("");
 
   function copyLink() {
     const url = `${window.location.origin}/p/${docId}/${row.id}`;
@@ -531,7 +627,19 @@ function RowActionsMenu({
     toast.success("Enlace copiado");
   }
 
+  function saveTemplate() {
+    const name = tplName.trim();
+    startTransition(() =>
+      saveRowAsTemplate(row.id, name).then(() => {
+        toast.success("Plantilla guardada");
+      })
+    );
+    setTplOpen(false);
+    setTplName("");
+  }
+
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -559,6 +667,9 @@ function RowActionsMenu({
         >
           <Copy className="size-4" /> Duplicar
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTplOpen(true)}>
+          <Bookmark className="size-4" /> Guardar como plantilla
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
@@ -568,6 +679,36 @@ function RowActionsMenu({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <Dialog open={tplOpen} onOpenChange={setTplOpen}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Guardar como plantilla</DialogTitle>
+        </DialogHeader>
+        <input
+          autoFocus
+          value={tplName}
+          onChange={(e) => setTplName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              saveTemplate();
+            }
+          }}
+          placeholder="Nombre de la plantilla"
+          className="border-line focus:ring-ring w-full rounded-md border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:ring-2"
+        />
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setTplOpen(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={saveTemplate} disabled={!tplName.trim()}>
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
