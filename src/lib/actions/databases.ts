@@ -171,9 +171,9 @@ export async function updateView(
   revalidateShell();
 }
 
-// Crea una BD en línea: un doc hijo (kind=database) bajo la página actual +
-// esquema por defecto + vista tabla. Devuelve los ids para el bloque.
-export async function createInlineDatabase(parentDocId: string) {
+// Crea el doc-BD (kind=database) bajo la página actual + esquema por defecto +
+// vista tabla. Base compartida por las dos variantes (integrada / página completa).
+async function createDatabaseDoc(parentDocId: string) {
   const parent = await assertDocAccess(parentDocId);
   const orderKey = await nextOrderKey(
     parent.workspaceId,
@@ -202,7 +202,21 @@ export async function createInlineDatabase(parentDocId: string) {
     config: { filters: [], sorts: [] },
   });
   revalidateShell();
+  return { doc, database };
+}
+
+// BD integrada: se incrusta en la página actual con un bloque `inlineDatabase`.
+// Devuelve los ids para el bloque.
+export async function createInlineDatabase(parentDocId: string) {
+  const { doc, database } = await createDatabaseDoc(parentDocId);
   return { databaseId: database.id, docId: doc.id };
+}
+
+// BD de página completa: una subpágina (kind=database) que se enlaza en la
+// página actual con un chip `pageLink` y se abre como página propia.
+export async function createPageDatabase(parentDocId: string) {
+  const { doc } = await createDatabaseDoc(parentDocId);
+  return { docId: doc.id, title: doc.title, emoji: doc.emoji };
 }
 
 // Carga el esquema + filas de una BD (para refrescar el bloque en cliente).

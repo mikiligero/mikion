@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileText, ChevronRight } from "lucide-react";
+import { FileText, Table, ChevronRight } from "lucide-react";
 import { createReactInlineContentSpec } from "@blocknote/react";
 import { getDocPreview } from "@/lib/actions/docs";
 import {
@@ -45,6 +45,7 @@ function formatDate(iso: string): string {
 type PreviewMeta = {
   title: string;
   emoji: string;
+  kind: string;
   path: string[];
   snippet: string;
 };
@@ -61,6 +62,7 @@ function PageLinkChip({
   const [meta, setMeta] = useState<PreviewMeta>({
     title,
     emoji,
+    kind: "page",
     path: [],
     snippet: "",
   });
@@ -74,6 +76,7 @@ function PageLinkChip({
           setMeta({
             title: d.title,
             emoji: d.emoji ?? "",
+            kind: d.kind ?? "page",
             path: d.path,
             snippet: d.snippet,
           });
@@ -84,7 +87,9 @@ function PageLinkChip({
     };
   }, [docId]);
 
-  const label = meta.title || "Nueva página";
+  const isDatabase = meta.kind === "database";
+  const FallbackIcon = isDatabase ? Table : FileText;
+  const label = meta.title || (isDatabase ? "Base de datos" : "Nueva página");
 
   return (
     <HoverCard openDelay={200} closeDelay={100}>
@@ -95,14 +100,14 @@ function PageLinkChip({
           className="page-link-chip text-ink hover:text-brand inline-flex items-center gap-1 align-middle font-medium"
         >
           <span className="shrink-0">
-            {meta.emoji || <FileText className="size-3.5" />}
+            {meta.emoji || <FallbackIcon className="size-3.5" />}
           </span>
           <span>{label}</span>
         </Link>
       </HoverCardTrigger>
       <HoverCardContent>
         <div className="mb-1.5 text-2xl leading-none">
-          {meta.emoji || <FileText className="text-ink-faint size-6" />}
+          {meta.emoji || <FallbackIcon className="text-ink-faint size-6" />}
         </div>
         {meta.path.length > 0 && (
           <div className="text-ink-faint mb-0.5 flex items-center gap-0.5 text-xs">
@@ -120,7 +125,9 @@ function PageLinkChip({
             {meta.snippet}
           </p>
         ) : (
-          <p className="text-ink-faint mt-1 text-[13px] italic">Página vacía</p>
+          <p className="text-ink-faint mt-1 text-[13px] italic">
+            {isDatabase ? "Base de datos" : "Página vacía"}
+          </p>
         )}
       </HoverCardContent>
     </HoverCard>

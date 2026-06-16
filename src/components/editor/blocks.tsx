@@ -23,11 +23,12 @@ import {
   Sigma,
   Calendar,
   Table2,
+  Table,
   Columns2,
   Columns3,
   FileText,
 } from "lucide-react";
-import { createInlineDatabase } from "@/lib/actions/databases";
+import { createInlineDatabase, createPageDatabase } from "@/lib/actions/databases";
 import { createSubPage } from "@/lib/actions/docs";
 import { EmojiPickerPopover } from "./emoji-picker";
 import { Embed } from "./embed-block";
@@ -298,14 +299,29 @@ export async function getSlashItems(
       },
     });
     custom.push({
-      title: "Base de datos en línea",
+      title: "Base de datos: integrada",
       subtext: "Incrusta una base de datos dentro de la página",
-      aliases: ["bd", "base de datos", "database", "tabla", "inline"],
+      aliases: ["bd", "base de datos", "database", "tabla", "inline", "integrada", "en linea", "en línea"],
       group: "Bases de datos",
       icon: <Table2 className="size-4" />,
       onItemClick: async () => {
         const { databaseId } = await createInlineDatabase(pageDocId);
         insertBlock(editor, "inlineDatabase", { databaseId });
+      },
+    });
+    custom.push({
+      title: "Base de datos: página completa",
+      subtext: "Crea la base de datos como subpágina y la enlaza aquí",
+      aliases: ["bd", "base de datos", "database", "tabla", "pagina completa", "página completa", "full page"],
+      group: "Bases de datos",
+      icon: <Table className="size-4" />,
+      onItemClick: async () => {
+        const { docId, title, emoji } = await createPageDatabase(pageDocId);
+        editor.insertInlineContent([
+          { type: "pageLink", props: { docId, title: title ?? "", emoji: emoji ?? "" } },
+          " ",
+        ]);
+        navigate?.(`/p/${docId}`);
       },
     });
   }

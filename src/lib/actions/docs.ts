@@ -110,7 +110,7 @@ export async function getDocPreview(docId: string) {
     parentId = parent.parentId;
   }
   const snippet = (doc.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160);
-  return { title: doc.title, emoji: doc.emoji, path, snippet };
+  return { title: doc.title, emoji: doc.emoji, kind: doc.kind, path, snippet };
 }
 
 export async function createPageFromTemplate(input: {
