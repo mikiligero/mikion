@@ -59,6 +59,7 @@ export function RowSidePeek({
                 schema={schema}
                 row={{
                   id: row.id,
+                  emoji: row.emoji,
                   values: row.values as PropertyValues | null,
                   cover: row.cover,
                   blocks: row.blocks as Block[] | null,

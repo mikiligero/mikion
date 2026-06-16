@@ -98,6 +98,16 @@ export async function updateCell(
   revalidateShell();
 }
 
+/** Establece (o quita) el emoji/icono de una fila. */
+export async function setRowEmoji(rowId: string, emoji: string | null) {
+  await assertRowAccess(rowId);
+  await db
+    .update(rows)
+    .set({ emoji, updatedAt: new Date() })
+    .where(eq(rows.id, rowId));
+  revalidateShell();
+}
+
 export async function deleteRow(rowId: string) {
   const { row } = await assertRowAccess(rowId);
   await db

@@ -20,6 +20,7 @@ import {
   Link2,
   MoreVertical,
   PanelRight,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Row } from "@/db/schema";
@@ -45,10 +46,12 @@ import {
   deleteProperty,
   duplicateRow,
   deleteRow,
+  setRowEmoji,
 } from "@/lib/actions/databases";
 import { PropertyCell, Tag } from "./property-cell";
 import { propertyIcon } from "./property-icon";
 import { RowSidePeek } from "./row-side-peek";
+import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,13 +137,27 @@ export function TableView({
                 }
               />
             );
-            // En la columna de título se muestra el botón "Abrir" al pasar el ratón.
+            // Columna de título: icono/emoji de la fila + botón "Abrir" al hover.
             if (prop.type === "title") {
+              const r = ctx.row.original;
               return (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 pl-1">
+                  <EmojiPickerPopover
+                    onSelect={(e) =>
+                      startTransition(() => setRowEmoji(r.id, e))
+                    }
+                    trigger={
+                      <button
+                        className="text-ink-faint hover:bg-sidebar-hover flex size-6 shrink-0 items-center justify-center rounded-sm text-base leading-none"
+                        aria-label="Icono de la fila"
+                      >
+                        {r.emoji || <FileText className="size-4" />}
+                      </button>
+                    }
+                  />
                   <div className="min-w-0 flex-1">{cell}</div>
                   <button
-                    onClick={() => setPeekId(ctx.row.original.id)}
+                    onClick={() => setPeekId(r.id)}
                     className="text-ink-faint hover:bg-sidebar-hover ring-line mr-1 flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium opacity-0 ring-1 group-hover/row:opacity-100"
                   >
                     <PanelRight className="size-3" /> ABRIR

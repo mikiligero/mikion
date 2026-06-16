@@ -1,0 +1,1 @@
+ALTER TABLE "rows" ADD COLUMN "emoji" text;

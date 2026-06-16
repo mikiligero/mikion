@@ -40,6 +40,7 @@ export default async function RowDocPage({
       schema={database.schema}
       row={{
         id: row.id,
+        emoji: row.emoji,
         values: row.values,
         cover: row.cover,
         blocks: (row.blocks as Block[] | null) ?? null,

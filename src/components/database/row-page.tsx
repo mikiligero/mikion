@@ -2,14 +2,20 @@
 
 import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { History } from "lucide-react";
+import { History, Smile } from "lucide-react";
 import type { DatabaseSchema, PropertyValue, PropertyValues, Block } from "@/lib/types";
 import { titleProperty } from "@/lib/database-utils";
 import { coverBackground } from "@/lib/covers";
-import { updateCell, updateProperty, saveRowContent } from "@/lib/actions/databases";
+import {
+  updateCell,
+  updateProperty,
+  saveRowContent,
+  setRowEmoji,
+} from "@/lib/actions/databases";
 import { randomSelectColor } from "@/lib/types";
 import { PropertyCell } from "./property-cell";
 import { propertyIcon } from "./property-icon";
+import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
 
 const BlockNoteEditor = dynamic(
@@ -32,6 +38,7 @@ export function RowPage({
   schema: DatabaseSchema;
   row: {
     id: string;
+    emoji: string | null;
     values: PropertyValues | null;
     cover: string | null;
     blocks: Block[] | null;
@@ -45,7 +52,13 @@ export function RowPage({
       ? (row.values[tp.id] as string)
       : ""
   );
+  const [emoji, setEmoji] = useState(row.emoji);
   const coverBg = coverBackground(row.cover);
+
+  function saveEmoji(next: string) {
+    setEmoji(next);
+    startTransition(() => setRowEmoji(row.id, next));
+  }
   const otherProps = schema.properties.filter((p) => p.type !== "title");
   const [showVersions, setShowVersions] = useState(false);
 
@@ -76,6 +89,27 @@ export function RowPage({
             <History className="size-3.5" /> Historial
           </button>
         </div>
+        {/* Icono/emoji de la fila */}
+        {emoji ? (
+          <EmojiPickerPopover
+            onSelect={saveEmoji}
+            trigger={
+              <button className="hover:bg-sidebar-hover -ml-1 inline-flex rounded-md p-1 text-[60px] leading-none">
+                {emoji}
+              </button>
+            }
+          />
+        ) : (
+          <EmojiPickerPopover
+            onSelect={saveEmoji}
+            trigger={
+              <button className="text-ink-faint hover:text-ink-soft mt-1 flex items-center gap-1.5 text-sm">
+                <Smile className="size-4" /> Añadir icono
+              </button>
+            }
+          />
+        )}
+
         {/* Título */}
         <textarea
           value={title}
@@ -83,7 +117,7 @@ export function RowPage({
           onBlur={() => tp && setCell(tp.id, title)}
           rows={1}
           placeholder="Sin título"
-          className="font-serif text-ink placeholder:text-ink-ghost w-full resize-none border-none bg-transparent text-[40px] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
+          className="font-serif text-ink placeholder:text-ink-ghost mt-1 w-full resize-none border-none bg-transparent text-[40px] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
         />
 
         {/* Propiedades (cabecera tipo callout) */}

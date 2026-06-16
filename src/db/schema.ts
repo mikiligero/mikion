@@ -206,6 +206,7 @@ export const rows = pgTable(
     databaseId: text("database_id")
       .notNull()
       .references(() => databases.id, { onDelete: "cascade" }),
+    emoji: text("emoji"),
     values: jsonb("values").$type<PropertyValues>(),
     blocks: jsonb("blocks").$type<Block[]>(),
     cover: text("cover"),
