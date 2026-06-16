@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Plus,
   Table2,
@@ -14,6 +14,8 @@ import type { Row } from "@/db/schema";
 import type { Automation, DatabaseSchema, ViewConfig, ViewType } from "@/lib/types";
 import { applyView, visibleProperties } from "@/lib/database-view";
 import { updateView, createView } from "@/lib/actions/databases";
+import { renameDoc, updateDocMeta } from "@/lib/actions/docs";
+import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import { cn } from "@/lib/utils";
 import { TableView } from "./table-view";
 import { BoardView } from "./board-view";
@@ -49,6 +51,18 @@ export function DatabaseContainer({
 }) {
   const [activeId, setActiveId] = useState(views[0]?.id ?? null);
   const [autoOpen, setAutoOpen] = useState(false);
+  const [emoji, setEmoji] = useState(doc.emoji);
+  const [title, setTitle] = useState(doc.title);
+  const [, startTransition] = useTransition();
+
+  function saveEmoji(next: string) {
+    setEmoji(next);
+    startTransition(() => updateDocMeta(doc.id, { emoji: next }));
+  }
+
+  function saveTitle() {
+    if (title !== doc.title) startTransition(() => renameDoc(doc.id, title));
+  }
   const [configs, setConfigs] = useState<Record<string, ViewConfig>>(() =>
     Object.fromEntries(views.map((v) => [v.id, v.config]))
   );
@@ -90,12 +104,27 @@ export function DatabaseContainer({
 
   return (
     <div className="px-10 py-8">
-      {/* Cabecera */}
-      <div className="flex items-center gap-2">
-        <span className="text-3xl leading-none">{doc.emoji ?? "🗂️"}</span>
-        <h1 className="font-serif text-ink text-[32px] font-[560]">
-          {doc.title || "Sin título"}
-        </h1>
+      {/* Cabecera editable (emoji + título) */}
+      <div className="flex items-center gap-1">
+        <EmojiPickerPopover
+          onSelect={saveEmoji}
+          trigger={
+            <button className="hover:bg-sidebar-hover -ml-1 inline-flex rounded-md p-1 text-3xl leading-none">
+              {emoji ?? "🗂️"}
+            </button>
+          }
+        />
+        <textarea
+          value={title}
+          onChange={(e) => setTitle(e.target.value.replace(/\r?\n/g, ""))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+          onBlur={saveTitle}
+          rows={1}
+          placeholder="Sin título"
+          className="font-serif text-ink placeholder:text-ink-ghost w-full resize-none border-none bg-transparent text-[32px] font-[560] leading-[1.12] outline-none"
+        />
       </div>
 
       {/* Pestañas + toolbar */}
