@@ -117,16 +117,17 @@ export default async function HomePage() {
   const now = new Date();
   const upcoming = await getUpcoming(workspace.id, isoDay(now));
   const pending = tasks.filter((t) => !t.done).length;
-  const dateLabel = now.toLocaleDateString("es-ES", {
+  const dateLabelRaw = now.toLocaleDateString("es-ES", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
+  const dateLabel = dateLabelRaw.charAt(0).toUpperCase() + dateLabelRaw.slice(1);
   const firstName = session.user.name.split(" ")[0];
 
   return (
     <div className="page-w mx-auto max-w-4xl px-8 py-14">
-      <p className="text-ink-faint text-sm capitalize">{dateLabel}</p>
+      <p className="text-ink-faint text-sm">{dateLabel}</p>
       <h1 className="font-serif text-ink mt-1 text-[34px] font-[540]">
         {greeting(now)}, {firstName} 👋
       </h1>

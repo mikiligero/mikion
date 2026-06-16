@@ -49,7 +49,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      toast.error(error.message ?? "No se pudo iniciar sesión");
+      toast.error("Correo o contraseña incorrectos");
       return;
     }
     router.push("/");

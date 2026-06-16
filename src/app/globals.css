@@ -223,7 +223,7 @@
 --------------------------------------------------------------------------- */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
@@ -231,6 +231,16 @@
   html {
     @apply font-sans;
   }
+}
+
+/* Anillo de foco: fuera de cualquier @layer a propósito. Una regla sin layer
+   gana siempre a las de la capa `utilities` (donde Tailwind genera
+   `outline-none`), sin importar la especificidad — por eso este indicador
+   desaparecía en los componentes shadcn (button/input/select/...) que usan
+   `outline-none` + `focus-visible:ring-*` como base de cva. */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 ::selection {

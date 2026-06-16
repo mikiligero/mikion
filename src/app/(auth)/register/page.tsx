@@ -50,7 +50,11 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (error) {
-      toast.error(error.message ?? "No se pudo crear la cuenta");
+      const msg = error.message?.toLowerCase() ?? "";
+      const translated = msg.includes("exist") || msg.includes("in use")
+        ? "Este correo ya está registrado"
+        : "No se pudo crear la cuenta";
+      toast.error(translated);
       return;
     }
     router.push("/");

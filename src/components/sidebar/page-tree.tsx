@@ -60,6 +60,7 @@ function TreeRow({
         ref={setRef}
         {...drag.listeners}
         {...drag.attributes}
+        aria-label={`Arrastrar ${node.title || "Sin título"}`}
         className={cn(
           "group/row text-ink-soft hover:bg-sidebar-hover relative flex items-center gap-1 rounded-sm pr-1 text-sm transition-colors",
           isActive && "bg-sidebar-hover text-ink font-medium",

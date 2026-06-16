@@ -18,11 +18,13 @@ import {
   Files,
   History,
   Trash2,
+  PanelLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ancestorChain, type TreeDoc } from "@/lib/tree";
 import { toggleFavorite, moveToTrash, duplicateDoc } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/sidebar/sidebar-context";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
 import {
   DropdownMenu,
@@ -45,6 +47,7 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const { collapsed, toggle: toggleSidebar, toggleMobile } = useSidebar();
   const [mounted, setMounted] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [, startTransition] = useTransition();
@@ -95,6 +98,25 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
 
   return (
     <header className="border-line flex h-12 shrink-0 items-center gap-1 border-b px-3">
+      {/* Móvil (<768px): la sidebar vive en un drawer independiente del
+          colapso de escritorio, así que este botón es siempre visible. */}
+      <button
+        onClick={toggleMobile}
+        aria-label="Abrir barra lateral"
+        className="text-ink-soft hover:bg-sidebar-hover mr-1 flex size-7 shrink-0 items-center justify-center rounded-sm md:hidden"
+      >
+        <PanelLeft className="size-4" />
+      </button>
+      {collapsed && (
+        <button
+          onClick={toggleSidebar}
+          aria-label="Mostrar barra lateral"
+          title="Mostrar barra lateral (⌘\)"
+          className="text-ink-soft hover:bg-sidebar-hover mr-1 hidden size-7 shrink-0 items-center justify-center rounded-sm md:flex"
+        >
+          <PanelLeft className="size-4" />
+        </button>
+      )}
       {/* Breadcrumbs */}
       <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm">
         {crumbs.map((c, i) => {

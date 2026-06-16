@@ -45,3 +45,10 @@ next-env.d.ts
 
 # archivos subidos por los usuarios
 uploads/
+
+# Resultados de ejecución de pruebas de UI (artefactos locales, no versionados).
+# Los juegos de pruebas (qa-completo.md, regresion-media.md) sí se versionan;
+# solo se ignoran las ejecuciones concretas y sus capturas.
+/testing/ejecuciones/*
+!/testing/ejecuciones/_TEMPLATE.md
+/testing/assets/*

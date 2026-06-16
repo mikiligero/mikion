@@ -15,11 +15,17 @@ import {
   useEditorChange,
   type DefaultReactSuggestionItem,
 } from "@blocknote/react";
+import { withMultiColumn } from "@blocknote/xl-multi-column";
 import {
-  withMultiColumn,
-  getMultiColumnSlashMenuItems,
-} from "@blocknote/xl-multi-column";
-import { Lightbulb, ListTree, Globe, Sigma, Calendar, Table2 } from "lucide-react";
+  Lightbulb,
+  ListTree,
+  Globe,
+  Sigma,
+  Calendar,
+  Table2,
+  Columns2,
+  Columns3,
+} from "lucide-react";
 import { createInlineDatabase } from "@/lib/actions/databases";
 import { EmojiPickerPopover } from "./emoji-picker";
 import { Embed } from "./embed-block";
@@ -154,6 +160,51 @@ function insertBlock(
   else editor.insertBlocks([block], cur, "after");
 }
 
+// Inserta un bloque de N columnas. No usamos `updateBlock` para convertir el
+// párrafo actual: @blocknote/core rompe esa rama (blockContainer → bnBlock)
+// y deja `setTextCursorPosition` apuntando a un id que ya no existe (ver
+// getDefaultSlashMenuItems.ts / updateBlock.ts upstream). En su lugar
+// insertamos el bloque nuevo y, si el párrafo de partida estaba vacío, lo
+// eliminamos después — así nunca se reutiliza una referencia obsoleta.
+function insertColumns(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  editor: BlockNoteEditor<any, any, any>,
+  count: 2 | 3
+) {
+  // No se pueden anidar columnas dentro de una columna: si el cursor ya está
+  // dentro de un column/columnList, insertamos tras ese bloque de nivel
+  // superior en vez de tras el párrafo (que rompería con "Invalid content
+  // for node column").
+  let cur = editor.getTextCursorPosition().block;
+  let nested = false;
+  for (
+    let parent = editor.getParentBlock(cur);
+    parent;
+    parent = editor.getParentBlock(cur)
+  ) {
+    cur = parent;
+    nested = true;
+  }
+  // Solo se reemplaza si el bloque de nivel superior es, él mismo, un
+  // párrafo vacío — nunca un contenedor (columnList) al que se llegó subiendo
+  // por anidamiento, o se borraría contenido real.
+  const empty =
+    !nested &&
+    cur.type === "paragraph" &&
+    (!cur.content || (Array.isArray(cur.content) && cur.content.length === 0));
+  const columnList = {
+    type: "columnList",
+    children: Array.from({ length: count }, () => ({
+      type: "column",
+      children: [{ type: "paragraph" }],
+    })),
+  };
+  const [inserted] = editor.insertBlocks([columnList], cur, "after");
+  if (empty) editor.removeBlocks([cur]);
+  const firstParagraph = inserted.children?.[0]?.children?.[0];
+  if (firstParagraph) editor.setTextCursorPosition(firstParagraph, "start");
+}
+
 // --- Slash menu (español, defaults + custom) ------------------------------
 export async function getSlashItems(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,6 +213,22 @@ export async function getSlashItems(
   pageDocId?: string
 ): Promise<DefaultReactSuggestionItem[]> {
   const custom: DefaultReactSuggestionItem[] = [
+    {
+      title: "Dos Columnas",
+      subtext: "Dos columnas lado a lado",
+      aliases: ["columnas", "fila", "dividir", "dos"],
+      group: "Bloques básicos",
+      icon: <Columns2 className="size-4" />,
+      onItemClick: () => insertColumns(editor, 2),
+    },
+    {
+      title: "Tres Columnas",
+      subtext: "Tres columnas lado a lado",
+      aliases: ["columnas", "fila", "dividir", "tres"],
+      group: "Bloques básicos",
+      icon: <Columns3 className="size-4" />,
+      onItemClick: () => insertColumns(editor, 3),
+    },
     {
       title: "Llamada",
       subtext: "Resaltar información en un recuadro",
@@ -224,11 +291,7 @@ export async function getSlashItems(
   }
   // Reagrupa de forma estable para que cada grupo sea contiguo (si no, dos
   // grupos "Avanzado" no contiguos provocan claves duplicadas en el menú).
-  const all = [
-    ...getDefaultReactSlashMenuItems(editor),
-    ...getMultiColumnSlashMenuItems(editor),
-    ...custom,
-  ];
+  const all = [...getDefaultReactSlashMenuItems(editor), ...custom];
   const order: (string | undefined)[] = [];
   const byGroup = new Map<string | undefined, DefaultReactSuggestionItem[]>();
   for (const item of all) {

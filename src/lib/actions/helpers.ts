@@ -222,5 +222,11 @@ export async function nextOrderKey(
         isNull(docs.deletedAt)
       )
     );
-  return generateKeyBetween(row?.max ?? null, null);
+  const maxKey = row?.max ?? null;
+  try {
+    return generateKeyBetween(maxKey, null);
+  } catch {
+    // maxKey is an invalid fractional index (e.g. legacy seed data) — ignore it
+    return generateKeyBetween(null, null);
+  }
 }

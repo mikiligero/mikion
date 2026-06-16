@@ -15,6 +15,7 @@ import {
   Database,
   Calendar,
   ChevronDown,
+  PanelLeftClose,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,6 +29,7 @@ import {
 import { buildTree, type TreeDoc } from "@/lib/tree";
 import { createDoc, moveToTrash, moveDoc } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "./sidebar-context";
 import { docIcon } from "./doc-icon";
 import { PageTree } from "./page-tree";
 import {
@@ -56,6 +58,7 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
 
   const activeId = pathname.startsWith("/p/") ? pathname.split("/")[2] : null;
 
@@ -63,7 +66,7 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
   const priv = useMemo(() => buildTree(docs, "private"), [docs]);
   const favorites = useMemo(() => docs.filter((d) => d.isFavorite), [docs]);
 
-  function toggle(id: string) {
+  function toggleNode(id: string) {
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -159,40 +162,66 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
   const treeProps = {
     activeId,
     expanded,
-    onToggle: toggle,
+    onToggle: toggleNode,
     onCreateChild: (parentId: string) => create("team", parentId),
     onTrash: trash,
   };
 
   return (
-    <aside className="bg-sidebar border-line hidden h-screen w-(--sidebar-w) shrink-0 flex-col border-r md:flex">
+    <>
+      {/* Overlay del drawer móvil; cierra al tocar fuera. */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30 md:hidden"
+          onClick={closeMobile}
+          aria-hidden
+        />
+      )}
+      <aside
+        className={cn(
+          "bg-sidebar border-line fixed inset-y-0 left-0 z-50 flex h-screen w-(--sidebar-w) shrink-0 flex-col border-r transition-transform duration-200 ease-in-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          "md:relative md:translate-x-0 md:overflow-hidden md:transition-[width]",
+          collapsed ? "md:w-0 md:border-r-0" : "md:w-(--sidebar-w)"
+        )}
+      >
       {/* Cabecera de workspace + lanzador de apps */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <button className="hover:bg-sidebar-hover flex items-center gap-2 px-3 py-3 text-left">
-            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-sm font-semibold">
-              M
-            </div>
-            <span className="text-ink flex-1 truncate text-sm font-medium">
-              {workspace.name}
-            </span>
-            <ChevronDown className="text-ink-faint size-4" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-60 p-1">
-          <div className="px-2 py-1.5 text-xs text-ink-faint">{user.email}</div>
-          <AppLauncherItem label="Mikion" active />
-          <AppLauncherItem label="Mikion Calendar" soon />
-          <AppLauncherItem label="Mikion Mail" soon />
-          <div className="bg-line my-1 h-px" />
-          <Link
-            href="/settings"
-            className="hover:bg-sidebar-hover flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
-          >
-            <Settings className="size-4 text-ink-faint" /> Ajustes
-          </Link>
-        </PopoverContent>
-      </Popover>
+      <div className="flex items-center">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="hover:bg-sidebar-hover flex min-w-0 flex-1 items-center gap-2 px-3 py-3 text-left">
+              <div className="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md text-sm font-semibold">
+                M
+              </div>
+              <span className="text-ink flex-1 truncate text-sm font-medium">
+                {workspace.name}
+              </span>
+              <ChevronDown className="text-ink-faint size-4 shrink-0" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-60 p-1">
+            <div className="px-2 py-1.5 text-xs text-ink-faint">{user.email}</div>
+            <AppLauncherItem label="Mikion" active />
+            <AppLauncherItem label="Mikion Calendar" soon />
+            <AppLauncherItem label="Mikion Mail" soon />
+            <div className="bg-line my-1 h-px" />
+            <Link
+              href="/settings"
+              className="hover:bg-sidebar-hover flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+            >
+              <Settings className="size-4 text-ink-faint" /> Ajustes
+            </Link>
+          </PopoverContent>
+        </Popover>
+        <button
+          onClick={toggle}
+          aria-label="Ocultar barra lateral"
+          title="Ocultar barra lateral (⌘\)"
+          className="text-ink-soft hover:bg-sidebar-hover mr-2 flex size-7 shrink-0 items-center justify-center rounded-sm"
+        >
+          <PanelLeftClose className="size-4" />
+        </button>
+      </div>
 
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
         {/* Accesos rápidos */}
@@ -312,6 +341,7 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
         />
       </div>
     </aside>
+    </>
   );
 }
 

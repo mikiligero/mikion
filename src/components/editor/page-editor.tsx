@@ -61,7 +61,7 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
           className="group/cover relative h-[200px] w-full"
           style={{ background: coverBg }}
         >
-          <div className="absolute bottom-3 right-4 flex gap-1.5 opacity-0 transition-opacity group-hover/cover:opacity-100">
+          <div className="absolute top-3 right-4 flex gap-1.5 opacity-0 transition-opacity group-hover/cover:opacity-100 group-focus-within/cover:opacity-100">
             <CoverPicker onPick={saveCover}>
               <button className="bg-surface/85 text-ink-soft hover:bg-surface flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium shadow-sm backdrop-blur">
                 <RefreshCw className="size-3.5" /> Cambiar portada
@@ -86,7 +86,12 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
         {/* Cabecera: alineada con el contenido del editor (padding 54px) */}
         <div className="px-[54px]">
           {/* Icono — por encima de la portada */}
-          <div className={cn("relative z-10", coverBg ? "-mt-[52px]" : "pt-12")}>
+          <div
+            className={cn(
+              "relative z-10 w-fit",
+              emoji && coverBg ? "-mt-[52px]" : "pt-12"
+            )}
+          >
             {emoji ? (
               <EmojiPickerPopover
                 onSelect={saveEmoji}
@@ -120,10 +125,17 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
             )}
           </div>
 
-          {/* Título */}
+          {/* Título: una sola línea. El título nunca debe contener salto de
+              línea — se ha visto duplicarse con un "\n" tras undo/redo
+              nativo del navegador en el textarea, que puede desincronizar
+              el value controlado de React del DOM real. Saneamos en cada
+              cambio y bloqueamos Enter para no depender de ese caso. */}
           <textarea
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle(e.target.value.replace(/\r?\n/g, ""))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.preventDefault();
+            }}
             onBlur={saveTitle}
             rows={1}
             placeholder="Sin título"
