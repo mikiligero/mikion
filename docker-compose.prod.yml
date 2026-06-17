@@ -17,6 +17,9 @@ services:
       BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-}
       # Registro cerrado salvo "true" (para dar de alta una cuenta puntualmente).
       MIKION_ALLOW_SIGNUP: ${MIKION_ALLOW_SIGNUP:-}
+      # Integraciones opcionales (portadas Unsplash, notificaciones Telegram).
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     volumes:
       - notion-uploads:/app/uploads
     depends_on:
