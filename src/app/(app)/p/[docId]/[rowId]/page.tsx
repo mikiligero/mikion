@@ -44,6 +44,8 @@ export default async function RowDocPage({
         values: row.values,
         cover: row.cover,
         blocks: (row.blocks as Block[] | null) ?? null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
       }}
       mentionUsers={mentionUsers}
     />

@@ -37,7 +37,7 @@ import type {
   PropertyValue,
   ViewConfig,
 } from "@/lib/types";
-import { PROPERTY_TYPES, randomSelectColor } from "@/lib/types";
+import { PROPERTY_TYPES, randomSelectColor, isSystemProperty } from "@/lib/types";
 import {
   groupRows,
   visibleProperties,
@@ -61,8 +61,9 @@ import {
   createRowFromTemplate,
   deleteTemplate,
 } from "@/lib/actions/databases";
-import { PropertyCell, Tag } from "./property-cell";
+import { PropertyCell, Tag, systemFieldValue } from "./property-cell";
 import { propertyIcon } from "./property-icon";
+import { PropertyOptionsEditor } from "./property-options-editor";
 import { RowSidePeek } from "./row-side-peek";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import {
@@ -116,8 +117,14 @@ export function TableView({
     [rows, peekId]
   );
 
+  const userName = mentionUsers?.[0]?.name;
+
   function setCell(rowId: string, propertyId: string, value: PropertyValue) {
     startTransition(() => updateCell(rowId, propertyId, value));
+  }
+
+  function patchProperty(propertyId: string, patch: Partial<PropertyDef>) {
+    startTransition(() => updateProperty(databaseId, propertyId, patch));
   }
 
   async function addOption(prop: PropertyDef, name: string): Promise<string> {
@@ -147,16 +154,27 @@ export function TableView({
           id: prop.id,
           header: prop.name,
           cell: (ctx) => {
+            const cellValue = isSystemProperty(prop.type)
+              ? systemFieldValue(prop, ctx.row.original, {
+                  index: ctx.row.index,
+                  userName,
+                })
+              : (ctx.getValue() as PropertyValue);
             const cell = (
               <PropertyCell
                 property={prop}
-                value={ctx.getValue() as PropertyValue}
+                value={cellValue}
                 onChange={(v) => setCell(ctx.row.original.id, prop.id, v)}
                 onAddOption={
                   prop.type === "select" ||
                   prop.type === "status" ||
                   prop.type === "multiselect"
                     ? (name) => addOption(prop, name)
+                    : undefined
+                }
+                onPropertyPatch={
+                  prop.type === "date"
+                    ? (patch) => patchProperty(prop.id, patch)
                     : undefined
                 }
               />
@@ -554,6 +572,12 @@ function ColumnHeaderMenu({
               Rango de fechas
             </DropdownMenuCheckboxItem>
           </>
+        )}
+
+        {(prop.type === "select" ||
+          prop.type === "multiselect" ||
+          prop.type === "status") && (
+          <PropertyOptionsEditor databaseId={databaseId} property={prop} />
         )}
 
         <DropdownMenuSeparator />

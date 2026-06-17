@@ -12,8 +12,9 @@ import {
   saveRowContent,
   setRowEmoji,
 } from "@/lib/actions/databases";
-import { randomSelectColor } from "@/lib/types";
-import { PropertyCell } from "./property-cell";
+import { randomSelectColor, isSystemProperty } from "@/lib/types";
+import type { PropertyDef } from "@/lib/types";
+import { PropertyCell, systemFieldValue } from "./property-cell";
 import { propertyIcon } from "./property-icon";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
@@ -42,10 +43,13 @@ export function RowPage({
     values: PropertyValues | null;
     cover: string | null;
     blocks: Block[] | null;
+    createdAt?: Date | string | null;
+    updatedAt?: Date | string | null;
   };
   mentionUsers?: { id: string; name: string }[];
 }) {
   const [, startTransition] = useTransition();
+  const userName = mentionUsers?.[0]?.name;
   const tp = titleProperty(schema);
   const [title, setTitle] = useState(
     tp && typeof row.values?.[tp.id] === "string"
@@ -73,6 +77,10 @@ export function RowPage({
       options: [...(prop?.options ?? []), opt],
     });
     return opt.id;
+  }
+
+  function patchProperty(propertyId: string, patch: Partial<PropertyDef>) {
+    startTransition(() => updateProperty(databaseId, propertyId, patch));
   }
 
   return (
@@ -131,13 +139,22 @@ export function RowPage({
               <div className="min-w-0 flex-1">
                 <PropertyCell
                   property={prop}
-                  value={row.values?.[prop.id] ?? null}
+                  value={
+                    isSystemProperty(prop.type)
+                      ? systemFieldValue(prop, row, { userName })
+                      : (row.values?.[prop.id] ?? null)
+                  }
                   onChange={(v) => setCell(prop.id, v)}
                   onAddOption={
                     prop.type === "select" ||
                     prop.type === "status" ||
                     prop.type === "multiselect"
                       ? (name) => addOption(prop.id, name)
+                      : undefined
+                  }
+                  onPropertyPatch={
+                    prop.type === "date"
+                      ? (patch) => patchProperty(prop.id, patch)
                       : undefined
                   }
                 />

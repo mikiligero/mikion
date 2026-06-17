@@ -16,7 +16,7 @@ export type Block = {
 export type ThemePref = "light" | "dark";
 export type FontPref = "default" | "serif" | "mono";
 
-// --- Esquema de base de datos (12 tipos de propiedad) ---------------------
+// --- Esquema de base de datos (tipos de propiedad) ------------------------
 export type PropertyType =
   | "title"
   | "text"
@@ -28,9 +28,29 @@ export type PropertyType =
   | "date"
   | "checkbox"
   | "url"
+  | "phone"
+  | "email"
+  | "id"
   | "formula"
   | "relation"
-  | "rollup";
+  | "rollup"
+  | "createdTime"
+  | "lastEditedTime"
+  | "createdBy"
+  | "lastEditedBy";
+
+// Tipos de sistema: solo lectura, su valor se deriva de la fila (no de `values`).
+export const SYSTEM_PROPERTY_TYPES: PropertyType[] = [
+  "id",
+  "createdTime",
+  "lastEditedTime",
+  "createdBy",
+  "lastEditedBy",
+];
+
+export function isSystemProperty(type: PropertyType): boolean {
+  return SYSTEM_PROPERTY_TYPES.includes(type);
+}
 
 export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "title", label: "Título" },
@@ -43,9 +63,16 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "date", label: "Fecha" },
   { value: "checkbox", label: "Casilla" },
   { value: "url", label: "URL" },
+  { value: "phone", label: "Teléfono" },
+  { value: "email", label: "Correo electrónico" },
+  { value: "id", label: "ID" },
   { value: "formula", label: "Fórmula" },
   { value: "relation", label: "Relación" },
   { value: "rollup", label: "Rollup" },
+  { value: "createdTime", label: "Fecha de creación" },
+  { value: "lastEditedTime", label: "Última edición" },
+  { value: "createdBy", label: "Creado por" },
+  { value: "lastEditedBy", label: "Última edición por" },
 ];
 
 export type FormulaKind = "daysLeft" | "overdue" | "priorityScore" | "done";
@@ -58,22 +85,44 @@ export type RollupConfig = {
   fn: RollupFn;
 };
 
+// Grupos de un estado (como Notion: Pendiente / En progreso / Completado).
+export type StatusGroup = "todo" | "inProgress" | "done";
+
+export const STATUS_GROUPS: { value: StatusGroup; label: string }[] = [
+  { value: "todo", label: "Pendiente" },
+  { value: "inProgress", label: "En progreso" },
+  { value: "done", label: "Completado" },
+];
+
 export type SelectOption = {
   id: string;
   name: string;
-  color: string; // clave de tint: green/blue/amber/purple/rose/teal/gray
+  color: string; // clave de SELECT_COLORS (ver abajo); legacy: teal
+  group?: StatusGroup; // solo status
 };
+
+// Formato de presentación de una propiedad de fecha.
+export type DateFormat = "full" | "short" | "relative";
+
+export const DATE_FORMATS: { value: DateFormat; label: string }[] = [
+  { value: "full", label: "Fecha completa" },
+  { value: "short", label: "Día y mes" },
+  { value: "relative", label: "Relativa" },
+];
 
 export type PropertyDef = {
   id: string;
   name: string;
   type: PropertyType;
   options?: SelectOption[]; // select / multiselect / status
+  defaultOptionId?: string; // select / status: valor al crear fila
   formula?: FormulaKind; // type === "formula"
   relationDatabaseId?: string; // type === "relation"
   rollup?: RollupConfig; // type === "rollup"
   includeTime?: boolean; // type === "date": guardar/mostrar la hora
   dateRange?: boolean; // type === "date": rango (valor = [inicio, fin])
+  dateFormat?: DateFormat; // type === "date": formato de presentación
+  reminder?: string; // type === "date": recordatorio (solo UI, sin disparo)
 };
 
 export type DatabaseSchema = {
@@ -195,16 +244,34 @@ export const AUTOMATION_ACTIONS: { value: AutomationAction; label: string }[] = 
   { value: "create_subtask", label: "Crear subtarea" },
 ];
 
+// Paleta de opciones (select / multiselect / status). La `key` es la clave de
+// tint CSS (`var(--tint-<key>)` / `-bg`); `label` el nombre mostrado.
+export const SELECT_COLORS: { key: string; label: string }[] = [
+  { key: "default", label: "Predeterminado" },
+  { key: "gray", label: "Gris" },
+  { key: "brown", label: "Marrón" },
+  { key: "orange", label: "Naranja" },
+  { key: "amber", label: "Amarillo" },
+  { key: "green", label: "Verde" },
+  { key: "blue", label: "Azul" },
+  { key: "purple", label: "Morado" },
+  { key: "rose", label: "Rosa" },
+  { key: "red", label: "Rojo" },
+];
+
+// Claves válidas para una opción. Incluye `teal` (legacy) para que las opciones
+// guardadas antes sigan pintando aunque ya no esté en el selector.
 export const SELECT_COLOR_KEYS = [
-  "green",
-  "blue",
-  "amber",
-  "purple",
-  "rose",
+  ...SELECT_COLORS.map((c) => c.key),
   "teal",
-  "gray",
 ] as const;
 
+export function selectColorLabel(key: string): string {
+  return SELECT_COLORS.find((c) => c.key === key)?.label ?? key;
+}
+
 export function randomSelectColor(): string {
-  return SELECT_COLOR_KEYS[Math.floor(Math.random() * SELECT_COLOR_KEYS.length)];
+  // Evita el neutro "default" al crear opciones nuevas.
+  const pool = SELECT_COLORS.filter((c) => c.key !== "default");
+  return pool[Math.floor(Math.random() * pool.length)].key;
 }

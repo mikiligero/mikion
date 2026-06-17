@@ -83,6 +83,14 @@
   --color-tint-teal-bg: var(--tint-teal-bg);
   --color-tint-gray: var(--tint-gray);
   --color-tint-gray-bg: var(--tint-gray-bg);
+  --color-tint-default: var(--tint-default);
+  --color-tint-default-bg: var(--tint-default-bg);
+  --color-tint-brown: var(--tint-brown);
+  --color-tint-brown-bg: var(--tint-brown-bg);
+  --color-tint-orange: var(--tint-orange);
+  --color-tint-orange-bg: var(--tint-orange-bg);
+  --color-tint-red: var(--tint-red);
+  --color-tint-red-bg: var(--tint-red-bg);
 
   /* Radios Mikion (5 / 8 / 12 / 18) */
   --radius-sm: var(--r-sm);
@@ -132,6 +140,10 @@
   --tint-rose: #c14b73;    --tint-rose-bg: #fae8ee;
   --tint-teal: #1f8a82;    --tint-teal-bg: #e0f0ee;
   --tint-gray: #6c655b;    --tint-gray-bg: #eeeae3;
+  --tint-default: #6c655b; --tint-default-bg: #f0ece4;
+  --tint-brown: #8a5a2b;   --tint-brown-bg: #efe5da;
+  --tint-orange: #c2671f;  --tint-orange-bg: #f8e7d6;
+  --tint-red: #c0392b;     --tint-red-bg: #fae3df;
 
   /* Radios y sombras */
   --r-sm: 5px;
@@ -210,6 +222,10 @@
   --tint-rose: #e381a4;    --tint-rose-bg: #2f1d27;
   --tint-teal: #5ec4ba;    --tint-teal-bg: #182c2a;
   --tint-gray: #a79f93;    --tint-gray-bg: #2c2926;
+  --tint-default: #a79f93; --tint-default-bg: #2a2723;
+  --tint-brown: #c89b6a;   --tint-brown-bg: #2c241b;
+  --tint-orange: #e0995a;  --tint-orange-bg: #2f2417;
+  --tint-red: #e2807a;     --tint-red-bg: #301d1b;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.4);

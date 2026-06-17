@@ -63,6 +63,8 @@ export function RowSidePeek({
                   values: row.values as PropertyValues | null,
                   cover: row.cover,
                   blocks: row.blocks as Block[] | null,
+                  createdAt: row.createdAt,
+                  updatedAt: row.updatedAt,
                 }}
                 mentionUsers={mentionUsers}
               />

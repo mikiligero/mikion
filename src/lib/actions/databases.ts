@@ -45,11 +45,23 @@ export async function createRow(
   databaseId: string,
   values: Record<string, PropertyValue> = {}
 ) {
-  await assertDatabaseAccess(databaseId);
+  const { database } = await assertDatabaseAccess(databaseId);
+  // Siembra el valor predeterminado de status/select (como Notion fija el
+  // estado por defecto), sin pisar valores ya provistos.
+  const seeded: Record<string, PropertyValue> = { ...values };
+  for (const p of database.schema.properties) {
+    if (
+      (p.type === "status" || p.type === "select") &&
+      p.defaultOptionId &&
+      seeded[p.id] === undefined
+    ) {
+      seeded[p.id] = p.defaultOptionId;
+    }
+  }
   const orderKey = await nextRowOrderKey(databaseId);
   const [row] = await db
     .insert(rows)
-    .values({ databaseId, values, orderKey })
+    .values({ databaseId, values: seeded, orderKey })
     .returning();
   revalidateShell();
   return { id: row.id };
