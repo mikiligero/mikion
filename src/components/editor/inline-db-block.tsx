@@ -14,6 +14,7 @@ import {
   updateProperty,
 } from "@/lib/actions/databases";
 import { visibleProperties } from "@/lib/database-view";
+import { randomId } from "@/lib/utils";
 import { PropertyCell } from "../database/property-cell";
 
 export const InlineDatabase = createReactBlockSpec(
@@ -66,7 +67,7 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
   }
   async function addOption(propertyId: string, name: string): Promise<string> {
     const prop = data!.schema.properties.find((p) => p.id === propertyId);
-    const opt = { id: crypto.randomUUID(), name, color: randomSelectColor() };
+    const opt = { id: randomId(), name, color: randomSelectColor() };
     await updateProperty(databaseId, propertyId, {
       options: [...(prop?.options ?? []), opt],
     });

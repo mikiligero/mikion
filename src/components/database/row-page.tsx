@@ -15,6 +15,7 @@ import {
 import { randomSelectColor, isSystemProperty } from "@/lib/types";
 import type { PropertyDef } from "@/lib/types";
 import { PropertyCell, systemFieldValue } from "./property-cell";
+import { randomId } from "@/lib/utils";
 import { propertyIcon } from "./property-icon";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
@@ -72,7 +73,7 @@ export function RowPage({
 
   async function addOption(propertyId: string, name: string): Promise<string> {
     const prop = schema.properties.find((p) => p.id === propertyId);
-    const opt = { id: crypto.randomUUID(), name, color: randomSelectColor() };
+    const opt = { id: randomId(), name, color: randomSelectColor() };
     await updateProperty(databaseId, propertyId, {
       options: [...(prop?.options ?? []), opt],
     });

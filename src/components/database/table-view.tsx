@@ -64,6 +64,7 @@ import {
 import { PropertyCell, Tag, systemFieldValue } from "./property-cell";
 import { propertyIcon } from "./property-icon";
 import { PropertyOptionsEditor } from "./property-options-editor";
+import { randomId } from "@/lib/utils";
 import { RowSidePeek } from "./row-side-peek";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import {
@@ -128,7 +129,7 @@ export function TableView({
   }
 
   async function addOption(prop: PropertyDef, name: string): Promise<string> {
-    const opt = { id: crypto.randomUUID(), name, color: randomSelectColor() };
+    const opt = { id: randomId(), name, color: randomSelectColor() };
     await updateProperty(databaseId, prop.id, {
       options: [...(prop.options ?? []), opt],
     });

@@ -10,6 +10,7 @@ import {
   type AutomationAction,
 } from "@/lib/types";
 import { setAutomations } from "@/lib/actions/databases";
+import { randomId } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -55,7 +56,7 @@ export function AutomationsDialog({
   function create() {
     save([
       ...rules,
-      { id: crypto.randomUUID(), when, then, enabled: true },
+      { id: randomId(), when, then, enabled: true },
     ]);
     setAdding(false);
     setWhen("status_done");

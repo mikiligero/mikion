@@ -9,6 +9,7 @@ import {
   randomSelectColor,
 } from "@/lib/types";
 import { updateProperty } from "@/lib/actions/databases";
+import { randomId } from "@/lib/utils";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -62,7 +63,7 @@ export function PropertyOptionsEditor({
 
   function addOption() {
     const opt: SelectOption = {
-      id: crypto.randomUUID(),
+      id: randomId(),
       name: `Opción ${options.length + 1}`,
       color: randomSelectColor(),
       ...(isStatus ? { group: "todo" as StatusGroup } : {}),
