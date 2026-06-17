@@ -184,6 +184,23 @@ export async function deleteRow(rowId: string) {
   revalidateShell();
 }
 
+/** Restaura una fila de la papelera (quita su marca de borrado). */
+export async function restoreRow(rowId: string) {
+  const { row } = await assertRowAccess(rowId);
+  await db
+    .update(rows)
+    .set({ deletedAt: null })
+    .where(eq(rows.id, row.id));
+  revalidateShell();
+}
+
+/** Borra una fila definitivamente (no recuperable). */
+export async function deleteRowPermanently(rowId: string) {
+  const { row } = await assertRowAccess(rowId);
+  await db.delete(rows).where(eq(rows.id, row.id));
+  revalidateShell();
+}
+
 /** Mueve una fila: cambia su grupo (valor de propiedad) y/o su posición
  * entre vecinos. Usado por el tablero (drag entre columnas). */
 export async function moveRow(

@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { RotateCcw, Trash2, Rows3 } from "lucide-react";
 import { restoreDoc, deleteDocPermanently, emptyTrash } from "@/lib/actions/docs";
+import { restoreRow, deleteRowPermanently } from "@/lib/actions/databases";
 import { docIcon } from "@/components/sidebar/doc-icon";
 import {
   AlertDialog,
@@ -16,11 +17,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type TrashDoc = {
+export type TrashItem = {
   id: string;
+  type: "doc" | "row";
   title: string;
   emoji: string | null;
-  kind: "page" | "database" | "calendar";
+  kind?: "page" | "database" | "calendar";
   deletedAt: string;
 };
 
@@ -35,8 +37,15 @@ function relTime(iso: string): string {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
-export function TrashList({ items }: { items: TrashDoc[] }) {
+export function TrashList({ items }: { items: TrashItem[] }) {
   const [, startTransition] = useTransition();
+
+  const restore = (it: TrashItem) =>
+    startTransition(() => (it.type === "row" ? restoreRow(it.id) : restoreDoc(it.id)));
+  const removeForever = (it: TrashItem) =>
+    startTransition(() =>
+      it.type === "row" ? deleteRowPermanently(it.id) : deleteDocPermanently(it.id)
+    );
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-12">
@@ -74,22 +83,26 @@ export function TrashList({ items }: { items: TrashDoc[] }) {
             La papelera está vacía.
           </p>
         )}
-        {items.map((d) => (
+        {items.map((it) => (
           <div
-            key={d.id}
+            key={`${it.type}:${it.id}`}
             className="border-line group/t hover:border-line-strong flex items-center gap-3 rounded-md border p-3"
           >
             <span className="flex size-[18px] items-center justify-center text-[15px]">
-              {docIcon(d.kind, d.emoji)}
+              {it.type === "row" ? (
+                <Rows3 className="text-ink-faint size-4" />
+              ) : (
+                docIcon(it.kind ?? "page", it.emoji)
+              )}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-ink truncate text-sm">{d.title || "Sin título"}</p>
+              <p className="text-ink truncate text-sm">{it.title || "Sin título"}</p>
               <p className="text-ink-faint text-xs">
-                Eliminado {relTime(d.deletedAt)}
+                {it.type === "row" ? "Fila · eliminada" : "Eliminado"} {relTime(it.deletedAt)}
               </p>
             </div>
             <button
-              onClick={() => startTransition(() => restoreDoc(d.id))}
+              onClick={() => restore(it)}
               className="text-ink-soft hover:bg-sidebar-hover flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px]"
             >
               <RotateCcw className="size-3.5" /> Restaurar
@@ -107,15 +120,14 @@ export function TrashList({ items }: { items: TrashDoc[] }) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>¿Borrar definitivamente?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    «{d.title || "Sin título"}» y su contenido se borrarán para
-                    siempre. No se puede deshacer.
+                    «{it.title || "Sin título"}»
+                    {it.type === "row" ? " se borrará" : " y su contenido se borrarán"}{" "}
+                    para siempre. No se puede deshacer.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => startTransition(() => deleteDocPermanently(d.id))}
-                  >
+                  <AlertDialogAction onClick={() => removeForever(it)}>
                     Borrar
                   </AlertDialogAction>
                 </AlertDialogFooter>

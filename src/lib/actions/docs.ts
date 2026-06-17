@@ -385,9 +385,31 @@ export async function deleteDocPermanently(docId: string) {
   revalidateShell();
 }
 
-/** Vacía la papelera del workspace (borra definitivamente todo lo eliminado). */
+/** Vacía la papelera del workspace (borra definitivamente todo lo eliminado:
+ * páginas/BBDD y también las filas enviadas a la papelera). */
 export async function emptyTrash() {
   const ws = await getUserWorkspace();
+
+  // Filas en papelera de las BBDD del workspace.
+  const dbIds = await db
+    .select({ id: databases.id })
+    .from(databases)
+    .innerJoin(docs, eq(databases.docId, docs.id))
+    .where(eq(docs.workspaceId, ws.id));
+  if (dbIds.length) {
+    await db
+      .delete(rows)
+      .where(
+        and(
+          inArray(
+            rows.databaseId,
+            dbIds.map((d) => d.id)
+          ),
+          isNotNull(rows.deletedAt)
+        )
+      );
+  }
+
   await db
     .delete(docs)
     .where(and(eq(docs.workspaceId, ws.id), isNotNull(docs.deletedAt)));
