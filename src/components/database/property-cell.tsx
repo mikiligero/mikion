@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { HoverCard } from "radix-ui";
 import {
@@ -10,10 +11,13 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MapPin,
   Navigation,
   Loader2,
   ExternalLink,
+  FileText,
+  Database,
 } from "lucide-react";
 import type {
   DateFormat,
@@ -22,6 +26,12 @@ import type {
   PropertyValue,
   SelectOption,
 } from "@/lib/types";
+import {
+  getDocTitle,
+  createDoc,
+  renameDoc,
+} from "@/lib/actions/docs";
+import { getPaletteItems, type PaletteDoc } from "@/lib/actions/search";
 import {
   STATUS_GROUPS,
   DATE_FORMATS,
@@ -250,13 +260,15 @@ export function PropertyCell({
     case "text":
       return <TextCell value={value} onChange={onChange} bold={property.type === "title"} />;
     case "url":
-      return <TextCell value={value} onChange={onChange} link />;
+      return <UrlCell value={value} onChange={onChange} />;
     case "phone":
       return <TextCell value={value} onChange={onChange} type="tel" />;
     case "email":
       return <TextCell value={value} onChange={onChange} type="email" />;
     case "place":
       return <PlaceCell value={value} onChange={onChange} />;
+    case "page":
+      return <PageCell value={value} onChange={onChange} />;
     case "number":
       return <NumberCell value={value} onChange={onChange} />;
     case "checkbox":
@@ -308,13 +320,11 @@ function TextCell({
   value,
   onChange,
   bold,
-  link,
   type,
 }: {
   value: PropertyValue;
   onChange: (v: PropertyValue) => void;
   bold?: boolean;
-  link?: boolean;
   type?: "tel" | "email";
 }) {
   const [draft, setDraft] = useState(typeof value === "string" ? value : "");
@@ -326,10 +336,53 @@ function TextCell({
       onBlur={() => draft !== value && onChange(draft)}
       className={cn(
         "text-ink w-full bg-transparent px-2 py-1 text-sm outline-none",
-        bold && "font-medium",
-        link && draft && "text-brand underline"
+        bold && "font-medium"
       )}
     />
+  );
+}
+
+// --- URL: editable + abrir como hipervínculo -------------------------------
+function UrlCell({
+  value,
+  onChange,
+}: {
+  value: PropertyValue;
+  onChange: (v: PropertyValue) => void;
+}) {
+  const [draft, setDraft] = useState(typeof value === "string" ? value : "");
+  const trimmed = draft.trim();
+  const href = trimmed
+    ? /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`
+    : null;
+  return (
+    <div className="flex w-full items-center gap-1 pr-1">
+      <input
+        type="url"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => draft !== value && onChange(draft)}
+        className={cn(
+          "w-full bg-transparent px-2 py-1 text-sm outline-none",
+          trimmed ? "text-brand underline decoration-brand/40" : "text-ink"
+        )}
+      />
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-ink-faint hover:text-brand shrink-0"
+          aria-label="Abrir enlace"
+          title={href}
+        >
+          <ExternalLink className="size-3.5" />
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -1024,6 +1077,165 @@ function PlaceCell({
         </HoverCard.Portal>
       )}
     </HoverCard.Root>
+  );
+}
+
+// --- Enlace a página / base de datos ---------------------------------------
+function PageCell({
+  value,
+  onChange,
+}: {
+  value: PropertyValue;
+  onChange: (v: PropertyValue) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [docs, setDocs] = useState<PaletteDoc[]>([]);
+  const [linked, setLinked] = useState<{
+    title: string;
+    emoji: string | null;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const docId = typeof value === "string" && value ? value : null;
+
+  // Resuelve el título/emoji del doc enlazado (se mantiene si se renombra).
+  useEffect(() => {
+    if (!docId) return;
+    let alive = true;
+    getDocTitle(docId)
+      .then((d) => alive && setLinked(d))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [docId]);
+
+  // Carga la lista de docs (páginas y BBDD) al abrir el selector.
+  useEffect(() => {
+    if (!open) return;
+    getPaletteItems()
+      .then((r) => setDocs(r.docs))
+      .catch(() => {});
+  }, [open]);
+
+  function pick(id: string) {
+    onChange(id);
+    setQuery("");
+    setOpen(false);
+  }
+
+  async function createPage() {
+    setBusy(true);
+    try {
+      const name = query.trim() || "Nueva página";
+      const { id } = await createDoc({ section: "team" });
+      await renameDoc(id, name);
+      pick(id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const q = query.trim().toLowerCase();
+  const filtered = docs.filter((d) =>
+    (d.title || "Sin título").toLowerCase().includes(q)
+  );
+  const docIcon = (kind: PaletteDoc["kind"], emoji: string | null) =>
+    emoji ? (
+      <span className="text-sm leading-none">{emoji}</span>
+    ) : kind === "database" ? (
+      <Database className="text-ink-faint size-4" />
+    ) : (
+      <FileText className="text-ink-faint size-4" />
+    );
+
+  const content = (
+    <PopoverContent align="start" className="w-72 p-1">
+      <input
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Buscar una página o base de datos…"
+        className="border-line bg-surface text-ink mb-1 w-full rounded-md border px-2 py-1 text-sm outline-none"
+      />
+      <div className="max-h-64 overflow-y-auto">
+        {filtered.map((d) => (
+          <button
+            key={d.id}
+            onClick={() => pick(d.id)}
+            className="hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left"
+          >
+            {docIcon(d.kind, d.emoji)}
+            <span className="text-ink truncate text-sm">
+              {d.title || "Sin título"}
+            </span>
+            {d.id === docId && (
+              <Check className="text-ink-faint ml-auto size-3.5 shrink-0" />
+            )}
+          </button>
+        ))}
+        {q && !docs.some((d) => (d.title || "").toLowerCase() === q) && (
+          <button
+            onClick={createPage}
+            disabled={busy}
+            className="text-ink-soft hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm disabled:opacity-50"
+          >
+            <Plus className="size-3.5" /> Crear página «{query.trim()}»
+          </button>
+        )}
+        {docId && (
+          <button
+            onClick={() => {
+              onChange(null);
+              setOpen(false);
+            }}
+            className="text-ink-faint hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+          >
+            <X className="size-3.5" /> Quitar enlace
+          </button>
+        )}
+      </div>
+    </PopoverContent>
+  );
+
+  if (docId) {
+    return (
+      <div className="group/pl flex w-full items-center gap-1 px-1">
+        <Link
+          href={`/p/${docId}`}
+          className="text-ink inline-flex min-w-0 items-center gap-1 rounded px-1 py-1 text-sm hover:underline"
+        >
+          {linked?.emoji ? (
+            <span className="shrink-0 leading-none">{linked.emoji}</span>
+          ) : (
+            <FileText className="text-ink-faint size-3.5 shrink-0" />
+          )}
+          <span className="truncate">{linked?.title || "Sin título"}</span>
+        </Link>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button
+              className="text-ink-faint hover:bg-sidebar-hover ml-auto shrink-0 rounded-sm p-0.5 opacity-0 group-hover/pl:opacity-100 data-[state=open]:opacity-100"
+              aria-label="Cambiar enlace"
+            >
+              <ChevronDown className="size-3.5" />
+            </button>
+          </PopoverTrigger>
+          {content}
+        </Popover>
+      </div>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="hover:bg-sidebar-hover flex min-h-7 w-full items-center px-2 py-1 text-left">
+          <span className="text-ink-ghost text-sm">Vacío</span>
+        </button>
+      </PopoverTrigger>
+      {content}
+    </Popover>
   );
 }
 

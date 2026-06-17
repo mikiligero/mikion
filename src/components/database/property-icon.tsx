@@ -19,6 +19,7 @@ import {
   UserCircle,
   UserCog,
   MapPin,
+  Link2,
 } from "lucide-react";
 import type { PropertyType } from "@/lib/types";
 
@@ -39,6 +40,7 @@ const ICONS: Record<PropertyType, React.ComponentType<{ className?: string }>> =
   place: MapPin,
   formula: Sigma,
   relation: ArrowLeftRight,
+  page: Link2,
   createdTime: Clock,
   lastEditedTime: History,
   createdBy: UserCircle,

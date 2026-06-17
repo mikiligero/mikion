@@ -34,6 +34,7 @@ export type PropertyType =
   | "place"
   | "formula"
   | "relation"
+  | "page"
   | "createdTime"
   | "lastEditedTime"
   | "createdBy"
@@ -69,6 +70,7 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "place", label: "Lugar" },
   { value: "formula", label: "Fórmula" },
   { value: "relation", label: "Relación" },
+  { value: "page", label: "Enlace a página" },
   { value: "createdTime", label: "Fecha de creación" },
   { value: "lastEditedTime", label: "Última edición" },
   { value: "createdBy", label: "Creado por" },

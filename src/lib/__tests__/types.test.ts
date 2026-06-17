@@ -25,6 +25,7 @@ describe("PROPERTY_TYPES", () => {
       "place",
       "formula",
       "relation",
+      "page",
       "createdTime",
       "lastEditedTime",
       "createdBy",

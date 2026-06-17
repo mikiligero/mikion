@@ -55,6 +55,7 @@ const DEFAULT_NAMES: Record<PropertyType, string> = {
   place: "Lugar",
   formula: "Fórmula",
   relation: "Relación",
+  page: "Enlace a página",
   createdTime: "Fecha de creación",
   lastEditedTime: "Última edición",
   createdBy: "Creado por",
