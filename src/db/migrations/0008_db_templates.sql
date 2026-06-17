@@ -1,0 +1,1 @@
+ALTER TABLE "databases" ADD COLUMN "templates" jsonb DEFAULT '[]'::jsonb NOT NULL;

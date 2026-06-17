@@ -7,7 +7,7 @@ import type { Row } from "@/db/schema";
 import type { DatabaseSchema } from "@/lib/types";
 import { findOption } from "@/lib/database-view";
 import { getRowTitle } from "@/lib/database-utils";
-import { atMidnight, dayDiff, parseDay } from "@/lib/calendar-utils";
+import { atMidnight, dayDiff, parseDay, dateEnd } from "@/lib/calendar-utils";
 import { cn } from "@/lib/utils";
 
 const DAYS = 30;
@@ -125,8 +125,12 @@ export function TimelineView({
 
           {/* Filas */}
           {rows.map((r) => {
-            const s = parseDay(r.values?.[datePropertyId]);
-            const e = endProp ? parseDay(r.values?.[endProp]) : null;
+            const dateVal = r.values?.[datePropertyId];
+            const s = parseDay(dateVal);
+            // Fin: del rango integrado ([inicio, fin]) o de una 2ª propiedad fecha.
+            const e =
+              parseDay(dateEnd(dateVal)) ??
+              (endProp ? parseDay(r.values?.[endProp]) : null);
             const startIdx = s ? dayDiff(s, start) : null;
             let endIdx = e ? dayDiff(e, start) : startIdx;
             if (startIdx !== null && endIdx !== null && endIdx < startIdx) endIdx = startIdx;

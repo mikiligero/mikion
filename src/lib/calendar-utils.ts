@@ -26,9 +26,22 @@ export function dayDiff(a: Date, b: Date): number {
 }
 
 /** Parsea "YYYY-MM-DD" (o ISO con hora) a Date local, o null si no es válida. */
+/** Inicio de un valor de fecha. Acepta string ISO o rango [inicio, fin]. */
+export function dateStart(v: unknown): string | null {
+  if (Array.isArray(v)) return typeof v[0] === "string" && v[0] ? v[0] : null;
+  return typeof v === "string" && v ? v : null;
+}
+
+/** Fin de un valor de fecha-rango ([inicio, fin]); null si no es rango. */
+export function dateEnd(v: unknown): string | null {
+  if (Array.isArray(v)) return typeof v[1] === "string" && v[1] ? v[1] : null;
+  return null;
+}
+
 export function parseDay(v: unknown): Date | null {
-  if (typeof v !== "string" || v.length < 10) return null;
-  const [y, m, d] = v.slice(0, 10).split("-").map(Number);
+  const s = dateStart(v);
+  if (!s || s.length < 10) return null;
+  const [y, m, d] = s.slice(0, 10).split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
 }

@@ -12,6 +12,13 @@ import {
   Sigma,
   ArrowLeftRight,
   FunctionSquare,
+  Phone,
+  AtSign,
+  Binary,
+  Clock,
+  History,
+  UserCircle,
+  UserCog,
 } from "lucide-react";
 import type { PropertyType } from "@/lib/types";
 
@@ -26,9 +33,16 @@ const ICONS: Record<PropertyType, React.ComponentType<{ className?: string }>> =
   date: Calendar,
   checkbox: CheckSquare,
   url: LinkIcon,
+  phone: Phone,
+  email: AtSign,
+  id: Binary,
   formula: Sigma,
   relation: ArrowLeftRight,
   rollup: FunctionSquare,
+  createdTime: Clock,
+  lastEditedTime: History,
+  createdBy: UserCircle,
+  lastEditedBy: UserCog,
 };
 
 export function propertyIcon(type: PropertyType) {

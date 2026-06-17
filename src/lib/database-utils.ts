@@ -8,25 +8,32 @@ import type {
 
 export const TITLE_PROPERTY_ID = "title";
 
-function opt(name: string, color: string): SelectOption {
-  return { id: crypto.randomUUID(), name, color };
+function opt(
+  name: string,
+  color: string,
+  group?: SelectOption["group"]
+): SelectOption {
+  return { id: crypto.randomUUID(), name, color, ...(group ? { group } : {}) };
 }
 
 /** Schema inicial de una BD nueva: Nombre (título) + Estado. */
 export function defaultDatabaseSchema(): DatabaseSchema {
+  const todo = opt("Por hacer", "gray", "todo");
+  const status: PropertyDef = {
+    id: crypto.randomUUID(),
+    name: "Estado",
+    type: "status",
+    options: [
+      todo,
+      opt("En curso", "blue", "inProgress"),
+      opt("Hecho", "green", "done"),
+    ],
+    defaultOptionId: todo.id,
+  };
   return {
     properties: [
       { id: TITLE_PROPERTY_ID, name: "Nombre", type: "title" },
-      {
-        id: crypto.randomUUID(),
-        name: "Estado",
-        type: "status",
-        options: [
-          opt("Por hacer", "gray"),
-          opt("En curso", "blue"),
-          opt("Hecho", "green"),
-        ],
-      },
+      status,
     ],
   };
 }
@@ -42,9 +49,16 @@ const DEFAULT_NAMES: Record<PropertyType, string> = {
   date: "Fecha",
   checkbox: "Casilla",
   url: "URL",
+  phone: "Teléfono",
+  email: "Correo electrónico",
+  id: "ID",
   formula: "Fórmula",
   relation: "Relación",
   rollup: "Rollup",
+  createdTime: "Fecha de creación",
+  lastEditedTime: "Última edición",
+  createdBy: "Creado por",
+  lastEditedBy: "Última edición por",
 };
 
 /** Nueva definición de propiedad de un tipo dado. */

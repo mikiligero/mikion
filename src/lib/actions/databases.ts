@@ -9,6 +9,7 @@ import type {
   Automation,
   Block,
   DatabaseSchema,
+  DbTemplate,
   PropertyDef,
   PropertyType,
   PropertyValue,
@@ -44,14 +45,56 @@ export async function createRow(
   databaseId: string,
   values: Record<string, PropertyValue> = {}
 ) {
-  await assertDatabaseAccess(databaseId);
+  const { database } = await assertDatabaseAccess(databaseId);
+  // Siembra el valor predeterminado de status/select (como Notion fija el
+  // estado por defecto), sin pisar valores ya provistos.
+  const seeded: Record<string, PropertyValue> = { ...values };
+  for (const p of database.schema.properties) {
+    if (
+      (p.type === "status" || p.type === "select") &&
+      p.defaultOptionId &&
+      seeded[p.id] === undefined
+    ) {
+      seeded[p.id] = p.defaultOptionId;
+    }
+  }
   const orderKey = await nextRowOrderKey(databaseId);
   const [row] = await db
     .insert(rows)
-    .values({ databaseId, values, orderKey })
+    .values({ databaseId, values: seeded, orderKey })
     .returning();
   revalidateShell();
   return { id: row.id };
+}
+
+/** Duplica una fila (valores + contenido + portada) y la coloca justo debajo. */
+export async function duplicateRow(rowId: string) {
+  const { row } = await assertRowAccess(rowId);
+  const [next] = await db
+    .select({ orderKey: rows.orderKey })
+    .from(rows)
+    .where(
+      and(
+        eq(rows.databaseId, row.databaseId),
+        isNull(rows.deletedAt),
+        sql`${rows.orderKey} > ${row.orderKey}`
+      )
+    )
+    .orderBy(asc(rows.orderKey))
+    .limit(1);
+  const orderKey = generateKeyBetween(row.orderKey, next?.orderKey ?? null);
+  const [copy] = await db
+    .insert(rows)
+    .values({
+      databaseId: row.databaseId,
+      values: row.values ?? {},
+      blocks: row.blocks ?? null,
+      cover: row.cover ?? null,
+      orderKey,
+    })
+    .returning();
+  revalidateShell();
+  return { id: copy.id };
 }
 
 export async function updateCell(
@@ -64,6 +107,70 @@ export async function updateCell(
   await db
     .update(rows)
     .set({ values: nextValues, updatedAt: new Date() })
+    .where(eq(rows.id, rowId));
+  revalidateShell();
+}
+
+/** Guarda una fila como plantilla reutilizable de su base de datos. */
+export async function saveRowAsTemplate(rowId: string, name: string) {
+  const { row } = await assertRowAccess(rowId);
+  const { database } = await assertDatabaseAccess(row.databaseId);
+  const template: DbTemplate = {
+    id: crypto.randomUUID(),
+    name: name.trim() || "Plantilla",
+    emoji: row.emoji ?? null,
+    values: row.values ?? {},
+    blocks: row.blocks ?? null,
+  };
+  await db
+    .update(databases)
+    .set({ templates: [...(database.templates ?? []), template] })
+    .where(eq(databases.id, database.id));
+  revalidateShell();
+  return { id: template.id };
+}
+
+/** Crea una fila a partir de una plantilla (valores + contenido + emoji). */
+export async function createRowFromTemplate(
+  databaseId: string,
+  templateId: string
+) {
+  const { database } = await assertDatabaseAccess(databaseId);
+  const template = (database.templates ?? []).find((t) => t.id === templateId);
+  if (!template) throw new Error("Plantilla no encontrada");
+  const orderKey = await nextRowOrderKey(databaseId);
+  const [row] = await db
+    .insert(rows)
+    .values({
+      databaseId,
+      emoji: template.emoji ?? null,
+      values: template.values ?? {},
+      blocks: template.blocks ?? null,
+      orderKey,
+    })
+    .returning();
+  revalidateShell();
+  return { id: row.id };
+}
+
+/** Elimina una plantilla de la base de datos. */
+export async function deleteTemplate(databaseId: string, templateId: string) {
+  const { database } = await assertDatabaseAccess(databaseId);
+  await db
+    .update(databases)
+    .set({
+      templates: (database.templates ?? []).filter((t) => t.id !== templateId),
+    })
+    .where(eq(databases.id, database.id));
+  revalidateShell();
+}
+
+/** Establece (o quita) el emoji/icono de una fila. */
+export async function setRowEmoji(rowId: string, emoji: string | null) {
+  await assertRowAccess(rowId);
+  await db
+    .update(rows)
+    .set({ emoji, updatedAt: new Date() })
     .where(eq(rows.id, rowId));
   revalidateShell();
 }
@@ -136,6 +243,24 @@ export async function addProperty(databaseId: string, type: PropertyType) {
   await setSchema(databaseId, {
     properties: [...schema.properties, prop],
   });
+  return { id: prop.id };
+}
+
+/** Inserta una propiedad nueva junto a otra (a izquierda/derecha), p. ej. desde
+ * el menú de la cabecera de columna en la tabla. */
+export async function addPropertyAt(
+  databaseId: string,
+  type: PropertyType,
+  refPropertyId: string,
+  side: "left" | "right"
+) {
+  const { database } = await assertDatabaseAccess(databaseId);
+  const props = database.schema.properties;
+  const prop = newPropertyDef(type);
+  const refIndex = props.findIndex((p) => p.id === refPropertyId);
+  const at = refIndex < 0 ? props.length : refIndex + (side === "right" ? 1 : 0);
+  const next = [...props.slice(0, at), prop, ...props.slice(at)];
+  await setSchema(databaseId, { properties: next });
   return { id: prop.id };
 }
 

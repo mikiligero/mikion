@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { Row } from "@/db/schema";
 import type { DatabaseSchema, PropertyDef } from "@/lib/types";
 import { findProperty, findOption } from "@/lib/database-view";
+import { dateStart } from "@/lib/calendar-utils";
 import { getRowTitle } from "@/lib/database-utils";
 import { createRow } from "@/lib/actions/databases";
 import { cn } from "@/lib/utils";
@@ -62,9 +63,9 @@ export function CalendarView({
     const map = new Map<string, Row[]>();
     if (!datePropertyId) return map;
     for (const r of rows) {
-      const v = r.values?.[datePropertyId];
-      if (typeof v !== "string" || !v) continue;
-      const day = v.slice(0, 10);
+      const start = dateStart(r.values?.[datePropertyId]);
+      if (!start) continue;
+      const day = start.slice(0, 10);
       const list = map.get(day);
       if (list) list.push(r);
       else map.set(day, [r]);

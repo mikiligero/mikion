@@ -1,8 +1,10 @@
 import type { Row } from "@/db/schema";
 import type {
+  CalcType,
   DatabaseSchema,
   Filter,
   PropertyDef,
+  PropertyValue,
   Sort,
   SelectOption,
   ViewConfig,
@@ -141,4 +143,113 @@ export function groupRows(
     rows: (byOption.get(null) ?? []).slice().sort(sortByOrder),
   });
   return groups;
+}
+
+// --- Cálculos al pie de columna -------------------------------------------
+/** Etiquetas de cada tipo de cálculo (para el menú y el pie). */
+export const CALC_LABELS: Record<CalcType, string> = {
+  count: "Contar todo",
+  countNotEmpty: "Rellenos",
+  countEmpty: "Vacíos",
+  percentNotEmpty: "% rellenos",
+  percentEmpty: "% vacíos",
+  countUnique: "Valores únicos",
+  sum: "Suma",
+  average: "Media",
+  min: "Mínimo",
+  max: "Máximo",
+  median: "Mediana",
+  range: "Rango",
+};
+
+/** Cálculos numéricos: solo aplican a propiedades de tipo number. */
+export const NUMERIC_CALCS: CalcType[] = [
+  "sum",
+  "average",
+  "min",
+  "max",
+  "median",
+  "range",
+];
+
+/** Cálculos disponibles para una propiedad según su tipo. */
+export function calcsForProperty(prop: PropertyDef): CalcType[] {
+  const common: CalcType[] = [
+    "count",
+    "countNotEmpty",
+    "countEmpty",
+    "percentNotEmpty",
+    "percentEmpty",
+    "countUnique",
+  ];
+  return prop.type === "number" ? [...common, ...NUMERIC_CALCS] : common;
+}
+
+function isEmptyValue(v: PropertyValue): boolean {
+  if (v === null || v === undefined) return true;
+  if (typeof v === "string") return v.trim() === "";
+  if (Array.isArray(v)) return v.length === 0;
+  return false;
+}
+
+function fmtNumber(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+/** Calcula el valor de pie de una columna sobre las filas dadas. */
+export function computeCalc(
+  type: CalcType,
+  prop: PropertyDef,
+  rows: Row[]
+): string {
+  const values = rows.map((r) => r.values?.[prop.id] ?? null);
+  const total = rows.length;
+  const notEmpty = values.filter((v) => !isEmptyValue(v));
+  const empty = total - notEmpty.length;
+
+  switch (type) {
+    case "count":
+      return String(total);
+    case "countNotEmpty":
+      return String(notEmpty.length);
+    case "countEmpty":
+      return String(empty);
+    case "percentNotEmpty":
+      return total ? `${Math.round((notEmpty.length / total) * 100)}%` : "0%";
+    case "percentEmpty":
+      return total ? `${Math.round((empty / total) * 100)}%` : "0%";
+    case "countUnique":
+      return String(
+        new Set(notEmpty.map((v) => JSON.stringify(v))).size
+      );
+    default:
+      break;
+  }
+
+  // Cálculos numéricos.
+  const nums = notEmpty
+    .map((v) => (typeof v === "number" ? v : Number(v)))
+    .filter((n) => Number.isFinite(n));
+  if (nums.length === 0) return "—";
+  switch (type) {
+    case "sum":
+      return fmtNumber(nums.reduce((a, b) => a + b, 0));
+    case "average":
+      return fmtNumber(nums.reduce((a, b) => a + b, 0) / nums.length);
+    case "min":
+      return fmtNumber(Math.min(...nums));
+    case "max":
+      return fmtNumber(Math.max(...nums));
+    case "range":
+      return fmtNumber(Math.max(...nums) - Math.min(...nums));
+    case "median": {
+      const sorted = [...nums].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return fmtNumber(
+        sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+      );
+    }
+    default:
+      return "—";
+  }
 }

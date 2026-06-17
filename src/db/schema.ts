@@ -14,6 +14,7 @@ import type {
   Automation,
   Block,
   DatabaseSchema,
+  DbTemplate,
   PropertyValues,
   ViewConfig,
 } from "@/lib/types";
@@ -179,6 +180,10 @@ export const databases = pgTable("databases", {
     .$type<Automation[]>()
     .notNull()
     .default([]),
+  templates: jsonb("templates")
+    .$type<DbTemplate[]>()
+    .notNull()
+    .default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -206,6 +211,7 @@ export const rows = pgTable(
     databaseId: text("database_id")
       .notNull()
       .references(() => databases.id, { onDelete: "cascade" }),
+    emoji: text("emoji"),
     values: jsonb("values").$type<PropertyValues>(),
     blocks: jsonb("blocks").$type<Block[]>(),
     cover: text("cover"),

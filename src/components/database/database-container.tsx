@@ -11,7 +11,13 @@ import {
   Zap,
 } from "lucide-react";
 import type { Row } from "@/db/schema";
-import type { Automation, DatabaseSchema, ViewConfig, ViewType } from "@/lib/types";
+import type {
+  Automation,
+  DatabaseSchema,
+  DbTemplate,
+  ViewConfig,
+  ViewType,
+} from "@/lib/types";
 import { applyView, visibleProperties } from "@/lib/database-view";
 import { updateView, createView } from "@/lib/actions/databases";
 import { renameDoc, updateDocMeta } from "@/lib/actions/docs";
@@ -43,11 +49,18 @@ export function DatabaseContainer({
   database,
   views,
   rows,
+  mentionUsers,
 }: {
   doc: { id: string; emoji: string | null; title: string };
-  database: { id: string; schema: DatabaseSchema; automations: Automation[] };
+  database: {
+    id: string;
+    schema: DatabaseSchema;
+    automations: Automation[];
+    templates: DbTemplate[];
+  };
   views: ViewMeta[];
   rows: Row[];
+  mentionUsers?: { id: string; name: string }[];
 }) {
   const [activeId, setActiveId] = useState(views[0]?.id ?? null);
   const [autoOpen, setAutoOpen] = useState(false);
@@ -209,6 +222,9 @@ export function DatabaseContainer({
             schema={database.schema}
             rows={viewRows}
             config={config}
+            templates={database.templates}
+            onConfigChange={patchConfig}
+            mentionUsers={mentionUsers}
           />
         )}
       </div>

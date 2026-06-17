@@ -6,8 +6,7 @@ import {
 } from "@/lib/types";
 
 describe("PROPERTY_TYPES", () => {
-  it("define los 12 tipos de propiedad", () => {
-    expect(PROPERTY_TYPES).toHaveLength(13); // title + 12 tipos de dato
+  it("incluye los tipos base, los nuevos y los de sistema", () => {
     const values = PROPERTY_TYPES.map((t) => t.value);
     for (const t of [
       "title",
@@ -20,12 +19,21 @@ describe("PROPERTY_TYPES", () => {
       "date",
       "checkbox",
       "url",
+      "phone",
+      "email",
+      "id",
       "formula",
       "relation",
       "rollup",
+      "createdTime",
+      "lastEditedTime",
+      "createdBy",
+      "lastEditedBy",
     ]) {
       expect(values).toContain(t);
     }
+    // sin duplicados
+    expect(new Set(values).size).toBe(values.length);
   });
 });
 

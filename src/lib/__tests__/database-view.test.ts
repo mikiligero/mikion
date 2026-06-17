@@ -31,6 +31,7 @@ function row(id: string, values: PropertyValues, orderKey = "a0"): Row {
   return {
     id,
     databaseId: "db",
+    emoji: null,
     values,
     blocks: null,
     cover: null,
