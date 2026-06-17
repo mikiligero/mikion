@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
+import { HoverCard } from "radix-ui";
 import {
   Check,
   Plus,
@@ -12,6 +13,7 @@ import {
   MapPin,
   Navigation,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import type {
   DateFormat,
@@ -801,6 +803,21 @@ function parsePlace(value: PropertyValue): PlaceValue | null {
   return { name: value };
 }
 
+// Mapa embebido de OpenStreetMap centrado en el punto (sin API key).
+function mapEmbedUrl(lat: number, lon: number): string {
+  const d = 0.004;
+  const bbox = `${lon - d},${lat - d},${lon + d},${lat + d}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
+    bbox
+  )}&layer=mapnik&marker=${lat},${lon}`;
+}
+
+function googleMapsUrl(p: PlaceValue): string {
+  const q =
+    p.lat != null && p.lon != null ? `${p.lat},${p.lon}` : p.address || p.name;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
+
 function PlaceCell({
   value,
   onChange,
@@ -887,21 +904,33 @@ function PlaceCell({
     );
   }
 
+  // Vista previa al pasar el ratón (mini-mapa + Google Maps), oculta al editar.
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const hasCoords = place?.lat != null && place?.lon != null;
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button className="hover:bg-sidebar-hover flex min-h-7 w-full items-center px-2 py-1 text-left">
-          {place ? (
-            <span className="text-ink-soft inline-flex items-center gap-1 text-sm">
-              <MapPin className="text-ink-faint size-3.5 shrink-0" />
-              <span className="truncate">{place.name}</span>
-            </span>
-          ) : (
-            <span className="text-ink-ghost text-sm">Vacío</span>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-1">
+    <HoverCard.Root
+      open={hoverOpen && !open && !!place}
+      onOpenChange={setHoverOpen}
+      openDelay={250}
+      closeDelay={120}
+    >
+      <Popover open={open} onOpenChange={setOpen}>
+        <HoverCard.Trigger asChild>
+          <PopoverTrigger asChild>
+            <button className="hover:bg-sidebar-hover flex min-h-7 w-full items-center px-2 py-1 text-left">
+              {place ? (
+                <span className="text-ink-soft inline-flex items-center gap-1 text-sm">
+                  <MapPin className="text-ink-faint size-3.5 shrink-0" />
+                  <span className="truncate">{place.name}</span>
+                </span>
+              ) : (
+                <span className="text-ink-ghost text-sm">Vacío</span>
+              )}
+            </button>
+          </PopoverTrigger>
+        </HoverCard.Trigger>
+        <PopoverContent align="start" className="w-72 p-1">
         <input
           autoFocus
           value={query}
@@ -951,8 +980,50 @@ function PlaceCell({
         <div className="text-ink-ghost px-2 py-1 text-[10px]">
           Datos © OpenStreetMap
         </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+      {place && (
+        <HoverCard.Portal>
+          <HoverCard.Content
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            className="border-line bg-surface z-50 w-64 overflow-hidden rounded-lg border shadow-md"
+          >
+            {hasCoords && (
+              <iframe
+                title={`Mapa de ${place.name}`}
+                src={mapEmbedUrl(place.lat!, place.lon!)}
+                loading="lazy"
+                className="h-36 w-full border-0"
+              />
+            )}
+            <div className="flex items-center justify-between gap-2 p-2">
+              <div className="min-w-0">
+                <div className="text-ink truncate text-sm font-medium">
+                  {place.name}
+                </div>
+                {place.address && (
+                  <div className="text-ink-faint truncate text-xs">
+                    {place.address}
+                  </div>
+                )}
+              </div>
+              <a
+                href={googleMapsUrl(place)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-ink-faint hover:bg-sidebar-hover hover:text-ink flex size-7 shrink-0 items-center justify-center rounded-md"
+                aria-label="Abrir en Google Maps"
+                title="Abrir en Google Maps"
+              >
+                <ExternalLink className="size-4" />
+              </a>
+            </div>
+          </HoverCard.Content>
+        </HoverCard.Portal>
+      )}
+    </HoverCard.Root>
   );
 }
 
