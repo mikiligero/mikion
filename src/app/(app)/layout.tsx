@@ -51,7 +51,7 @@ export default async function AppLayout({
           docs={tree}
           unread={unread?.value ?? 0}
         />
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="bg-surface flex min-w-0 flex-1 flex-col">
           <Topbar docs={tree} />
           <div className="content-scroll flex-1 overflow-y-auto">{children}</div>
         </main>

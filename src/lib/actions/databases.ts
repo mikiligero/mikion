@@ -313,6 +313,19 @@ export async function updateView(
   revalidateShell();
 }
 
+/** Elimina una vista. No permite borrar la última (la BD necesita al menos una). */
+export async function deleteView(viewId: string) {
+  const { view } = await assertViewAccess(viewId);
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(views)
+    .where(eq(views.databaseId, view.databaseId));
+  if (n <= 1) return { deleted: false };
+  await db.delete(views).where(eq(views.id, viewId));
+  revalidateShell();
+  return { deleted: true };
+}
+
 // Crea el doc-BD (kind=database) bajo la página actual + esquema por defecto +
 // vista tabla. Base compartida por las dos variantes (integrada / página completa).
 async function createDatabaseDoc(parentDocId: string) {

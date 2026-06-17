@@ -9,6 +9,8 @@ import {
   GanttChartSquare,
   PieChart,
   Zap,
+  ChevronDown,
+  Trash2,
 } from "lucide-react";
 import type { Row } from "@/db/schema";
 import type {
@@ -19,7 +21,7 @@ import type {
   ViewType,
 } from "@/lib/types";
 import { applyView, visibleProperties } from "@/lib/database-view";
-import { updateView, createView } from "@/lib/actions/databases";
+import { updateView, createView, deleteView } from "@/lib/actions/databases";
 import { renameDoc, updateDocMeta } from "@/lib/actions/docs";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import { cn } from "@/lib/utils";
@@ -75,6 +77,15 @@ export function DatabaseContainer({
 
   function saveTitle() {
     if (title !== doc.title) startTransition(() => renameDoc(doc.id, title));
+  }
+
+  function removeView(viewId: string) {
+    const remaining = views.filter((v) => v.id !== viewId);
+    if (!remaining.length) return; // nunca borrar la última
+    if (activeId === viewId) setActiveId(remaining[0].id);
+    startTransition(() => {
+      void deleteView(viewId);
+    });
   }
   const [configs, setConfigs] = useState<Record<string, ViewConfig>>(() =>
     Object.fromEntries(views.map((v) => [v.id, v.config]))
@@ -143,20 +154,48 @@ export function DatabaseContainer({
       {/* Pestañas + toolbar */}
       <div className="border-line mt-4 flex items-center justify-between border-b">
         <div className="flex items-center gap-1">
-          {views.map((v) => (
-            <button
-              key={v.id}
-              onClick={() => setActiveId(v.id)}
-              className={cn(
-                "border-b-2 px-2 pb-2 text-[13.5px]",
-                activeId === v.id
-                  ? "border-brand text-ink font-medium"
-                  : "text-ink-soft border-transparent"
-              )}
-            >
-              {v.name}
-            </button>
-          ))}
+          {views.map((v) => {
+            const active = activeId === v.id;
+            return (
+              <div
+                key={v.id}
+                className={cn(
+                  "flex items-center border-b-2",
+                  active ? "border-brand" : "border-transparent"
+                )}
+              >
+                <button
+                  onClick={() => setActiveId(v.id)}
+                  className={cn(
+                    "py-0 pb-2 pl-2 pr-1 text-[13.5px]",
+                    active ? "text-ink font-medium" : "text-ink-soft"
+                  )}
+                >
+                  {v.name}
+                </button>
+                {active && views.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="text-ink-faint hover:bg-sidebar-hover mb-1.5 mr-1 rounded-sm p-0.5"
+                        aria-label="Opciones de la vista"
+                      >
+                        <ChevronDown className="size-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => removeView(v.id)}
+                      >
+                        <Trash2 className="size-4" /> Eliminar vista
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            );
+          })}
           <AddViewMenu databaseId={database.id} />
         </div>
 
