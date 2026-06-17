@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { toast } from "sonner";
-import { signIn } from "@/lib/auth-client";
+import { signUp } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,16 +18,16 @@ import {
 } from "@/components/ui/card";
 
 const schema = z.object({
+  name: z.string().min(1, "Introduce tu nombre"),
   email: z.string().email("Correo no válido"),
-  password: z.string().min(1, "Introduce tu contraseña"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
 });
 
-export default function LoginPage() {
+export function RegisterForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  // Evita el envío nativo del formulario antes de que React hidrate (que caería
-  // a un GET con las credenciales en la URL): el botón queda inhabilitado —y con
-  // él el submit con Enter— hasta montar en cliente.
+  // Igual que en login: evita el envío nativo (GET con credenciales en la URL)
+  // antes de que React hidrate, inhabilitando el botón hasta montar.
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
@@ -35,6 +36,7 @@ export default function LoginPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const parsed = schema.safeParse({
+      name: form.get("name"),
       email: form.get("email"),
       password: form.get("password"),
     });
@@ -44,11 +46,15 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    const { error } = await signIn.email(parsed.data);
+    const { error } = await signUp.email(parsed.data);
     setLoading(false);
 
     if (error) {
-      toast.error("Correo o contraseña incorrectos");
+      const msg = error.message?.toLowerCase() ?? "";
+      const translated = msg.includes("exist") || msg.includes("in use")
+        ? "Este correo ya está registrado"
+        : "No se pudo crear la cuenta";
+      toast.error(translated);
       return;
     }
     router.push("/");
@@ -59,12 +65,22 @@ export default function LoginPage() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle className="font-serif text-2xl font-[560]">
-          Inicia sesión
+          Crea tu cuenta
         </CardTitle>
-        <CardDescription>Vuelve a tu espacio de trabajo.</CardDescription>
+        <CardDescription>Tu espacio de trabajo personal.</CardDescription>
       </CardHeader>
       <CardContent>
         <form method="post" onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="name">Nombre</Label>
+            <Input
+              id="name"
+              name="name"
+              autoComplete="name"
+              placeholder="Tu nombre"
+              required
+            />
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="email">Correo</Label>
             <Input
@@ -82,7 +98,8 @@ export default function LoginPage() {
               id="password"
               name="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
+              placeholder="Mínimo 8 caracteres"
               required
             />
           </div>
@@ -91,9 +108,15 @@ export default function LoginPage() {
             disabled={loading || !mounted}
             className="mt-1 w-full"
           >
-            {loading ? "Entrando…" : "Iniciar sesión"}
+            {loading ? "Creando…" : "Crear cuenta"}
           </Button>
         </form>
+        <p className="text-ink-faint mt-4 text-center text-sm">
+          ¿Ya tienes cuenta?{" "}
+          <Link href="/login" className="text-brand font-medium">
+            Inicia sesión
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

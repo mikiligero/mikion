@@ -32,6 +32,9 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
+    // Registro cerrado salvo que se active explícitamente por entorno. Bloquea
+    // también el endpoint /api/auth/sign-up (no solo la página /register).
+    disableSignUp: process.env.MIKION_ALLOW_SIGNUP !== "true",
   },
   user: {
     deleteUser: {
