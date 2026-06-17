@@ -31,7 +31,7 @@ export function TeamCalendar({
       <div className="flex items-center gap-2">
         <span className="text-3xl leading-none">📅</span>
         <h1 className="font-serif text-ink text-[32px] font-[560]">
-          {title || "Calendario del equipo"}
+          {title || "Calendario"}
         </h1>
       </div>
 

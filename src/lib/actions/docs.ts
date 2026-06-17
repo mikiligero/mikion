@@ -33,6 +33,11 @@ export async function createDoc(input: {
   const parentId = input.parentId ?? null;
   if (parentId) await assertDocAccess(parentId);
 
+  const kind = input.kind ?? "page";
+  // Título por defecto según el tipo (las páginas quedan "Sin título").
+  const defaultTitle =
+    kind === "calendar" ? "Calendario" : kind === "database" ? "Base de datos" : "";
+
   const orderKey = await nextOrderKey(ws.id, input.section, parentId);
   const [doc] = await db
     .insert(docs)
@@ -40,7 +45,8 @@ export async function createDoc(input: {
       workspaceId: ws.id,
       section: input.section,
       parentId,
-      kind: input.kind ?? "page",
+      kind,
+      title: defaultTitle,
       orderKey,
     })
     .returning();
