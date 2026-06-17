@@ -886,13 +886,16 @@ function MultiSelectCell({
       <PopoverContent
         ref={contentRef}
         align="start"
-        className="w-60 p-1"
+        collisionPadding={8}
+        className="flex w-60 flex-col overflow-hidden p-1"
+        // Limita la altura al hueco real disponible para que no se corte abajo.
+        style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
         onOpenAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onFocusOutside={(e) => e.preventDefault()}
       >
         {selected.length > 0 && (
-          <div className="flex flex-wrap gap-1 p-1">
+          <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto p-1">
             {selected.map((o) => chip(o, () => remove(o.id)))}
           </div>
         )}
@@ -905,7 +908,7 @@ function MultiSelectCell({
           className="border-line bg-surface text-ink mb-1 w-full rounded-md border px-2 py-1 text-sm outline-none"
         />
         <div className="text-ink-faint px-2 py-1 text-xs">{hint}</div>
-        <div className="max-h-56 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {opts
             .filter((o) => o.name.toLowerCase().includes(query.toLowerCase()))
             .map((o) => (
