@@ -5,7 +5,25 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { workspaces, preferences } from "@/db/schema";
 
+// Orígenes de confianza para la verificación CSRF de Better Auth. Tras un
+// proxy con HTTPS, el navegador envía Origin=https://dominio mientras la app
+// recibe HTTP interno; sin esto, el login se rechaza. Se configuran por entorno
+// (BETTER_AUTH_URL es además la baseURL pública; admite lista separada por comas
+// en BETTER_AUTH_TRUSTED_ORIGINS para varios hosts, p. ej. IP de LAN + dominio).
+const trustedOrigins = (
+  process.env.BETTER_AUTH_TRUSTED_ORIGINS ||
+  process.env.BETTER_AUTH_URL ||
+  ""
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 export const auth = betterAuth({
+  ...(process.env.BETTER_AUTH_URL
+    ? { baseURL: process.env.BETTER_AUTH_URL }
+    : {}),
+  ...(trustedOrigins.length ? { trustedOrigins } : {}),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
