@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { Check, Flag, Plus, Trash2 } from "lucide-react";
 import type { PropertyDef, SelectOption, StatusGroup } from "@/lib/types";
 import {
@@ -118,16 +119,31 @@ export function PropertyOptionsEditor({
             >
               <Trash2 className="size-4" /> Eliminar
             </DropdownMenuItem>
-            {!isPerson && (
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  patch({ defaultOptionId: o.id });
-                }}
-              >
-                <Flag className="size-4" /> Fijar como predeterminado
-              </DropdownMenuItem>
-            )}
+            {!isPerson &&
+              (() => {
+                const isDefault = property.defaultOptionId === o.id;
+                return (
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      patch({ defaultOptionId: isDefault ? undefined : o.id });
+                      toast.success(
+                        isDefault
+                          ? "Se quitó el valor predeterminado"
+                          : `«${o.name}» es ahora el valor de las filas nuevas`
+                      );
+                    }}
+                  >
+                    <Flag className="size-4" />
+                    <span className="flex-1">
+                      {isDefault
+                        ? "Quitar predeterminado"
+                        : "Fijar como predeterminado"}
+                    </span>
+                    {isDefault && <Check className="text-ink-faint size-3.5" />}
+                  </DropdownMenuItem>
+                );
+              })()}
 
             {isStatus && (
               <>
