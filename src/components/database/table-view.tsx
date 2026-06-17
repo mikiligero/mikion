@@ -167,10 +167,16 @@ export function TableView({
                 value={cellValue}
                 onChange={(v) => setCell(ctx.row.original.id, prop.id, v)}
                 onAddOption={
-                  prop.type === "select" ||
-                  prop.type === "status" ||
-                  prop.type === "multiselect"
+                  prop.type === "select" || prop.type === "status"
                     ? (name) => addOption(prop, name)
+                    : undefined
+                }
+                onSetOptions={
+                  prop.type === "multiselect" || prop.type === "person"
+                    ? (options) =>
+                        startTransition(() =>
+                          updateProperty(databaseId, prop.id, { options })
+                        )
                     : undefined
                 }
                 onPropertyPatch={
@@ -577,7 +583,8 @@ function ColumnHeaderMenu({
 
         {(prop.type === "select" ||
           prop.type === "multiselect" ||
-          prop.type === "status") && (
+          prop.type === "status" ||
+          prop.type === "person") && (
           <PropertyOptionsEditor databaseId={databaseId} property={prop} />
         )}
 

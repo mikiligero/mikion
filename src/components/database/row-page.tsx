@@ -147,10 +147,16 @@ export function RowPage({
                   }
                   onChange={(v) => setCell(prop.id, v)}
                   onAddOption={
-                    prop.type === "select" ||
-                    prop.type === "status" ||
-                    prop.type === "multiselect"
+                    prop.type === "select" || prop.type === "status"
                       ? (name) => addOption(prop.id, name)
+                      : undefined
+                  }
+                  onSetOptions={
+                    prop.type === "multiselect" || prop.type === "person"
+                      ? (options) =>
+                          startTransition(() =>
+                            updateProperty(databaseId, prop.id, { options })
+                          )
                       : undefined
                   }
                   onPropertyPatch={

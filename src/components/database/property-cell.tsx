@@ -12,6 +12,7 @@ import {
   STATUS_GROUPS,
   DATE_FORMATS,
   isSystemProperty,
+  randomSelectColor,
 } from "@/lib/types";
 import {
   dateStart,
@@ -23,7 +24,7 @@ import {
   MONTHS,
   WEEKDAYS,
 } from "@/lib/calendar-utils";
-import { cn } from "@/lib/utils";
+import { cn, randomId } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
@@ -134,12 +135,82 @@ export function systemFieldValue(
   }
 }
 
+/**
+ * Cierra el popover SOLO con un clic real fuera (no por re-render que roba el
+ * foco). Devuelve refs para el disparador y el contenido. `onClose` se invoca
+ * con la última versión gracias a un ref interno.
+ */
+function useOutsideClose(open: boolean, onClose: () => void) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const cb = useRef(onClose);
+  useEffect(() => {
+    cb.current = onClose;
+  });
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: PointerEvent) {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (contentRef.current?.contains(t)) return;
+      if (triggerRef.current?.contains(t)) return;
+      cb.current();
+    }
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [open]);
+  return { triggerRef, contentRef };
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+/** Chip de persona: avatar con iniciales + nombre. */
+export function PersonChip({
+  option,
+  onRemove,
+}: {
+  option: SelectOption;
+  onRemove?: () => void;
+}) {
+  return (
+    <span className="bg-sidebar text-ink inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2 pl-0.5 text-[12.5px] font-medium">
+      <span
+        className="flex size-[18px] items-center justify-center rounded-full text-[9px] font-semibold text-white"
+        style={{ background: `var(--tint-${option.color || "gray"})` }}
+      >
+        {initials(option.name)}
+      </span>
+      {option.name}
+      {onRemove && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="-mr-0.5 inline-flex opacity-60 hover:opacity-100"
+          aria-label={`Quitar ${option.name}`}
+        >
+          <X className="size-3" />
+        </span>
+      )}
+    </span>
+  );
+}
+
 type CellProps = {
   property: PropertyDef;
   value: PropertyValue;
   onChange: (value: PropertyValue) => void;
-  /** Crea una opción nueva (select/status/multiselect) y devuelve su id. */
+  /** Crea una opción nueva (select/status) y devuelve su id. */
   onAddOption?: (name: string) => Promise<string> | string;
+  /** Reemplaza la lista de opciones (multiselect/persona, guardado diferido). */
+  onSetOptions?: (options: SelectOption[]) => void;
   /** Cambia ajustes de la propiedad (usado por la fecha: rango/hora/formato). */
   onPropertyPatch?: (patch: Partial<PropertyDef>) => void;
 };
@@ -149,6 +220,7 @@ export function PropertyCell({
   value,
   onChange,
   onAddOption,
+  onSetOptions,
   onPropertyPatch,
 }: CellProps) {
   // Campos de sistema: solo lectura (el valor llega ya calculado).
@@ -188,7 +260,17 @@ export function PropertyCell({
           property={property}
           value={value}
           onChange={onChange}
-          onAddOption={onAddOption}
+          onSetOptions={onSetOptions}
+        />
+      );
+    case "person":
+      return (
+        <MultiSelectCell
+          property={property}
+          value={value}
+          onChange={onChange}
+          onSetOptions={onSetOptions}
+          person
         />
       );
     case "select":
@@ -385,29 +467,9 @@ function DateCell({
     }
     setOpen(false);
   }
-  // Ref a la última `close` para usarla desde el listener sin closures obsoletas.
-  const closeRef = useRef(close);
-  useEffect(() => {
-    closeRef.current = close;
-  });
-
-  // El popover NO se cierra solo: solo con un clic real fuera, gestionado a mano
-  // (inmune al re-render). Radix tiene desactivado su auto-cierre más abajo.
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDocPointerDown(e: PointerEvent) {
-      const t = e.target as Node | null;
-      if (!t) return;
-      if (contentRef.current?.contains(t)) return; // dentro del popover
-      if (triggerRef.current?.contains(t)) return; // sobre el disparador
-      closeRef.current();
-    }
-    document.addEventListener("pointerdown", onDocPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onDocPointerDown, true);
-  }, [open]);
+  // El popover NO se cierra solo: solo con un clic real fuera (inmune al
+  // re-render). Radix tiene desactivado su auto-cierre más abajo.
+  const { triggerRef, contentRef } = useOutsideClose(open, close);
 
   function buildIso(day: Date, prev: string | null): string {
     if (!withTime) return isoDay(day);
@@ -712,58 +774,126 @@ function SelectRow({
   );
 }
 
-// --- Selección múltiple: chips ---------------------------------------------
+// --- Selección múltiple / Persona: chips -----------------------------------
 function MultiSelectCell({
   property,
   value,
   onChange,
-  onAddOption,
+  onSetOptions,
+  person,
 }: {
   property: PropertyDef;
   value: PropertyValue;
   onChange: (v: PropertyValue) => void;
-  onAddOption?: (name: string) => Promise<string> | string;
+  /** Reemplaza la lista de opciones (guardado diferido al cerrar). */
+  onSetOptions?: (options: SelectOption[]) => void;
+  /** Modo persona: chips con avatar de iniciales en vez de etiqueta de color. */
+  person?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const options = property.options ?? [];
-  const ids = Array.isArray(value) ? (value as string[]) : [];
+
+  // Borrador local de opciones y selección: mientras el popover está abierto no
+  // se llama al servidor, así puedes añadir/elegir varias sin que se cierre. Se
+  // guarda al cerrar (clic fuera).
+  const extOptions = property.options ?? [];
+  const extIds = Array.isArray(value) ? (value as string[]) : [];
+  const [opts, setOpts] = useState<SelectOption[]>(extOptions);
+  const [ids, setIds] = useState<string[]>(extIds);
+  const optsKey = extOptions.map((o) => `${o.id}:${o.name}:${o.color}`).join("|");
+  const idsKey = extIds.join(",");
+  const [lastOptsKey, setLastOptsKey] = useState(optsKey);
+  const [lastIdsKey, setLastIdsKey] = useState(idsKey);
+  if (!open && optsKey !== lastOptsKey) {
+    setLastOptsKey(optsKey);
+    setOpts(extOptions);
+  }
+  if (!open && idsKey !== lastIdsKey) {
+    setLastIdsKey(idsKey);
+    setIds(extIds);
+  }
+
   const selected = ids
-    .map((id) => options.find((o) => o.id === id))
+    .map((id) => opts.find((o) => o.id === id))
     .filter((o): o is SelectOption => !!o);
 
+  const chip = (o: SelectOption, onRemove?: () => void) =>
+    person ? (
+      <PersonChip key={o.id} option={o} onRemove={onRemove} />
+    ) : (
+      <Tag key={o.id} option={o} onRemove={onRemove} />
+    );
+  const createLabel = person ? "Añadir persona" : "Crear";
+  const hint = person
+    ? "Elige o escribe un nombre"
+    : "Selecciona una opción o crea una";
+
   function toggle(id: string) {
-    onChange(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+    setIds(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
   }
-
   function remove(id: string) {
-    onChange(ids.filter((x) => x !== id));
+    setIds(ids.filter((x) => x !== id));
   }
-
-  async function add() {
-    if (!onAddOption || !query.trim()) return;
-    const id = await onAddOption(query.trim());
-    onChange([...ids, id]);
+  function add() {
+    const name = query.trim();
+    if (!name) return;
+    const existing = opts.find((o) => o.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      if (!ids.includes(existing.id)) toggle(existing.id);
+      setQuery("");
+      return;
+    }
+    const opt: SelectOption = { id: randomId(), name, color: randomSelectColor() };
+    setOpts([...opts, opt]);
+    setIds([...ids, opt.id]);
     setQuery("");
   }
 
+  // Guarda al cerrar lo que haya cambiado respecto al valor del servidor.
+  function close() {
+    const nextOptsKey = opts.map((o) => `${o.id}:${o.name}:${o.color}`).join("|");
+    if (nextOptsKey !== optsKey && onSetOptions) {
+      onSetOptions(opts);
+      setLastOptsKey(nextOptsKey);
+    }
+    const nextIdsKey = ids.join(",");
+    if (nextIdsKey !== idsKey) {
+      onChange(ids.length ? ids : null);
+      setLastIdsKey(nextIdsKey);
+    }
+    setOpen(false);
+  }
+
+  const { triggerRef, contentRef } = useOutsideClose(open, close);
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(o) => (o ? setOpen(true) : close())}
+    >
       <PopoverTrigger asChild>
-        <button className="hover:bg-sidebar-hover flex min-h-7 w-full flex-wrap items-center gap-1 px-2 py-1 text-left">
+        <button
+          ref={triggerRef}
+          className="hover:bg-sidebar-hover flex min-h-7 w-full flex-wrap items-center gap-1 px-2 py-1 text-left"
+        >
           {selected.length ? (
-            selected.map((o) => <Tag key={o.id} option={o} />)
+            selected.map((o) => chip(o))
           ) : (
             <span className="text-ink-ghost text-sm">Vacío</span>
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-60 p-1">
+      <PopoverContent
+        ref={contentRef}
+        align="start"
+        className="w-60 p-1"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-1 p-1">
-            {selected.map((o) => (
-              <Tag key={o.id} option={o} onRemove={() => remove(o.id)} />
-            ))}
+            {selected.map((o) => chip(o, () => remove(o.id)))}
           </div>
         )}
         <input
@@ -771,14 +901,12 @@ function MultiSelectCell({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="Buscar o crear…"
+          placeholder={person ? "Buscar o añadir persona…" : "Buscar o crear…"}
           className="border-line bg-surface text-ink mb-1 w-full rounded-md border px-2 py-1 text-sm outline-none"
         />
-        <div className="text-ink-faint px-2 py-1 text-xs">
-          Selecciona una opción o crea una
-        </div>
+        <div className="text-ink-faint px-2 py-1 text-xs">{hint}</div>
         <div className="max-h-56 overflow-y-auto">
-          {options
+          {opts
             .filter((o) => o.name.toLowerCase().includes(query.toLowerCase()))
             .map((o) => (
               <button
@@ -786,22 +914,22 @@ function MultiSelectCell({
                 onClick={() => toggle(o.id)}
                 className="hover:bg-sidebar-hover flex w-full items-center justify-between rounded-sm px-2 py-1"
               >
-                <Tag option={o} />
+                {chip(o)}
                 {ids.includes(o.id) && (
                   <Check className="text-ink-faint size-3.5" />
                 )}
               </button>
             ))}
-          {onAddOption &&
+          {onSetOptions &&
             query.trim() &&
-            !options.some(
+            !opts.some(
               (o) => o.name.toLowerCase() === query.trim().toLowerCase()
             ) && (
               <button
                 onClick={add}
                 className="text-ink-soft hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-2 py-1 text-sm"
               >
-                <Plus className="size-3.5" /> Crear «{query.trim()}»
+                <Plus className="size-3.5" /> {createLabel} «{query.trim()}»
               </button>
             )}
         </div>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createReactBlockSpec } from "@blocknote/react";
 import { Plus, Maximize2, Database } from "lucide-react";
 import type { Row } from "@/db/schema";
-import type { DatabaseSchema, PropertyValue } from "@/lib/types";
+import type { DatabaseSchema, PropertyValue, SelectOption } from "@/lib/types";
 import { randomSelectColor } from "@/lib/types";
 import {
   getInlineDatabase,
@@ -74,6 +74,10 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
     refresh();
     return opt.id;
   }
+  async function setOptions(propertyId: string, options: SelectOption[]) {
+    await updateProperty(databaseId, propertyId, { options });
+    refresh();
+  }
 
   return (
     <div className="border-line overflow-hidden rounded-md border">
@@ -124,10 +128,13 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
                       value={row.values?.[p.id] ?? null}
                       onChange={(v) => setCell(row.id, p.id, v)}
                       onAddOption={
-                        p.type === "select" ||
-                        p.type === "status" ||
-                        p.type === "multiselect"
+                        p.type === "select" || p.type === "status"
                           ? (name) => addOption(p.id, name)
+                          : undefined
+                      }
+                      onSetOptions={
+                        p.type === "multiselect" || p.type === "person"
+                          ? (options) => void setOptions(p.id, options)
                           : undefined
                       }
                     />

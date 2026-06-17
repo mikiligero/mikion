@@ -45,6 +45,7 @@ export function PropertyOptionsEditor({
   const [, startTransition] = useTransition();
   const options = property.options ?? [];
   const isStatus = property.type === "status";
+  const isPerson = property.type === "person";
 
   function patch(p: Partial<PropertyDef>) {
     startTransition(() => updateProperty(databaseId, property.id, p));
@@ -64,7 +65,9 @@ export function PropertyOptionsEditor({
   function addOption() {
     const opt: SelectOption = {
       id: randomId(),
-      name: `Opción ${options.length + 1}`,
+      name: isPerson
+        ? `Persona ${options.length + 1}`
+        : `Opción ${options.length + 1}`,
       color: randomSelectColor(),
       ...(isStatus ? { group: "todo" as StatusGroup } : {}),
     };
@@ -75,11 +78,11 @@ export function PropertyOptionsEditor({
     <>
       <DropdownMenuSeparator />
       <div className="text-ink-faint px-2 py-1 text-[11px] font-medium">
-        Opciones
+        {isPerson ? "Personas" : "Opciones"}
       </div>
       {options.length === 0 && (
         <div className="text-ink-faint px-2 py-1 text-[12px]">
-          Aún no hay opciones.
+          {isPerson ? "Aún no hay personas." : "Aún no hay opciones."}
         </div>
       )}
       {options.map((o) => (
@@ -115,14 +118,16 @@ export function PropertyOptionsEditor({
             >
               <Trash2 className="size-4" /> Eliminar
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                patch({ defaultOptionId: o.id });
-              }}
-            >
-              <Flag className="size-4" /> Fijar como predeterminado
-            </DropdownMenuItem>
+            {!isPerson && (
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  patch({ defaultOptionId: o.id });
+                }}
+              >
+                <Flag className="size-4" /> Fijar como predeterminado
+              </DropdownMenuItem>
+            )}
 
             {isStatus && (
               <>
@@ -177,7 +182,7 @@ export function PropertyOptionsEditor({
           addOption();
         }}
       >
-        <Plus className="size-4" /> Añadir opción
+        <Plus className="size-4" /> {isPerson ? "Añadir persona" : "Añadir opción"}
       </DropdownMenuItem>
     </>
   );
