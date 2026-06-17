@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import { Loader2, RotateCcw } from "lucide-react";
 import {
   getVersions,
   getRowVersions,
@@ -37,6 +38,7 @@ export function VersionHistoryDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const [items, setItems] = useState<VersionItem[] | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const key = "docId" in target ? target.docId : target.rowId;
 
   useEffect(() => {
@@ -56,8 +58,19 @@ export function VersionHistoryDialog({
   }, [open, key]);
 
   async function restore(id: string) {
-    await restoreVersion(id);
-    window.location.reload();
+    if (restoringId) return;
+    setRestoringId(id);
+    try {
+      await restoreVersion(id);
+      toast.success("Versión restaurada");
+      // Recarga completa para que el editor cargue el contenido restaurado.
+      window.location.reload();
+    } catch (e) {
+      setRestoringId(null);
+      toast.error(
+        e instanceof Error ? e.message : "No se pudo restaurar la versión"
+      );
+    }
   }
 
   return (
@@ -96,9 +109,15 @@ export function VersionHistoryDialog({
               </div>
               <button
                 onClick={() => restore(v.id)}
-                className="text-ink-soft hover:bg-sidebar-hover flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[13px]"
+                disabled={restoringId !== null}
+                className="text-ink-soft hover:bg-sidebar-hover flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[13px] disabled:opacity-50"
               >
-                <RotateCcw className="size-3.5" /> Restaurar
+                {restoringId === v.id ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
+                Restaurar
               </button>
             </div>
           ))}
