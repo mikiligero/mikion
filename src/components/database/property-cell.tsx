@@ -1,9 +1,21 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Check, Plus, X, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Check,
+  Plus,
+  X,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Navigation,
+  Loader2,
+} from "lucide-react";
 import type {
   DateFormat,
+  PlaceValue,
   PropertyDef,
   PropertyValue,
   SelectOption,
@@ -241,6 +253,8 @@ export function PropertyCell({
       return <TextCell value={value} onChange={onChange} type="tel" />;
     case "email":
       return <TextCell value={value} onChange={onChange} type="email" />;
+    case "place":
+      return <PlaceCell value={value} onChange={onChange} />;
     case "number":
       return <NumberCell value={value} onChange={onChange} />;
     case "checkbox":
@@ -771,6 +785,174 @@ function SelectRow({
       {/* fallback de etiqueta para entornos sin estilizar el select */}
       <span className="sr-only">{current.label}</span>
     </div>
+  );
+}
+
+// --- Lugar: búsqueda de ubicación (OpenStreetMap) --------------------------
+function parsePlace(value: PropertyValue): PlaceValue | null {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const o = JSON.parse(value);
+    if (o && typeof o === "object" && typeof o.name === "string")
+      return o as PlaceValue;
+  } catch {
+    /* valor antiguo en texto plano */
+  }
+  return { name: value };
+}
+
+function PlaceCell({
+  value,
+  onChange,
+}: {
+  value: PropertyValue;
+  onChange: (v: PropertyValue) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PlaceValue[]>([]);
+  const [loading, setLoading] = useState(false);
+  const place = parsePlace(value);
+
+  // Búsqueda con debounce mientras el popover está abierto. Todas las
+  // actualizaciones de estado ocurren dentro del timeout (no de forma síncrona).
+  useEffect(() => {
+    if (!open) return;
+    const q = query.trim();
+    const ctrl = new AbortController();
+    const t = setTimeout(
+      async () => {
+        if (q.length < 3) {
+          setResults([]);
+          setLoading(false);
+          return;
+        }
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, {
+            signal: ctrl.signal,
+          });
+          const data = await res.json();
+          setResults(data.places ?? []);
+        } catch {
+          /* abortado o error de red */
+        } finally {
+          setLoading(false);
+        }
+      },
+      q.length < 3 ? 0 : 400
+    );
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [query, open]);
+
+  function pick(p: PlaceValue) {
+    onChange(JSON.stringify(p));
+    setQuery("");
+    setResults([]);
+    setOpen(false);
+  }
+
+  function useCurrent() {
+    if (!navigator.geolocation) {
+      toast.error("Geolocalización no disponible");
+      return;
+    }
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `/api/geocode?lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          pick(
+            data.places?.[0] ?? {
+              name: "Ubicación actual",
+              lat: latitude,
+              lon: longitude,
+            }
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        setLoading(false);
+        toast.error("No se pudo obtener tu ubicación");
+      }
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="hover:bg-sidebar-hover flex min-h-7 w-full items-center px-2 py-1 text-left">
+          {place ? (
+            <span className="text-ink-soft inline-flex items-center gap-1 text-sm">
+              <MapPin className="text-ink-faint size-3.5 shrink-0" />
+              <span className="truncate">{place.name}</span>
+            </span>
+          ) : (
+            <span className="text-ink-ghost text-sm">Vacío</span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-1">
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar una ubicación…"
+          className="border-line bg-surface text-ink mb-1 w-full rounded-md border px-2 py-1 text-sm outline-none"
+        />
+        <div className="max-h-64 overflow-y-auto">
+          <button
+            onClick={useCurrent}
+            className="hover:bg-sidebar-hover text-ink flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+          >
+            <Navigation className="text-ink-faint size-4 shrink-0" />
+            Ubicación actual
+          </button>
+          {loading && (
+            <div className="text-ink-faint flex items-center gap-2 px-2 py-1.5 text-sm">
+              <Loader2 className="size-3.5 animate-spin" /> Buscando…
+            </div>
+          )}
+          {results.map((p, i) => (
+            <button
+              key={i}
+              onClick={() => pick(p)}
+              className="hover:bg-sidebar-hover flex w-full flex-col items-start rounded-sm px-2 py-1.5 text-left"
+            >
+              <span className="text-ink text-sm font-medium">{p.name}</span>
+              {p.address && (
+                <span className="text-ink-faint w-full truncate text-xs">
+                  {p.address}
+                </span>
+              )}
+            </button>
+          ))}
+          {place && (
+            <button
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className="text-ink-faint hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+            >
+              <X className="size-3.5" /> Quitar ubicación
+            </button>
+          )}
+        </div>
+        <div className="text-ink-ghost px-2 py-1 text-[10px]">
+          Datos © OpenStreetMap
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

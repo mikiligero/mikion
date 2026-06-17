@@ -31,9 +31,9 @@ export type PropertyType =
   | "phone"
   | "email"
   | "id"
+  | "place"
   | "formula"
   | "relation"
-  | "rollup"
   | "createdTime"
   | "lastEditedTime"
   | "createdBy"
@@ -66,9 +66,9 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "phone", label: "Teléfono" },
   { value: "email", label: "Correo electrónico" },
   { value: "id", label: "ID" },
+  { value: "place", label: "Lugar" },
   { value: "formula", label: "Fórmula" },
   { value: "relation", label: "Relación" },
-  { value: "rollup", label: "Rollup" },
   { value: "createdTime", label: "Fecha de creación" },
   { value: "lastEditedTime", label: "Última edición" },
   { value: "createdBy", label: "Creado por" },
@@ -77,12 +77,12 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
 
 export type FormulaKind = "daysLeft" | "overdue" | "priorityScore" | "done";
 
-export type RollupFn = "count" | "sum" | "min" | "max";
-
-export type RollupConfig = {
-  relationPropertyId: string; // propiedad de tipo relation de esta BD
-  targetPropertyId?: string; // propiedad de la BD relacionada a agregar
-  fn: RollupFn;
+// Valor de una propiedad de tipo "place" (se guarda como JSON en el valor).
+export type PlaceValue = {
+  name: string;
+  address?: string;
+  lat?: number;
+  lon?: number;
 };
 
 // Grupos de un estado (como Notion: Pendiente / En progreso / Completado).
@@ -118,7 +118,6 @@ export type PropertyDef = {
   defaultOptionId?: string; // select / status: valor al crear fila
   formula?: FormulaKind; // type === "formula"
   relationDatabaseId?: string; // type === "relation"
-  rollup?: RollupConfig; // type === "rollup"
   includeTime?: boolean; // type === "date": guardar/mostrar la hora
   dateRange?: boolean; // type === "date": rango (valor = [inicio, fin])
   dateFormat?: DateFormat; // type === "date": formato de presentación
@@ -141,7 +140,7 @@ export type DbTemplate = {
 // Valor de una propiedad en una fila. Según el tipo:
 // title/text/url: string · number: number · select/status: id de opción ·
 // multiselect: ids · person: id(s) usuario · date: ISO · checkbox: boolean ·
-// relation: ids de filas · formula/rollup: calculados (no se persisten)
+// place: JSON PlaceValue · relation: ids de filas · formula: calculado
 export type PropertyValue = string | number | boolean | string[] | null;
 export type PropertyValues = Record<string, PropertyValue>;
 

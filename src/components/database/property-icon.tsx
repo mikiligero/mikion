@@ -11,7 +11,6 @@ import {
   Link as LinkIcon,
   Sigma,
   ArrowLeftRight,
-  FunctionSquare,
   Phone,
   AtSign,
   Binary,
@@ -19,6 +18,7 @@ import {
   History,
   UserCircle,
   UserCog,
+  MapPin,
 } from "lucide-react";
 import type { PropertyType } from "@/lib/types";
 
@@ -36,9 +36,9 @@ const ICONS: Record<PropertyType, React.ComponentType<{ className?: string }>> =
   phone: Phone,
   email: AtSign,
   id: Binary,
+  place: MapPin,
   formula: Sigma,
   relation: ArrowLeftRight,
-  rollup: FunctionSquare,
   createdTime: Clock,
   lastEditedTime: History,
   createdBy: UserCircle,
