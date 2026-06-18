@@ -2,8 +2,14 @@
 
 import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { History, Smile } from "lucide-react";
-import type { DatabaseSchema, PropertyValue, PropertyValues, Block } from "@/lib/types";
+import { History, ImagePlus, Smile } from "lucide-react";
+import type {
+  DatabaseSchema,
+  PropertyValue,
+  PropertyValues,
+  SelectOption,
+  Block,
+} from "@/lib/types";
 import { titleProperty } from "@/lib/database-utils";
 import { coverBackground } from "@/lib/covers";
 import {
@@ -11,13 +17,18 @@ import {
   updateProperty,
   saveRowContent,
   setRowEmoji,
+  setRowCover,
+  setRowCoverPosition,
 } from "@/lib/actions/databases";
+import { addPerson } from "@/lib/actions/people";
 import { randomSelectColor, isSystemProperty } from "@/lib/types";
 import type { PropertyDef } from "@/lib/types";
 import { PropertyCell, systemFieldValue } from "./property-cell";
 import { randomId } from "@/lib/utils";
 import { propertyIcon } from "./property-icon";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
+import { CoverPicker } from "@/components/editor/cover-picker";
+import { CoverHeader } from "@/components/editor/cover-header";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
 
 const BlockNoteEditor = dynamic(
@@ -35,19 +46,26 @@ export function RowPage({
   schema,
   row,
   mentionUsers,
+  hideCover = false,
+  people,
 }: {
   databaseId: string;
   schema: DatabaseSchema;
+  people?: SelectOption[];
   row: {
     id: string;
     emoji: string | null;
     values: PropertyValues | null;
     cover: string | null;
+    coverPosition?: number | null;
     blocks: Block[] | null;
     createdAt?: Date | string | null;
     updatedAt?: Date | string | null;
   };
   mentionUsers?: { id: string; name: string }[];
+  /** En el panel lateral la portada queda rara: la ocultamos (la fila a página
+   *  completa sí la muestra). */
+  hideCover?: boolean;
 }) {
   const [, startTransition] = useTransition();
   const userName = mentionUsers?.[0]?.name;
@@ -58,11 +76,25 @@ export function RowPage({
       : ""
   );
   const [emoji, setEmoji] = useState(row.emoji);
-  const coverBg = coverBackground(row.cover);
+  const [cover, setCover] = useState(row.cover);
+  const [coverPosition, setCoverPosition] = useState(row.coverPosition ?? 50);
+
+  const coverBg = coverBackground(cover, coverPosition);
 
   function saveEmoji(next: string) {
     setEmoji(next);
     startTransition(() => setRowEmoji(row.id, next));
+  }
+
+  function saveCover(next: string | null) {
+    setCover(next);
+    setCoverPosition(50);
+    startTransition(() => setRowCover(row.id, next));
+  }
+
+  function saveCoverPosition(next: number) {
+    setCoverPosition(next);
+    startTransition(() => setRowCoverPosition(row.id, next));
   }
   const otherProps = schema.properties.filter((p) => p.type !== "title");
   const [showVersions, setShowVersions] = useState(false);
@@ -86,11 +118,28 @@ export function RowPage({
 
   return (
     <div className="pb-32">
-      {coverBg && <div className="h-[180px] w-full" style={{ background: coverBg }} />}
+      {!hideCover && (
+        <CoverHeader
+          cover={cover}
+          coverPosition={coverPosition}
+          onCoverChange={saveCover}
+          onPositionChange={saveCoverPosition}
+          height="h-[220px]"
+        />
+      )}
 
       <div className="page-w mx-auto max-w-3xl pt-10">
         <div className="px-[54px]">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          {!hideCover && !coverBg ? (
+            <CoverPicker onPick={saveCover}>
+              <button className="text-ink-faint hover:text-ink-soft flex items-center gap-1.5 text-xs">
+                <ImagePlus className="size-3.5" /> Añadir portada
+              </button>
+            </CoverPicker>
+          ) : (
+            <span />
+          )}
           <button
             onClick={() => setShowVersions(true)}
             className="text-ink-faint hover:bg-sidebar-hover flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs"
@@ -162,6 +211,12 @@ export function RowPage({
                   onPropertyPatch={
                     prop.type === "date"
                       ? (patch) => patchProperty(prop.id, patch)
+                      : undefined
+                  }
+                  people={prop.type === "person" ? people : undefined}
+                  onAddPerson={
+                    prop.type === "person"
+                      ? (name) => addPerson(databaseId, name)
                       : undefined
                   }
                 />

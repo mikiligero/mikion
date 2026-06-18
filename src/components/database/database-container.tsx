@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Plus,
   Table2,
@@ -17,13 +17,18 @@ import type {
   Automation,
   DatabaseSchema,
   DbTemplate,
+  SelectOption,
   ViewConfig,
   ViewType,
 } from "@/lib/types";
 import { applyView, visibleProperties } from "@/lib/database-view";
 import { updateView, createView, deleteView } from "@/lib/actions/databases";
 import { renameDoc, updateDocMeta } from "@/lib/actions/docs";
+import { coverBackground } from "@/lib/covers";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
+import { CoverPicker } from "@/components/editor/cover-picker";
+import { CoverHeader } from "@/components/editor/cover-header";
+import { ImagePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TableView } from "./table-view";
 import { BoardView } from "./board-view";
@@ -52,8 +57,15 @@ export function DatabaseContainer({
   views,
   rows,
   mentionUsers,
+  people,
 }: {
-  doc: { id: string; emoji: string | null; title: string };
+  doc: {
+    id: string;
+    emoji: string | null;
+    title: string;
+    cover: string | null;
+    coverPosition: number;
+  };
   database: {
     id: string;
     schema: DatabaseSchema;
@@ -63,16 +75,39 @@ export function DatabaseContainer({
   views: ViewMeta[];
   rows: Row[];
   mentionUsers?: { id: string; name: string }[];
+  people?: SelectOption[];
 }) {
   const [activeId, setActiveId] = useState(views[0]?.id ?? null);
   const [autoOpen, setAutoOpen] = useState(false);
   const [emoji, setEmoji] = useState(doc.emoji);
   const [title, setTitle] = useState(doc.title);
+  const [cover, setCover] = useState(doc.cover);
+  const [coverPosition, setCoverPosition] = useState(doc.coverPosition ?? 50);
   const [, startTransition] = useTransition();
+
+  const coverBg = coverBackground(cover, coverPosition);
+
+  // Refleja el nombre de la BD en la pestaña del navegador al renombrar.
+  useEffect(() => {
+    document.title = `${title.trim() || "Sin título"} · Mikion`;
+  }, [title]);
 
   function saveEmoji(next: string) {
     setEmoji(next);
     startTransition(() => updateDocMeta(doc.id, { emoji: next }));
+  }
+
+  function saveCover(next: string | null) {
+    setCover(next);
+    setCoverPosition(50);
+    startTransition(() =>
+      updateDocMeta(doc.id, { cover: next, coverPosition: 50 })
+    );
+  }
+
+  function saveCoverPosition(next: number) {
+    setCoverPosition(next);
+    startTransition(() => updateDocMeta(doc.id, { coverPosition: next }));
   }
 
   function saveTitle() {
@@ -127,7 +162,26 @@ export function DatabaseContainer({
   }, [config.datePropertyId, database.schema]);
 
   return (
-    <div className="px-10 py-8">
+    <div className="pb-2">
+      {/* Portada (ancho completo) */}
+      <CoverHeader
+        cover={cover}
+        coverPosition={coverPosition}
+        onCoverChange={saveCover}
+        onPositionChange={saveCoverPosition}
+        height="h-[220px]"
+      />
+
+      <div className="px-10 pt-8 pb-8">
+      {!coverBg && (
+        <div className="mb-2 opacity-0 transition-opacity hover:opacity-100 [&:has(button:focus)]:opacity-100">
+          <CoverPicker onPick={saveCover}>
+            <button className="text-ink-faint hover:text-ink-soft flex items-center gap-1.5 text-xs">
+              <ImagePlus className="size-3.5" /> Añadir portada
+            </button>
+          </CoverPicker>
+        </div>
+      )}
       {/* Cabecera editable (emoji + título) */}
       <div className="flex items-center gap-1">
         <EmojiPickerPopover
@@ -264,8 +318,10 @@ export function DatabaseContainer({
             templates={database.templates}
             onConfigChange={patchConfig}
             mentionUsers={mentionUsers}
+            people={people}
           />
         )}
+      </div>
       </div>
     </div>
   );

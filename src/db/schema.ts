@@ -3,6 +3,7 @@ import {
   text,
   timestamp,
   boolean,
+  integer,
   jsonb,
   real,
   index,
@@ -142,6 +143,7 @@ export const docs = pgTable(
     emoji: text("emoji"),
     title: text("title").notNull().default(""),
     cover: text("cover"),
+    coverPosition: integer("cover_position").notNull().default(50),
     blocks: jsonb("blocks").$type<Block[]>(),
     // Texto plano extraído de los bloques, para búsqueda full-text.
     textContent: text("text_content").notNull().default(""),
@@ -215,6 +217,7 @@ export const rows = pgTable(
     values: jsonb("values").$type<PropertyValues>(),
     blocks: jsonb("blocks").$type<Block[]>(),
     cover: text("cover"),
+    coverPosition: integer("cover_position").notNull().default(50),
     orderKey: text("order_key").notNull().default("a0"),
     deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -309,9 +312,33 @@ export const versions = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// people: directorio de personas COMÚN al espacio. Dos ámbitos por workspace
+// (equipo / privado, vía `scope`). Las propiedades de tipo "person" eligen de
+// aquí; cada propiedad materializa en su `options` las personas que usa (para
+// que tabla/tablero/chips las pinten sin cargar el directorio).
+// ---------------------------------------------------------------------------
+export const people = pgTable(
+  "people",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    scope: docSection("scope").notNull(),
+    name: text("name").notNull(),
+    color: text("color").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("people_dir_idx").on(t.workspaceId, t.scope)]
+);
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 export type Workspace = typeof workspaces.$inferSelect;
+export type Person = typeof people.$inferSelect;
 export type Preferences = typeof preferences.$inferSelect;
 export type Doc = typeof docs.$inferSelect;
 export type DbDatabase = typeof databases.$inferSelect;

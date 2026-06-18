@@ -6,10 +6,25 @@ import { requireWorkspace } from "@/lib/session";
 import { findOption } from "@/lib/database-view";
 import { dateStart } from "@/lib/calendar-utils";
 import { getRowTitle } from "@/lib/database-utils";
+import { listPeople } from "@/lib/people";
 import { PageEditor } from "@/components/editor/page-editor";
 import { DatabaseContainer } from "@/components/database/database-container";
 import { TeamCalendar, type CalEvent } from "@/components/calendar/team-calendar";
 import type { Block } from "@/lib/types";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ docId: string }>;
+}) {
+  const { docId } = await params;
+  const { workspace } = await requireWorkspace();
+  const doc = await db.query.docs.findFirst({
+    columns: { title: true },
+    where: and(eq(docs.id, docId), eq(docs.workspaceId, workspace.id)),
+  });
+  return { title: doc?.title?.trim() || "Sin título" };
+}
 
 export default async function DocPage({
   params,
@@ -33,6 +48,7 @@ export default async function DocPage({
           emoji: doc.emoji,
           title: doc.title,
           cover: doc.cover,
+          coverPosition: doc.coverPosition,
           fullWidth: doc.fullWidth,
         }}
         initialContent={(doc.blocks as Block[] | null) ?? null}
@@ -70,9 +86,18 @@ export default async function DocPage({
         .orderBy(asc(rowsTable.orderKey)),
     ]);
 
+    const people = await listPeople(workspace.id, doc.section);
+
     return (
       <DatabaseContainer
-        doc={{ id: doc.id, emoji: doc.emoji, title: doc.title }}
+        doc={{
+          id: doc.id,
+          emoji: doc.emoji,
+          title: doc.title,
+          cover: doc.cover,
+          coverPosition: doc.coverPosition,
+        }}
+        people={people}
         database={{
           id: database.id,
           schema: database.schema,

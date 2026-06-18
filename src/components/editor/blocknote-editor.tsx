@@ -1,7 +1,7 @@
 "use client";
 
 import "@blocknote/shadcn/style.css";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -79,14 +79,35 @@ export function BlockNoteEditor({
   });
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mantenemos onSave en una ref para poder vaciar el guardado pendiente al
+  // desmontar sin reejecutar el efecto en cada render (onSave es una flecha).
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+
+  const flush = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const blocks = editor.document as unknown as Block[];
+    onSaveRef.current(blocks, extractText(blocks));
+  }, [editor]);
 
   const handleChange = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const blocks = editor.document as unknown as Block[];
-      onSave(blocks, extractText(blocks));
-    }, 600);
-  }, [editor, onSave]);
+    timer.current = setTimeout(flush, 600);
+  }, [flush]);
+
+  // Si el editor se desmonta (p. ej. al cerrar el panel lateral) con un cambio
+  // pendiente del debounce, lo guardamos antes de irnos para no perderlo.
+  useEffect(
+    () => () => {
+      if (timer.current) flush();
+    },
+    [flush]
+  );
 
   // Pegar un enlace de proveedor conocido (YouTube, Spotify, Maps…) lo incrusta
   // directamente como bloque embed en vez de dejarlo como enlace.

@@ -23,7 +23,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mikion",
+  // `default` para rutas sin título propio; `template` antepone el nombre del
+  // doc/BD abierto en la pestaña del navegador (lo aporta cada generateMetadata).
+  title: { default: "Mikion", template: "%s · Mikion" },
   description: "Tu espacio de trabajo personal, estilo Notion",
 };
 

@@ -4,7 +4,12 @@ import Link from "next/link";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { Maximize2, X } from "lucide-react";
 import type { Row } from "@/db/schema";
-import type { DatabaseSchema, Block, PropertyValues } from "@/lib/types";
+import type {
+  DatabaseSchema,
+  Block,
+  PropertyValues,
+  SelectOption,
+} from "@/lib/types";
 import { RowPage } from "./row-page";
 
 export function RowSidePeek({
@@ -15,6 +20,7 @@ export function RowSidePeek({
   row,
   docId,
   mentionUsers,
+  people,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -23,6 +29,7 @@ export function RowSidePeek({
   row: Row | null;
   docId: string;
   mentionUsers?: { id: string; name: string }[];
+  people?: SelectOption[];
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -62,11 +69,14 @@ export function RowSidePeek({
                   emoji: row.emoji,
                   values: row.values as PropertyValues | null,
                   cover: row.cover,
+                  coverPosition: row.coverPosition,
                   blocks: row.blocks as Block[] | null,
                   createdAt: row.createdAt,
                   updatedAt: row.updatedAt,
                 }}
                 mentionUsers={mentionUsers}
+                hideCover
+                people={people}
               />
             )}
           </div>

@@ -1,0 +1,1 @@
+ALTER TABLE "rows" ADD COLUMN "cover_position" integer DEFAULT 50 NOT NULL;

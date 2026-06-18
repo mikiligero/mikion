@@ -237,6 +237,10 @@ type CellProps = {
   onSetOptions?: (options: SelectOption[]) => void;
   /** Cambia ajustes de la propiedad (usado por la fecha: rango/hora/formato). */
   onPropertyPatch?: (patch: Partial<PropertyDef>) => void;
+  /** Directorio de personas del ámbito (para propiedades de tipo "person"). */
+  people?: SelectOption[];
+  /** Crea una persona en el directorio del ámbito y la devuelve. */
+  onAddPerson?: (name: string) => Promise<SelectOption | null>;
 };
 
 export function PropertyCell({
@@ -246,6 +250,8 @@ export function PropertyCell({
   onAddOption,
   onSetOptions,
   onPropertyPatch,
+  people,
+  onAddPerson,
 }: CellProps) {
   // Campos de sistema: solo lectura (el valor llega ya calculado).
   if (isSystemProperty(property.type)) {
@@ -293,12 +299,13 @@ export function PropertyCell({
       );
     case "person":
       return (
-        <MultiSelectCell
+        <PersonCell
           property={property}
           value={value}
+          people={people ?? []}
           onChange={onChange}
           onSetOptions={onSetOptions}
-          person
+          onAddPerson={onAddPerson}
         />
       );
     case "select":
@@ -1398,6 +1405,185 @@ function MultiSelectCell({
                 className="text-ink-soft hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-2 py-1 text-sm"
               >
                 <Plus className="size-3.5" /> {createLabel} «{query.trim()}»
+              </button>
+            )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// --- Persona: chips desde el DIRECTORIO común del espacio ------------------
+// A diferencia de `multiselect`, las personas no viven en la propiedad sino en
+// un directorio por ámbito (equipo/privado). La propiedad solo MATERIALIZA en
+// su `options` las personas a las que apunta alguna fila (para pintarlas sin
+// cargar el directorio). El popover ofrece todo el directorio; crear una nueva
+// la añade al directorio (común a todas las BBDD del ámbito).
+function PersonCell({
+  property,
+  value,
+  people,
+  onChange,
+  onSetOptions,
+  onAddPerson,
+}: {
+  property: PropertyDef;
+  value: PropertyValue;
+  /** Directorio del ámbito (lista de selección común). */
+  people: SelectOption[];
+  onChange: (v: PropertyValue) => void;
+  /** Materializa en property.options las personas referenciadas (diferido). */
+  onSetOptions?: (options: SelectOption[]) => void;
+  /** Crea una persona en el directorio y la devuelve. */
+  onAddPerson?: (name: string) => Promise<SelectOption | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const propOptions = property.options ?? [];
+  const extIds = Array.isArray(value) ? (value as string[]) : [];
+  const [ids, setIds] = useState<string[]>(extIds);
+  // Personas creadas en esta sesión que aún no están en el `people` que llega
+  // por props (hasta que el servidor revalide).
+  const [extra, setExtra] = useState<SelectOption[]>([]);
+
+  const idsKey = extIds.join(",");
+  const [lastIdsKey, setLastIdsKey] = useState(idsKey);
+  if (!open && idsKey !== lastIdsKey) {
+    setLastIdsKey(idsKey);
+    setIds(extIds);
+  }
+
+  // Candidatos = directorio ∪ creadas en sesión ∪ ya materializadas. El
+  // directorio manda en nombre/color (propaga renombrados).
+  const byId = new Map<string, SelectOption>();
+  for (const o of propOptions) byId.set(o.id, o);
+  for (const o of extra) byId.set(o.id, o);
+  for (const o of people) byId.set(o.id, o);
+  const candidates = [...byId.values()];
+
+  const selected = ids
+    .map((id) => byId.get(id))
+    .filter((o): o is SelectOption => !!o);
+
+  function toggle(id: string) {
+    setIds(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  }
+  function remove(id: string) {
+    setIds(ids.filter((x) => x !== id));
+  }
+  async function add() {
+    const name = query.trim();
+    if (!name) return;
+    const existing = candidates.find(
+      (o) => o.name.toLowerCase() === name.toLowerCase()
+    );
+    if (existing) {
+      if (!ids.includes(existing.id)) setIds([...ids, existing.id]);
+      setQuery("");
+      return;
+    }
+    if (!onAddPerson) return;
+    const created = await onAddPerson(name);
+    if (created) {
+      setExtra((e) => [...e, created]);
+      setIds((cur) => [...cur, created.id]);
+    }
+    setQuery("");
+  }
+
+  // Al cerrar: persiste la selección y materializa options con los nombres/
+  // colores frescos del directorio + las personas recién referenciadas.
+  function close() {
+    const nextIdsKey = ids.join(",");
+    if (nextIdsKey !== idsKey) {
+      onChange(ids.length ? ids : null);
+      setLastIdsKey(nextIdsKey);
+    }
+    if (onSetOptions) {
+      const merged = new Map<string, SelectOption>();
+      for (const o of propOptions) merged.set(o.id, byId.get(o.id) ?? o);
+      for (const id of ids) {
+        const c = byId.get(id);
+        if (c) merged.set(id, c);
+      }
+      const nextOptions = [...merged.values()];
+      const a = nextOptions.map((o) => `${o.id}:${o.name}:${o.color}`).join("|");
+      const b = propOptions.map((o) => `${o.id}:${o.name}:${o.color}`).join("|");
+      if (a !== b) onSetOptions(nextOptions);
+    }
+    setOpen(false);
+  }
+
+  const { triggerRef, contentRef } = useOutsideClose(open, close);
+
+  return (
+    <Popover open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
+      <PopoverTrigger asChild>
+        <button
+          ref={triggerRef}
+          className="hover:bg-sidebar-hover flex min-h-7 w-full flex-wrap items-center gap-1 px-2 py-1 text-left"
+        >
+          {selected.length ? (
+            selected.map((o) => <PersonChip key={o.id} option={o} />)
+          ) : (
+            <span className="text-ink-ghost text-sm">Vacío</span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        ref={contentRef}
+        align="start"
+        collisionPadding={8}
+        className="flex w-60 flex-col overflow-hidden p-1"
+        style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
+      >
+        {selected.length > 0 && (
+          <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto p-1">
+            {selected.map((o) => (
+              <PersonChip key={o.id} option={o} onRemove={() => remove(o.id)} />
+            ))}
+          </div>
+        )}
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder="Buscar o añadir persona…"
+          className="border-line bg-surface text-ink mb-1 w-full rounded-md border px-2 py-1 text-sm outline-none"
+        />
+        <div className="text-ink-faint px-2 py-1 text-xs">
+          Elige del directorio o escribe un nombre nuevo
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {candidates
+            .filter((o) => o.name.toLowerCase().includes(query.toLowerCase()))
+            .map((o) => (
+              <button
+                key={o.id}
+                onClick={() => toggle(o.id)}
+                className="hover:bg-sidebar-hover flex w-full items-center justify-between rounded-sm px-2 py-1"
+              >
+                <PersonChip option={o} />
+                {ids.includes(o.id) && (
+                  <Check className="text-ink-faint size-3.5" />
+                )}
+              </button>
+            ))}
+          {onAddPerson &&
+            query.trim() &&
+            !candidates.some(
+              (o) => o.name.toLowerCase() === query.trim().toLowerCase()
+            ) && (
+              <button
+                onClick={add}
+                className="text-ink-soft hover:bg-sidebar-hover flex w-full items-center gap-2 rounded-sm px-2 py-1 text-sm"
+              >
+                <Plus className="size-3.5" /> Añadir persona «{query.trim()}»
               </button>
             )}
         </div>

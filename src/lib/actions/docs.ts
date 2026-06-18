@@ -189,7 +189,7 @@ export async function savePageContent(
 /** Actualiza emoji y/o portada. Revalida porque el emoji se ve en el árbol. */
 export async function updateDocMeta(
   docId: string,
-  meta: { emoji?: string | null; cover?: string | null }
+  meta: { emoji?: string | null; cover?: string | null; coverPosition?: number }
 ) {
   await assertDocAccess(docId);
   await db
@@ -239,6 +239,7 @@ async function duplicateSubtree(
       emoji: original.emoji,
       title: titleOverride ?? original.title,
       cover: original.cover,
+      coverPosition: original.coverPosition,
       blocks: original.blocks,
       textContent: original.textContent,
       font: original.font,

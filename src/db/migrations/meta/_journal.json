@@ -64,6 +64,27 @@
       "when": 1781628384987,
       "tag": "0008_db_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781731949698,
+      "tag": "0009_doc_cover_position",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781761400653,
+      "tag": "0010_row_cover_position",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781793742746,
+      "tag": "0011_people_directory",
+      "breakpoints": true
     }
   ]
 }

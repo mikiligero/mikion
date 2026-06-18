@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { ImagePlus, Smile, X, RefreshCw } from "lucide-react";
+import { ImagePlus, Smile } from "lucide-react";
 import type { Block } from "@/lib/types";
 import { coverBackground } from "@/lib/covers";
 import { renameDoc, updateDocMeta, savePageContent } from "@/lib/actions/docs";
@@ -10,6 +10,7 @@ import type { Block as BlockType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { EmojiPickerPopover } from "./emoji-picker";
 import { CoverPicker } from "./cover-picker";
+import { CoverHeader } from "./cover-header";
 
 const BlockNoteEditor = dynamic(
   () => import("./blocknote-editor").then((m) => m.BlockNoteEditor),
@@ -27,6 +28,7 @@ type Props = {
     emoji: string | null;
     title: string;
     cover: string | null;
+    coverPosition: number;
     fullWidth: boolean;
   };
   initialContent: Block[] | null;
@@ -36,10 +38,16 @@ type Props = {
 export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
   const [emoji, setEmoji] = useState(doc.emoji);
   const [cover, setCover] = useState(doc.cover);
+  const [coverPosition, setCoverPosition] = useState(doc.coverPosition ?? 50);
   const [title, setTitle] = useState(doc.title);
   const [, startTransition] = useTransition();
 
-  const coverBg = coverBackground(cover);
+  const coverBg = coverBackground(cover, coverPosition);
+
+  // Refleja el título en la pestaña del navegador al renombrar (sin recargar).
+  useEffect(() => {
+    document.title = `${title.trim() || "Sin título"} · Mikion`;
+  }, [title]);
 
   function saveEmoji(next: string | null) {
     setEmoji(next);
@@ -47,7 +55,14 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
   }
   function saveCover(next: string | null) {
     setCover(next);
-    startTransition(() => updateDocMeta(doc.id, { cover: next }));
+    setCoverPosition(50);
+    startTransition(() =>
+      updateDocMeta(doc.id, { cover: next, coverPosition: 50 })
+    );
+  }
+  function saveCoverPosition(next: number) {
+    setCoverPosition(next);
+    startTransition(() => updateDocMeta(doc.id, { coverPosition: next }));
   }
   function saveTitle() {
     if (title !== doc.title) startTransition(() => renameDoc(doc.id, title));
@@ -56,26 +71,12 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
   return (
     <div className="pb-32">
       {/* Portada */}
-      {coverBg && (
-        <div
-          className="group/cover relative h-[200px] w-full"
-          style={{ background: coverBg }}
-        >
-          <div className="absolute top-3 right-4 flex gap-1.5 opacity-0 transition-opacity group-hover/cover:opacity-100 group-focus-within/cover:opacity-100">
-            <CoverPicker onPick={saveCover}>
-              <button className="bg-surface/85 text-ink-soft hover:bg-surface flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium shadow-sm backdrop-blur">
-                <RefreshCw className="size-3.5" /> Cambiar portada
-              </button>
-            </CoverPicker>
-            <button
-              onClick={() => saveCover(null)}
-              className="bg-surface/85 text-ink-soft hover:bg-surface flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium shadow-sm backdrop-blur"
-            >
-              <X className="size-3.5" /> Quitar
-            </button>
-          </div>
-        </div>
-      )}
+      <CoverHeader
+        cover={cover}
+        coverPosition={coverPosition}
+        onCoverChange={saveCover}
+        onPositionChange={saveCoverPosition}
+      />
 
       <div
         className={cn(

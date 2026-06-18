@@ -175,6 +175,28 @@ export async function setRowEmoji(rowId: string, emoji: string | null) {
   revalidateShell();
 }
 
+/** Establece (o quita) la portada de una fila. Al cambiarla, resetea la
+ * posición vertical a 50 (centrada), igual que en las páginas. */
+export async function setRowCover(rowId: string, cover: string | null) {
+  await assertRowAccess(rowId);
+  await db
+    .update(rows)
+    .set({ cover, coverPosition: 50, updatedAt: new Date() })
+    .where(eq(rows.id, rowId));
+  revalidateShell();
+}
+
+/** Guarda la posición vertical (0–100) de la portada de imagen de una fila. */
+export async function setRowCoverPosition(rowId: string, position: number) {
+  await assertRowAccess(rowId);
+  const clamped = Math.min(100, Math.max(0, Math.round(position)));
+  await db
+    .update(rows)
+    .set({ coverPosition: clamped, updatedAt: new Date() })
+    .where(eq(rows.id, rowId));
+  revalidateShell();
+}
+
 export async function deleteRow(rowId: string) {
   const { row } = await assertRowAccess(rowId);
   await db
@@ -243,6 +265,9 @@ export async function saveRowContent(rowId: string, blocks: Block[]) {
     .where(eq(rows.id, rowId));
   const userId = await requireUserId();
   await snapshotVersion({ rowId }, blocks, extractText(blocks), userId);
+  // Refresca las filas del cliente para que el panel lateral muestre el
+  // contenido actualizado al cerrarlo y volver a abrirlo sin recargar.
+  revalidateShell();
 }
 
 async function setSchema(databaseId: string, schema: DatabaseSchema) {

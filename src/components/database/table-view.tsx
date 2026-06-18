@@ -35,6 +35,7 @@ import type {
   PropertyDef,
   PropertyType,
   PropertyValue,
+  SelectOption,
   ViewConfig,
 } from "@/lib/types";
 import { PROPERTY_TYPES, randomSelectColor, isSystemProperty } from "@/lib/types";
@@ -61,6 +62,7 @@ import {
   createRowFromTemplate,
   deleteTemplate,
 } from "@/lib/actions/databases";
+import { addPerson } from "@/lib/actions/people";
 import { PropertyCell, Tag, systemFieldValue } from "./property-cell";
 import { propertyIcon } from "./property-icon";
 import { PropertyOptionsEditor } from "./property-options-editor";
@@ -98,6 +100,7 @@ export function TableView({
   templates,
   onConfigChange,
   mentionUsers,
+  people,
 }: {
   docId: string;
   databaseId: string;
@@ -107,6 +110,7 @@ export function TableView({
   templates?: DbTemplate[];
   onConfigChange?: (patch: Partial<ViewConfig>) => void;
   mentionUsers?: { id: string; name: string }[];
+  people?: SelectOption[];
 }) {
   const [, startTransition] = useTransition();
   const props = useMemo(() => visibleProperties(schema, config), [schema, config]);
@@ -182,6 +186,12 @@ export function TableView({
                 onPropertyPatch={
                   prop.type === "date"
                     ? (patch) => patchProperty(prop.id, patch)
+                    : undefined
+                }
+                people={prop.type === "person" ? people : undefined}
+                onAddPerson={
+                  prop.type === "person"
+                    ? (name) => addPerson(databaseId, name)
                     : undefined
                 }
               />
@@ -409,6 +419,7 @@ export function TableView({
         row={peekRow}
         docId={docId}
         mentionUsers={mentionUsers}
+        people={people}
       />
     </div>
   );
@@ -583,8 +594,7 @@ function ColumnHeaderMenu({
 
         {(prop.type === "select" ||
           prop.type === "multiselect" ||
-          prop.type === "status" ||
-          prop.type === "person") && (
+          prop.type === "status") && (
           <PropertyOptionsEditor databaseId={databaseId} property={prop} />
         )}
 

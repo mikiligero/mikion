@@ -21,15 +21,27 @@ export const IMAGE_COVERS: { label: string; url: string }[] = [
   { label: "Olas", url: "/covers/portada-olas.webp" },
 ];
 
+export function isImageCover(cover: string | null): boolean {
+  return !!cover && /^(https?:\/\/|\/)/.test(cover);
+}
+
+export function clampCoverPosition(position: number | null | undefined): number {
+  if (typeof position !== "number" || !Number.isFinite(position)) return 50;
+  return Math.min(100, Math.max(0, Math.round(position)));
+}
+
 /** Resuelve el valor `cover` de un doc a un `background` CSS. Acepta:
  * - clave de gradiente conocida (clay…)
  * - una URL/ruta de imagen (http… o /uploads/…) → se envuelve como imagen
  * - un valor literal ya formateado (gradiente) */
-export function coverBackground(cover: string | null): string | null {
+export function coverBackground(
+  cover: string | null,
+  position: number | null | undefined = 50
+): string | null {
   if (!cover) return null;
   if (cover in COVERS) return COVERS[cover as CoverKey];
-  if (/^(https?:\/\/|\/)/.test(cover)) {
-    return `url("${cover}") center/cover no-repeat`;
+  if (isImageCover(cover)) {
+    return `url("${cover}") center ${clampCoverPosition(position)}% / cover no-repeat`;
   }
   return cover;
 }
