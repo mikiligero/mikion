@@ -29,21 +29,32 @@ export async function createDoc(input: {
   parentId?: string | null;
   kind?: "page" | "database" | "calendar";
 }) {
-  const ws = await getUserWorkspace();
   const parentId = input.parentId ?? null;
-  if (parentId) await assertDocAccess(parentId);
+  // Bajo un padre (posiblemente compartido por otro usuario) se hereda su
+  // workspace y sección; en la raíz se crea en el workspace propio.
+  let workspaceId: string;
+  let section: "team" | "private";
+  if (parentId) {
+    const parent = await assertDocAccess(parentId);
+    workspaceId = parent.workspaceId;
+    section = parent.section;
+  } else {
+    const ws = await getUserWorkspace();
+    workspaceId = ws.id;
+    section = input.section;
+  }
 
   const kind = input.kind ?? "page";
   // Título por defecto según el tipo (las páginas quedan "Sin título").
   const defaultTitle =
     kind === "calendar" ? "Calendario" : kind === "database" ? "Base de datos" : "";
 
-  const orderKey = await nextOrderKey(ws.id, input.section, parentId);
+  const orderKey = await nextOrderKey(workspaceId, section, parentId);
   const [doc] = await db
     .insert(docs)
     .values({
-      workspaceId: ws.id,
-      section: input.section,
+      workspaceId,
+      section,
       parentId,
       kind,
       title: defaultTitle,

@@ -33,9 +33,11 @@ type Props = {
   };
   initialContent: Block[] | null;
   mentionUsers?: { id: string; name: string }[];
+  /** Doc compartido en modo lector: edición deshabilitada. */
+  readOnly?: boolean;
 };
 
-export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
+export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false }: Props) {
   const [emoji, setEmoji] = useState(doc.emoji);
   const [cover, setCover] = useState(doc.cover);
   const [coverPosition, setCoverPosition] = useState(doc.coverPosition ?? 50);
@@ -106,7 +108,10 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
           </div>
 
           {/* Barra de añadir (icono / portada) */}
-          <div className="mt-2 flex gap-3 text-sm opacity-0 transition-opacity hover:opacity-100 [&:has(+_*)]:opacity-100">
+          <div className={cn(
+            "mt-2 flex gap-3 text-sm opacity-0 transition-opacity hover:opacity-100 [&:has(+_*)]:opacity-100",
+            readOnly && "hidden"
+          )}>
             {!emoji && (
               <EmojiPickerPopover
                 onSelect={saveEmoji}
@@ -138,6 +143,7 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
               if (e.key === "Enter") e.preventDefault();
             }}
             onBlur={saveTitle}
+            readOnly={readOnly}
             rows={1}
             placeholder="Sin título"
             className="font-serif text-ink placeholder:text-ink-ghost mt-2 w-full resize-none border-none bg-transparent text-[42px] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
@@ -150,6 +156,7 @@ export function PageEditor({ doc, initialContent, mentionUsers }: Props) {
             initialContent={initialContent}
             mentionUsers={mentionUsers}
             pageDocId={doc.id}
+            editable={!readOnly}
             onSave={(blocks: BlockType[], text: string) =>
               void savePageContent(doc.id, blocks, text)
             }

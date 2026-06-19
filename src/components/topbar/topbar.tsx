@@ -10,7 +10,6 @@ import {
   Moon,
   Sun,
   Bell,
-  Users,
   MessageSquare,
   MoreHorizontal,
   ChevronRight,
@@ -26,6 +25,7 @@ import { toggleFavorite, moveToTrash, duplicateDoc } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/sidebar/sidebar-context";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
+import { ShareDialog } from "@/components/topbar/share-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -193,12 +193,7 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
           <Bell className="size-4" />
         </Link>
 
-        <button
-          onClick={() => toast("Compartir · próximamente")}
-          className="text-brand hover:bg-brand-tint ml-1 flex items-center gap-1.5 rounded-sm px-2 py-1 text-[13px] font-medium"
-        >
-          <Users className="size-4" /> Compartir
-        </button>
+        {docId && <ShareDialog docId={docId} />}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -43,12 +43,12 @@ async function listVersions(
 }
 
 export async function getVersions(docId: string): Promise<VersionItem[]> {
-  await assertDocAccess(docId);
+  await assertDocAccess(docId, { write: false });
   return listVersions(eq(versions.docId, docId));
 }
 
 export async function getRowVersions(rowId: string): Promise<VersionItem[]> {
-  await assertRowAccess(rowId);
+  await assertRowAccess(rowId, { write: false });
   return listVersions(eq(versions.rowId, rowId));
 }
 

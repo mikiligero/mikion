@@ -58,6 +58,7 @@ export function DatabaseContainer({
   rows,
   mentionUsers,
   people,
+  readOnly = false,
 }: {
   doc: {
     id: string;
@@ -76,6 +77,8 @@ export function DatabaseContainer({
   rows: Row[];
   mentionUsers?: { id: string; name: string }[];
   people?: SelectOption[];
+  /** BD compartida en modo lector: edición deshabilitada. */
+  readOnly?: boolean;
 }) {
   const [activeId, setActiveId] = useState(views[0]?.id ?? null);
   const [autoOpen, setAutoOpen] = useState(false);
@@ -199,10 +202,16 @@ export function DatabaseContainer({
             if (e.key === "Enter") e.preventDefault();
           }}
           onBlur={saveTitle}
+          readOnly={readOnly}
           rows={1}
           placeholder="Sin título"
           className="font-serif text-ink placeholder:text-ink-ghost w-full resize-none border-none bg-transparent text-[32px] font-[560] leading-[1.12] outline-none"
         />
+        {readOnly && (
+          <span className="text-ink-faint border-line ml-2 shrink-0 self-center rounded-full border px-2 py-0.5 text-xs">
+            Solo lectura
+          </span>
+        )}
       </div>
 
       {/* Pestañas + toolbar */}
@@ -319,6 +328,7 @@ export function DatabaseContainer({
             onConfigChange={patchConfig}
             mentionUsers={mentionUsers}
             people={people}
+            readOnly={readOnly}
           />
         )}
       </div>

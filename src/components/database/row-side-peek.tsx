@@ -21,6 +21,7 @@ export function RowSidePeek({
   docId,
   mentionUsers,
   people,
+  readOnly = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,6 +31,7 @@ export function RowSidePeek({
   docId: string;
   mentionUsers?: { id: string; name: string }[];
   people?: SelectOption[];
+  readOnly?: boolean;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -77,6 +79,7 @@ export function RowSidePeek({
                 mentionUsers={mentionUsers}
                 hideCover
                 people={people}
+                readOnly={readOnly}
               />
             )}
           </div>

@@ -59,11 +59,13 @@ export function BlockNoteEditor({
   onSave,
   mentionUsers = [],
   pageDocId,
+  editable = true,
 }: {
   initialContent: Block[] | null;
   onSave: (blocks: Block[], text: string) => void;
   mentionUsers?: { id: string; name: string }[];
   pageDocId?: string;
+  editable?: boolean;
 }) {
   const { resolvedTheme } = useTheme();
   const router = useRouter();
@@ -133,6 +135,7 @@ export function BlockNoteEditor({
     <div onPasteCapture={handlePaste}>
       <BlockNoteView
         editor={editor}
+        editable={editable}
         theme={resolvedTheme === "dark" ? "dark" : "light"}
         onChange={handleChange}
         slashMenu={false}

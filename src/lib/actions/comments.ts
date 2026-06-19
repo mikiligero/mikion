@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { comments, docs, users, workspaces } from "@/db/schema";
 import { assertDocAccess, requireUserId, createNotification } from "./helpers";
@@ -43,21 +43,22 @@ export type CommentItem = {
   createdAt: string;
 };
 
-/** Comprueba que el comentario pertenece a un doc del usuario; devuelve docId. */
-async function assertCommentAccess(commentId: string): Promise<string> {
-  const userId = await requireUserId();
+/** Comprueba acceso al doc del comentario; devuelve docId. */
+async function assertCommentAccess(
+  commentId: string,
+  opts: { write?: boolean } = {}
+): Promise<string> {
   const [row] = await db
     .select({ docId: comments.docId })
     .from(comments)
-    .innerJoin(docs, eq(comments.docId, docs.id))
-    .innerJoin(workspaces, eq(docs.workspaceId, workspaces.id))
-    .where(and(eq(comments.id, commentId), eq(workspaces.ownerId, userId)));
+    .where(eq(comments.id, commentId));
   if (!row?.docId) throw new Error("Comentario no encontrado");
+  await assertDocAccess(row.docId, opts);
   return row.docId;
 }
 
 export async function getComments(docId: string): Promise<CommentItem[]> {
-  await assertDocAccess(docId);
+  await assertDocAccess(docId, { write: false });
   const rows = await db
     .select({
       id: comments.id,

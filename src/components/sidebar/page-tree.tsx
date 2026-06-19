@@ -21,6 +21,10 @@ type Props = {
   onToggle: (id: string) => void;
   onCreateChild: (parentId: string) => void;
   onTrash: (id: string) => void;
+  /** Modo solo navegación (docs compartidos): sin arrastrar, crear ni papelera. */
+  readOnly?: boolean;
+  /** Rol a mostrar como etiqueta en las raíces compartidas (depth 0). */
+  roleByRoot?: Map<string, "viewer" | "editor">;
 };
 
 export function PageTree(props: Props) {
@@ -42,30 +46,33 @@ function TreeRow({
   onToggle,
   onCreateChild,
   onTrash,
+  readOnly,
+  roleByRoot,
 }: { node: TreeNode } & Props) {
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.id);
   const isActive = activeId === node.id;
 
-  const drag = useDraggable({ id: node.id });
-  const drop = useDroppable({ id: `node:${node.id}` });
+  const drag = useDraggable({ id: node.id, disabled: readOnly });
+  const drop = useDroppable({ id: `node:${node.id}`, disabled: readOnly });
   const setRef = (n: HTMLElement | null) => {
     drag.setNodeRef(n);
     drop.setNodeRef(n);
   };
+  const rootRole = depth === 0 ? roleByRoot?.get(node.id) : undefined;
 
   return (
     <li>
       <div
-        ref={setRef}
-        {...drag.listeners}
-        {...drag.attributes}
-        aria-label={`Arrastrar ${node.title || "Sin título"}`}
+        ref={readOnly ? undefined : setRef}
+        {...(readOnly ? {} : drag.listeners)}
+        {...(readOnly ? {} : drag.attributes)}
+        aria-label={readOnly ? undefined : `Arrastrar ${node.title || "Sin título"}`}
         className={cn(
           "group/row text-ink-soft hover:bg-sidebar-hover relative flex items-center gap-1 rounded-sm pr-1 text-sm transition-colors",
           isActive && "bg-sidebar-hover text-ink font-medium",
-          drag.isDragging && "opacity-40",
-          drop.isOver && !drag.isDragging && "before:bg-brand before:absolute before:inset-x-0 before:-top-px before:h-0.5 before:content-['']"
+          !readOnly && drag.isDragging && "opacity-40",
+          !readOnly && drop.isOver && !drag.isDragging && "before:bg-brand before:absolute before:inset-x-0 before:-top-px before:h-0.5 before:content-['']"
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
@@ -93,6 +100,13 @@ function TreeRow({
           <span className="truncate">{node.title || "Sin título"}</span>
         </Link>
 
+        {rootRole && (
+          <span className="text-ink-faint border-line shrink-0 rounded-full border px-1.5 text-[10px] leading-[16px]">
+            {rootRole === "editor" ? "Editor" : "Lector"}
+          </span>
+        )}
+
+        {!readOnly && (
         <div className="flex shrink-0 items-center opacity-0 group-hover/row:opacity-100">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -120,6 +134,7 @@ function TreeRow({
             <Plus className="size-4" />
           </button>
         </div>
+        )}
       </div>
 
       {hasChildren && isOpen && (
@@ -131,6 +146,8 @@ function TreeRow({
           onToggle={onToggle}
           onCreateChild={onCreateChild}
           onTrash={onTrash}
+          readOnly={readOnly}
+          roleByRoot={roleByRoot}
         />
       )}
     </li>

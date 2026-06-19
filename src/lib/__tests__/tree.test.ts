@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { buildTree, ancestorChain, type TreeDoc } from "@/lib/tree";
+import {
+  buildTree,
+  buildForest,
+  ancestorChain,
+  type TreeDoc,
+} from "@/lib/tree";
 
 function d(p: Partial<TreeDoc> & { id: string }): TreeDoc {
   return {
@@ -43,6 +48,34 @@ describe("buildTree", () => {
 
   it("devuelve [] si no hay docs en la sección", () => {
     expect(buildTree([], "team")).toEqual([]);
+  });
+});
+
+describe("buildForest", () => {
+  // Raíz compartida "mid" cuyo parentId apunta a un ancestro NO visible ("root").
+  const docs: TreeDoc[] = [
+    d({ id: "mid", parentId: "root", orderKey: "a0" }),
+    d({ id: "leaf", parentId: "mid", orderKey: "a1" }),
+    d({ id: "leaf2", parentId: "mid", orderKey: "a0" }),
+  ];
+
+  it("trata cada rootId como nivel superior aunque su parent quede fuera", () => {
+    const forest = buildForest(docs, ["mid"]);
+    expect(forest.map((n) => n.id)).toEqual(["mid"]);
+    expect(forest[0].children.map((n) => n.id)).toEqual(["leaf2", "leaf"]);
+  });
+
+  it("soporta varias raíces compartidas de distintas secciones", () => {
+    const multi: TreeDoc[] = [
+      d({ id: "x", parentId: "ext", section: "team", orderKey: "a0" }),
+      d({ id: "y", parentId: "ext2", section: "private", orderKey: "a1" }),
+    ];
+    const forest = buildForest(multi, ["x", "y"]);
+    expect(forest.map((n) => n.id)).toEqual(["x", "y"]);
+  });
+
+  it("devuelve [] sin docs", () => {
+    expect(buildForest([], [])).toEqual([]);
   });
 });
 

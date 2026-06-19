@@ -48,10 +48,12 @@ export function RowPage({
   mentionUsers,
   hideCover = false,
   people,
+  readOnly = false,
 }: {
   databaseId: string;
   schema: DatabaseSchema;
   people?: SelectOption[];
+  readOnly?: boolean;
   row: {
     id: string;
     emoji: string | null;
@@ -100,6 +102,7 @@ export function RowPage({
   const [showVersions, setShowVersions] = useState(false);
 
   function setCell(propertyId: string, value: PropertyValue) {
+    if (readOnly) return;
     startTransition(() => updateCell(row.id, propertyId, value));
   }
 
@@ -173,6 +176,7 @@ export function RowPage({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => tp && setCell(tp.id, title)}
+          readOnly={readOnly}
           rows={1}
           placeholder="Sin título"
           className="font-serif text-ink placeholder:text-ink-ghost mt-1 w-full resize-none border-none bg-transparent text-[40px] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
@@ -231,6 +235,7 @@ export function RowPage({
           <BlockNoteEditor
             initialContent={row.blocks}
             mentionUsers={mentionUsers}
+            editable={!readOnly}
             onSave={(blocks) => void saveRowContent(row.id, blocks)}
           />
         </div>

@@ -101,6 +101,7 @@ export function TableView({
   onConfigChange,
   mentionUsers,
   people,
+  readOnly = false,
 }: {
   docId: string;
   databaseId: string;
@@ -111,6 +112,7 @@ export function TableView({
   onConfigChange?: (patch: Partial<ViewConfig>) => void;
   mentionUsers?: { id: string; name: string }[];
   people?: SelectOption[];
+  readOnly?: boolean;
 }) {
   const [, startTransition] = useTransition();
   const props = useMemo(() => visibleProperties(schema, config), [schema, config]);
@@ -125,6 +127,7 @@ export function TableView({
   const userName = mentionUsers?.[0]?.name;
 
   function setCell(rowId: string, propertyId: string, value: PropertyValue) {
+    if (readOnly) return;
     startTransition(() => updateCell(rowId, propertyId, value));
   }
 
@@ -352,6 +355,7 @@ export function TableView({
         </tfoot>
       </table>
 
+      {!readOnly && (
       <div className="flex w-fit items-center">
         <button
           onClick={() => startTransition(() => void createRow(databaseId))}
@@ -410,6 +414,7 @@ export function TableView({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      )}
 
       <RowSidePeek
         open={peekRow !== null}
@@ -420,6 +425,7 @@ export function TableView({
         docId={docId}
         mentionUsers={mentionUsers}
         people={people}
+        readOnly={readOnly}
       />
     </div>
   );

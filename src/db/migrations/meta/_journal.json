@@ -85,6 +85,13 @@
       "when": 1781793742746,
       "tag": "0011_people_directory",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781801991063,
+      "tag": "0012_doc_shares",
+      "breakpoints": true
     }
   ]
 }

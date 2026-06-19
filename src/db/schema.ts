@@ -7,6 +7,7 @@ import {
   jsonb,
   real,
   index,
+  uniqueIndex,
   pgEnum,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -89,6 +90,8 @@ export const viewType = pgEnum("view_type", [
 ]);
 export const themePref = pgEnum("theme_pref", ["light", "dark"]);
 export const fontPref = pgEnum("font_pref", ["default", "serif", "mono"]);
+// Rol de un usuario invitado sobre un doc compartido (y su subárbol).
+export const shareRole = pgEnum("share_role", ["viewer", "editor"]);
 
 // ---------------------------------------------------------------------------
 // Workspace (uno por usuario en el modelo Personal; con ownerId para facilitar
@@ -335,10 +338,41 @@ export const people = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// doc_shares: invitaciones a compartir un doc (página o BD) con otro usuario.
+// El grant es sobre el doc RAÍZ; el acceso se hereda a todos sus descendientes
+// (se resuelve subiendo por la cadena de ancestros). Cada usuario conserva su
+// propio workspace; lo compartido aparece en su sección "Compartido conmigo".
+// ---------------------------------------------------------------------------
+export const docShares = pgTable(
+  "doc_shares",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    docId: text("doc_id")
+      .notNull()
+      .references(() => docs.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: shareRole("role").notNull(),
+    invitedBy: text("invited_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("doc_shares_doc_user_idx").on(t.docId, t.userId),
+    index("doc_shares_user_idx").on(t.userId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 export type Workspace = typeof workspaces.$inferSelect;
 export type Person = typeof people.$inferSelect;
+export type DocShare = typeof docShares.$inferSelect;
 export type Preferences = typeof preferences.$inferSelect;
 export type Doc = typeof docs.$inferSelect;
 export type DbDatabase = typeof databases.$inferSelect;

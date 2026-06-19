@@ -34,6 +34,34 @@ export function buildTree(
   return build(null);
 }
 
+/**
+ * Construye un bosque tomando `rootIds` como nodos de nivel superior (su
+ * parentId real puede apuntar fuera del conjunto, p. ej. docs compartidos cuyo
+ * ancestro no es visible). El resto anida bajo su parentId. Ignora la sección.
+ */
+export function buildForest(docs: TreeDoc[], rootIds: string[]): TreeNode[] {
+  const rootSet = new Set(rootIds);
+  const childrenOf = new Map<string, TreeDoc[]>();
+  const roots: TreeDoc[] = [];
+  for (const d of docs) {
+    if (rootSet.has(d.id) || !d.parentId) roots.push(d);
+    else {
+      const list = childrenOf.get(d.parentId);
+      if (list) list.push(d);
+      else childrenOf.set(d.parentId, [d]);
+    }
+  }
+  const build = (id: string): TreeNode[] =>
+    (childrenOf.get(id) ?? [])
+      .slice()
+      .sort(byOrderKey)
+      .map((d) => ({ ...d, children: build(d.id) }));
+  return roots
+    .slice()
+    .sort(byOrderKey)
+    .map((d) => ({ ...d, children: build(d.id) }));
+}
+
 /** Cadena de ancestros (de raíz a hijo) de un doc, incluido él mismo. */
 export function ancestorChain(docs: TreeDoc[], docId: string): TreeDoc[] {
   const byId = new Map(docs.map((d) => [d.id, d]));

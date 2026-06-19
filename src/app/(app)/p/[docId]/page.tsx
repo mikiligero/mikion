@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { docs, databases, views, rows as rowsTable } from "@/db/schema";
-import { requireWorkspace } from "@/lib/session";
+import { requireSession } from "@/lib/session";
+import { resolveDocAccess, docCollaborators } from "@/lib/actions/helpers";
 import { findOption } from "@/lib/database-view";
 import { dateStart } from "@/lib/calendar-utils";
 import { getRowTitle } from "@/lib/database-utils";
@@ -18,12 +19,9 @@ export async function generateMetadata({
   params: Promise<{ docId: string }>;
 }) {
   const { docId } = await params;
-  const { workspace } = await requireWorkspace();
-  const doc = await db.query.docs.findFirst({
-    columns: { title: true },
-    where: and(eq(docs.id, docId), eq(docs.workspaceId, workspace.id)),
-  });
-  return { title: doc?.title?.trim() || "Sin título" };
+  const session = await requireSession();
+  const access = await resolveDocAccess(docId, session.user.id);
+  return { title: access?.doc.title?.trim() || "Sin título" };
 }
 
 export default async function DocPage({
@@ -32,13 +30,12 @@ export default async function DocPage({
   params: Promise<{ docId: string }>;
 }) {
   const { docId } = await params;
-  const { session, workspace } = await requireWorkspace();
-  const mentionUsers = [{ id: session.user.id, name: session.user.name }];
-
-  const doc = await db.query.docs.findFirst({
-    where: and(eq(docs.id, docId), eq(docs.workspaceId, workspace.id)),
-  });
-  if (!doc || doc.deletedAt) notFound();
+  const session = await requireSession();
+  const access = await resolveDocAccess(docId, session.user.id);
+  if (!access || access.doc.deletedAt) notFound();
+  const doc = access.doc;
+  const readOnly = access.role === "viewer";
+  const mentionUsers = await docCollaborators(docId);
 
   if (doc.kind === "page") {
     return (
@@ -53,6 +50,7 @@ export default async function DocPage({
         }}
         initialContent={(doc.blocks as Block[] | null) ?? null}
         mentionUsers={mentionUsers}
+        readOnly={readOnly}
       />
     );
   }
@@ -86,7 +84,7 @@ export default async function DocPage({
         .orderBy(asc(rowsTable.orderKey)),
     ]);
 
-    const people = await listPeople(workspace.id, doc.section);
+    const people = await listPeople(doc.workspaceId, doc.section);
 
     return (
       <DatabaseContainer
@@ -107,6 +105,7 @@ export default async function DocPage({
         views={viewRows}
         rows={rowRows}
         mentionUsers={mentionUsers}
+        readOnly={readOnly}
       />
     );
   }
@@ -117,7 +116,7 @@ export default async function DocPage({
     .select({ id: databases.id, schema: databases.schema, docId: databases.docId })
     .from(databases)
     .innerJoin(docs, eq(databases.docId, docs.id))
-    .where(and(eq(docs.workspaceId, workspace.id), isNull(docs.deletedAt)));
+    .where(and(eq(docs.workspaceId, doc.workspaceId), isNull(docs.deletedAt)));
 
   const events: CalEvent[] = [];
   if (dbs.length) {

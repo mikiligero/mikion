@@ -26,7 +26,7 @@ import {
   useDroppable,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { buildTree, type TreeDoc } from "@/lib/tree";
+import { buildTree, buildForest, type TreeDoc } from "@/lib/tree";
 import { createDoc, moveToTrash, moveDoc } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./sidebar-context";
@@ -50,10 +50,19 @@ type Props = {
   workspace: { id: string; name: string };
   user: { name: string; email: string };
   docs: TreeDoc[];
+  shared?: TreeDoc[];
+  sharedRoots?: { id: string; role: "viewer" | "editor" }[];
   unread: number;
 };
 
-export function AppSidebar({ workspace, user, docs, unread }: Props) {
+export function AppSidebar({
+  workspace,
+  user,
+  docs,
+  shared = [],
+  sharedRoots = [],
+  unread,
+}: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -65,6 +74,14 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
   const team = useMemo(() => buildTree(docs, "team"), [docs]);
   const priv = useMemo(() => buildTree(docs, "private"), [docs]);
   const favorites = useMemo(() => docs.filter((d) => d.isFavorite), [docs]);
+  const sharedForest = useMemo(
+    () => buildForest(shared, sharedRoots.map((r) => r.id)),
+    [shared, sharedRoots]
+  );
+  const roleByRoot = useMemo(
+    () => new Map(sharedRoots.map((r) => [r.id, r.role] as const)),
+    [sharedRoots]
+  );
 
   function toggleNode(id: string) {
     setExpanded((prev) => {
@@ -317,6 +334,23 @@ export function AppSidebar({ workspace, user, docs, unread }: Props) {
             </RootDroppable>
           </Section>
         </DndContext>
+
+        {/* Compartido conmigo (solo navegación; sin arrastrar ni crear raíz) */}
+        {sharedForest.length > 0 && (
+          <Section title="Compartido conmigo">
+            <PageTree
+              nodes={sharedForest}
+              depth={0}
+              activeId={activeId}
+              expanded={expanded}
+              onToggle={toggleNode}
+              onCreateChild={() => {}}
+              onTrash={() => {}}
+              readOnly
+              roleByRoot={roleByRoot}
+            />
+          </Section>
+        )}
 
         <CreateMenu onPick={(k) => create("team", null, k)}>
           <button className="text-ink-faint hover:bg-sidebar-hover mt-2 flex w-full items-center gap-2 rounded-sm px-1.5 py-1 text-sm">

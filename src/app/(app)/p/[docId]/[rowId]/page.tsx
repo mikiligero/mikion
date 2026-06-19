@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { docs, databases, rows as rowsTable } from "@/db/schema";
-import { requireWorkspace } from "@/lib/session";
+import { databases, rows as rowsTable } from "@/db/schema";
+import { requireSession } from "@/lib/session";
+import { resolveDocAccess, docCollaborators } from "@/lib/actions/helpers";
 import { getRowTitle } from "@/lib/database-utils";
 import { listPeople } from "@/lib/people";
 import { RowPage } from "@/components/database/row-page";
@@ -14,12 +15,10 @@ export async function generateMetadata({
   params: Promise<{ docId: string; rowId: string }>;
 }) {
   const { docId, rowId } = await params;
-  const { workspace } = await requireWorkspace();
-  const doc = await db.query.docs.findFirst({
-    columns: { id: true },
-    where: and(eq(docs.id, docId), eq(docs.workspaceId, workspace.id)),
-  });
-  if (!doc) return { title: "Sin título" };
+  const session = await requireSession();
+  const access = await resolveDocAccess(docId, session.user.id);
+  if (!access) return { title: "Sin título" };
+  const doc = access.doc;
   const database = await db.query.databases.findFirst({
     where: eq(databases.docId, doc.id),
   });
@@ -39,13 +38,12 @@ export default async function RowDocPage({
   params: Promise<{ docId: string; rowId: string }>;
 }) {
   const { docId, rowId } = await params;
-  const { session, workspace } = await requireWorkspace();
-  const mentionUsers = [{ id: session.user.id, name: session.user.name }];
-
-  const doc = await db.query.docs.findFirst({
-    where: and(eq(docs.id, docId), eq(docs.workspaceId, workspace.id)),
-  });
-  if (!doc || doc.kind !== "database") notFound();
+  const session = await requireSession();
+  const access = await resolveDocAccess(docId, session.user.id);
+  if (!access || access.doc.deletedAt || access.doc.kind !== "database") notFound();
+  const doc = access.doc;
+  const readOnly = access.role === "viewer";
+  const mentionUsers = await docCollaborators(docId);
 
   const database = await db.query.databases.findFirst({
     where: eq(databases.docId, doc.id),
@@ -61,7 +59,7 @@ export default async function RowDocPage({
     .limit(1);
   if (!row || row.deletedAt) notFound();
 
-  const people = await listPeople(workspace.id, doc.section);
+  const people = await listPeople(doc.workspaceId, doc.section);
 
   return (
     <RowPage
@@ -79,6 +77,7 @@ export default async function RowDocPage({
         updatedAt: row.updatedAt,
       }}
       mentionUsers={mentionUsers}
+      readOnly={readOnly}
     />
   );
 }
