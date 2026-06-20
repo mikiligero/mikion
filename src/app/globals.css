@@ -328,6 +328,15 @@ html.mikion-full-width .page-w {
   font-size: 13.5px;
 }
 
+/* Fuente por página (Sans/Serif/Mono): BlockNote fija font-family directamente
+   en .bn-default-styles (su editor.css), así que hay que ganarle en
+   especificidad para que el selector del menú «…» surta efecto. La variable
+   --content-font la hereda del contenedor .page-w (ver page-editor.tsx). */
+.content-scroll .bn-default-styles,
+.content-scroll .bn-editor .bn-default-styles {
+  font-family: var(--content-font, var(--font-sans));
+}
+
 /* ---------------------------------------------------------------------------
    BlockNote → tokens Mikion. Mapeamos las variables del editor a los tokens
    del tema (que ya cambian con .dark), para que se funda con la página en
