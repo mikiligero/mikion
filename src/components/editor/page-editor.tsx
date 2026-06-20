@@ -22,6 +22,12 @@ const BlockNoteEditor = dynamic(
   }
 );
 
+const FONT_VAR: Record<"default" | "serif" | "mono", string> = {
+  default: "var(--font-sans)",
+  serif: "var(--font-serif)",
+  mono: "var(--font-mono)",
+};
+
 type Props = {
   doc: {
     id: string;
@@ -30,6 +36,8 @@ type Props = {
     cover: string | null;
     coverPosition: number;
     fullWidth: boolean;
+    font: "default" | "serif" | "mono";
+    smallText: boolean;
   };
   initialContent: Block[] | null;
   mentionUsers?: { id: string; name: string }[];
@@ -83,8 +91,12 @@ export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false
       <div
         className={cn(
           "page-w mx-auto",
-          doc.fullWidth ? "max-w-none" : "max-w-3xl"
+          doc.fullWidth ? "max-w-none" : "max-w-3xl",
+          doc.smallText && "mikion-doc-small"
         )}
+        style={
+          { "--content-font": FONT_VAR[doc.font] } as React.CSSProperties
+        }
       >
         {/* Cabecera: alineada con el contenido del editor (padding 54px) */}
         <div className="px-[54px]">
@@ -157,6 +169,7 @@ export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false
             mentionUsers={mentionUsers}
             pageDocId={doc.id}
             editable={!readOnly}
+            exportMeta={{ id: doc.id, title, emoji, coverBg: coverBg ?? null }}
             onSave={(blocks: BlockType[], text: string) =>
               void savePageContent(doc.id, blocks, text)
             }

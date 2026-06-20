@@ -197,10 +197,18 @@ export async function savePageContent(
   }
 }
 
-/** Actualiza emoji y/o portada. Revalida porque el emoji se ve en el árbol. */
+/** Actualiza emoji, portada y/o estilo de página. Revalida porque emoji/estilo
+ *  se reflejan en el árbol y en el render del contenido. */
 export async function updateDocMeta(
   docId: string,
-  meta: { emoji?: string | null; cover?: string | null; coverPosition?: number }
+  meta: {
+    emoji?: string | null;
+    cover?: string | null;
+    coverPosition?: number;
+    font?: "default" | "serif" | "mono";
+    fullWidth?: boolean;
+    smallText?: boolean;
+  }
 ) {
   await assertDocAccess(docId);
   await db
@@ -208,6 +216,22 @@ export async function updateDocMeta(
     .set({ ...meta, updatedAt: new Date() })
     .where(eq(docs.id, docId));
   revalidateShell();
+}
+
+/** Estilo de página del doc activo (para los controles de la barra superior). */
+export async function getDocStyle(docId: string): Promise<{
+  kind: "page" | "database" | "calendar";
+  font: "default" | "serif" | "mono";
+  fullWidth: boolean;
+  smallText: boolean;
+}> {
+  const doc = await assertDocAccess(docId, { write: false });
+  return {
+    kind: doc.kind,
+    font: doc.font,
+    fullWidth: doc.fullWidth,
+    smallText: doc.smallText,
+  };
 }
 
 export async function toggleFavorite(docId: string) {

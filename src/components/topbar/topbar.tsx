@@ -18,21 +18,46 @@ import {
   History,
   Trash2,
   PanelLeft,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ancestorChain, type TreeDoc } from "@/lib/tree";
-import { toggleFavorite, moveToTrash, duplicateDoc } from "@/lib/actions/docs";
+import {
+  toggleFavorite,
+  moveToTrash,
+  duplicateDoc,
+  getDocStyle,
+  updateDocMeta,
+} from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/sidebar/sidebar-context";
 import { VersionHistoryDialog } from "@/components/editor/version-history";
 import { ShareDialog } from "@/components/topbar/share-dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+type DocStyle = {
+  kind: "page" | "database" | "calendar";
+  font: "default" | "serif" | "mono";
+  fullWidth: boolean;
+  smallText: boolean;
+};
+
+const FONT_LABEL: Record<"default" | "serif" | "mono", string> = {
+  default: "Predet.",
+  serif: "Serif",
+  mono: "Mono",
+};
 
 const STATIC_LABELS: Record<string, string> = {
   "/": "Inicio",
@@ -57,6 +82,47 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
 
   const docId = pathname.startsWith("/p/") ? pathname.split("/")[2] : null;
   const doc = docId ? docs.find((d) => d.id === docId) ?? null : null;
+  // En una página de fila de BD (/p/[docId]/[rowId]) el objetivo de exportación
+  // es la fila, no la base de datos.
+  const rowId = docId ? pathname.split("/")[3] ?? null : null;
+  const exportTargetId = rowId ?? docId;
+
+  // Estilo de la página activa (fuente / texto pequeño / ancho completo) para
+  // los controles del menú «…». Se carga al cambiar de doc; se etiqueta con su
+  // docId para no mostrar el de la página anterior mientras carga el nuevo.
+  const [style, setStyle] = useState<(DocStyle & { docId: string }) | null>(
+    null
+  );
+  useEffect(() => {
+    if (!docId) return;
+    let alive = true;
+    getDocStyle(docId)
+      .then((s) => alive && setStyle({ ...s, docId }))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [docId]);
+  const activeStyle = style && style.docId === docId ? style : null;
+  const canExport = activeStyle?.kind === "page" || !!rowId;
+
+  function patchStyle(patch: Partial<Omit<DocStyle, "kind">>) {
+    if (!docId || !activeStyle) return;
+    setStyle({ ...activeStyle, ...patch });
+    startTransition(async () => {
+      await updateDocMeta(docId, patch);
+      router.refresh();
+    });
+  }
+
+  function exportAs(format: "html" | "pdf" | "markdown") {
+    if (!exportTargetId) return;
+    window.dispatchEvent(
+      new CustomEvent("mikion:export", {
+        detail: { docId: exportTargetId, format },
+      })
+    );
+  }
 
   const crumbs: Crumb[] = (() => {
     if (docId) {
@@ -204,7 +270,50 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-56">
+            {activeStyle?.kind === "page" && (
+              <>
+                <DropdownMenuLabel className="text-ink-faint text-[11px] font-medium tracking-wide">
+                  ESTILO
+                </DropdownMenuLabel>
+                <div className="flex gap-1 px-1.5 pb-1.5">
+                  {(["default", "serif", "mono"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => patchStyle({ font: f })}
+                      className={cn(
+                        "flex flex-1 flex-col items-center gap-0.5 rounded-md border py-1.5",
+                        activeStyle.font === f
+                          ? "border-brand text-brand"
+                          : "border-line text-ink-soft hover:bg-sidebar-hover"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "text-lg leading-none",
+                          f === "serif" && "font-serif",
+                          f === "mono" && "font-mono"
+                        )}
+                      >
+                        Ag
+                      </span>
+                      <span className="text-[10px]">{FONT_LABEL[f]}</span>
+                    </button>
+                  ))}
+                </div>
+                <StyleToggle
+                  label="Texto pequeño"
+                  checked={activeStyle.smallText}
+                  onToggle={() => patchStyle({ smallText: !activeStyle.smallText })}
+                />
+                <StyleToggle
+                  label="Ancho completo"
+                  checked={activeStyle.fullWidth}
+                  onToggle={() => patchStyle({ fullWidth: !activeStyle.fullWidth })}
+                />
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem
               onClick={() => window.dispatchEvent(new Event("mikion:templates"))}
             >
@@ -230,6 +339,24 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
             <DropdownMenuItem onClick={copyLink}>
               <Copy className="size-4" /> Copiar enlace
             </DropdownMenuItem>
+            {canExport && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Download className="size-4" /> Exportar
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => exportAs("pdf")}>
+                    PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("html")}>
+                    HTML
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAs("markdown")}>
+                    Markdown
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
             {doc && (
               <>
                 <DropdownMenuSeparator />
@@ -250,6 +377,28 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
         />
       )}
     </header>
+  );
+}
+
+/** Fila del menú con un Switch; no cierra el menú al alternar. */
+function StyleToggle({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <DropdownMenuItem
+      onSelect={(e) => e.preventDefault()}
+      onClick={onToggle}
+      className="flex items-center justify-between"
+    >
+      <span>{label}</span>
+      <Switch checked={checked} className="pointer-events-none" />
+    </DropdownMenuItem>
   );
 }
 

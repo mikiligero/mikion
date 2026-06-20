@@ -235,9 +235,9 @@ export async function getSlashItems(
       onItemClick: () => insertColumns(editor, 3),
     },
     {
-      title: "Llamada",
+      title: "Resaltar",
       subtext: "Resaltar información en un recuadro",
-      aliases: ["callout", "llamada", "aviso", "nota", "info"],
+      aliases: ["callout", "llamada", "aviso", "nota", "info", "resaltar", "destacar"],
       group: "Avanzado",
       icon: <Lightbulb className="size-4" />,
       onItemClick: () => insertBlock(editor, "callout"),

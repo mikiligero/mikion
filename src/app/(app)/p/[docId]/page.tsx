@@ -47,6 +47,8 @@ export default async function DocPage({
           cover: doc.cover,
           coverPosition: doc.coverPosition,
           fullWidth: doc.fullWidth,
+          font: doc.font,
+          smallText: doc.smallText,
         }}
         initialContent={(doc.blocks as Block[] | null) ?? null}
         mentionUsers={mentionUsers}

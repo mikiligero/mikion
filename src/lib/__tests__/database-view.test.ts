@@ -161,4 +161,20 @@ describe("groupRows", () => {
     const groups = groupRows(extra, schema, "status");
     expect(groups.find((g) => g.id === null)?.rows.map((r) => r.id)).toEqual(["r4"]);
   });
+
+  it("conserva el orden de entrada dentro de cada grupo (respeta la ordenación)", () => {
+    // Tres filas 'doing' que llegan en orden b, a, c (p. ej. ya ordenadas por
+    // applyView, no por orderKey) deben salir en ese mismo orden.
+    const sorted = [
+      row("b", { title: "B", status: "doing" }, "a2"),
+      row("a", { title: "A", status: "doing" }, "a0"),
+      row("c", { title: "C", status: "doing" }, "a1"),
+    ];
+    const groups = groupRows(sorted, schema, "status");
+    expect(groups.find((g) => g.id === "doing")?.rows.map((r) => r.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+  });
 });

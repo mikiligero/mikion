@@ -322,6 +322,12 @@ html.mikion-full-width .page-w {
   max-width: none;
 }
 
+/* Texto pequeño (por página): reduce el tamaño base del contenido del doc. */
+.mikion-doc-small,
+.mikion-doc-small .bn-editor {
+  font-size: 13.5px;
+}
+
 /* ---------------------------------------------------------------------------
    BlockNote → tokens Mikion. Mapeamos las variables del editor a los tokens
    del tema (que ya cambian con .dark), para que se funda con la página en

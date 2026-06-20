@@ -11,6 +11,7 @@ import type {
   Block,
 } from "@/lib/types";
 import { titleProperty } from "@/lib/database-utils";
+import { findOption } from "@/lib/database-view";
 import { coverBackground } from "@/lib/covers";
 import {
   updateCell,
@@ -23,7 +24,7 @@ import {
 import { addPerson } from "@/lib/actions/people";
 import { randomSelectColor, isSystemProperty } from "@/lib/types";
 import type { PropertyDef } from "@/lib/types";
-import { PropertyCell, systemFieldValue } from "./property-cell";
+import { PropertyCell, systemFieldValue, formatDateValue } from "./property-cell";
 import { randomId } from "@/lib/utils";
 import { propertyIcon } from "./property-icon";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
@@ -100,6 +101,51 @@ export function RowPage({
   }
   const otherProps = schema.properties.filter((p) => p.type !== "title");
   const [showVersions, setShowVersions] = useState(false);
+
+  // Texto plano de cada propiedad para la exportación (HTML / PDF / Markdown).
+  function exportText(prop: PropertyDef): string {
+    if (isSystemProperty(prop.type))
+      return systemFieldValue(prop, row, { userName }) || "";
+    const v = row.values?.[prop.id] ?? null;
+    switch (prop.type) {
+      case "date":
+        return formatDateValue(v, prop);
+      case "checkbox":
+        return v ? "Sí" : "No";
+      case "number":
+        return v == null || v === "" ? "" : String(v);
+      case "select":
+      case "status":
+        return findOption(prop, v)?.name ?? "";
+      case "multiselect":
+        return (Array.isArray(v) ? v : [])
+          .map((id) => findOption(prop, id)?.name)
+          .filter(Boolean)
+          .join(", ");
+      case "person":
+        return (Array.isArray(v) ? v : [])
+          .map(
+            (id) =>
+              (people ?? []).find((p) => p.id === id)?.name ??
+              findOption(prop, id)?.name
+          )
+          .filter(Boolean)
+          .join(", ");
+      case "place":
+        if (typeof v !== "string") return "";
+        try {
+          return (JSON.parse(v) as { name?: string })?.name ?? "";
+        } catch {
+          return "";
+        }
+      default:
+        return typeof v === "string" ? v : "";
+    }
+  }
+  const exportProperties = otherProps.map((p) => ({
+    name: p.name,
+    value: exportText(p),
+  }));
 
   function setCell(propertyId: string, value: PropertyValue) {
     if (readOnly) return;
@@ -236,6 +282,13 @@ export function RowPage({
             initialContent={row.blocks}
             mentionUsers={mentionUsers}
             editable={!readOnly}
+            exportMeta={{
+              id: row.id,
+              title,
+              emoji,
+              coverBg: coverBg ?? null,
+              properties: exportProperties,
+            }}
             onSave={(blocks) => void saveRowContent(row.id, blocks)}
           />
         </div>

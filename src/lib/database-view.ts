@@ -109,7 +109,11 @@ export type RowGroup = {
   rows: Row[];
 };
 
-/** Agrupa filas por una propiedad select/status. */
+/**
+ * Agrupa filas por una propiedad select/status. Conserva el orden de entrada
+ * dentro de cada grupo (ya viene aplicado por applyView: ordenación de la vista
+ * o, sin ordenación, el orden manual por orderKey de la consulta).
+ */
 export function groupRows(
   rows: Row[],
   schema: DatabaseSchema,
@@ -127,20 +131,17 @@ export function groupRows(
     byOption.get(key)!.push(row);
   }
 
-  const sortByOrder = (a: Row, b: Row) =>
-    a.orderKey < b.orderKey ? -1 : a.orderKey > b.orderKey ? 1 : 0;
-
   const groups: RowGroup[] = options.map((o) => ({
     id: o.id,
     option: o,
     label: o.name,
-    rows: (byOption.get(o.id) ?? []).slice().sort(sortByOrder),
+    rows: byOption.get(o.id) ?? [],
   }));
   groups.push({
     id: null,
     option: null,
     label: "Sin asignar",
-    rows: (byOption.get(null) ?? []).slice().sort(sortByOrder),
+    rows: byOption.get(null) ?? [],
   });
   return groups;
 }
