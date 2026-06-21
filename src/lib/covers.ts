@@ -30,9 +30,10 @@ export function clampCoverPosition(position: number | null | undefined): number 
   return Math.min(100, Math.max(0, Math.round(position)));
 }
 
-/** Zoom de la portada en %: 100 = «cover» (sin ampliar). Tope en 300 para no
- * degradar la imagen; mínimo 100 porque por debajo dejaría huecos. */
-export const COVER_ZOOM_MIN = 100;
+/** Zoom de la portada en %: 100 = «cover» (llena el área). Tope en 300 para no
+ * degradar la imagen; por debajo de 100 la imagen se ve más pequeña dejando
+ * margen alrededor (fondo de la página). */
+export const COVER_ZOOM_MIN = 50;
 export const COVER_ZOOM_MAX = 300;
 export const COVER_ZOOM_STEP = 10;
 
