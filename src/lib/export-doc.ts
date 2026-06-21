@@ -10,6 +10,8 @@ export type ExportMeta = {
   emoji?: string | null;
   /** Valor `background` CSS ya resuelto (gradiente o `url(...)`). */
   coverBg?: string | null;
+  /** Zoom (%) de la portada. 100 = sin ampliar. */
+  coverZoom?: number | null;
   /** Propiedades a mostrar como tabla (filas de base de datos). */
   properties?: { name: string; value: string }[];
 };
@@ -28,7 +30,8 @@ body{margin:0;background:#fff;color:#37352f;line-height:1.55;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .page{max-width:760px;margin:0 auto}
-.cover{height:220px;width:100%;background-position:center;background-size:cover;background-repeat:no-repeat}
+.cover{position:relative;height:220px;width:100%;overflow:hidden}
+.cover-img{position:absolute;inset:0;background-position:center;background-size:cover;background-repeat:no-repeat;transform-origin:center}
 .content{padding:0 32px 80px}
 .emoji{font-size:66px;line-height:1;margin:24px 0 0}
 .has-cover .emoji{margin-top:-44px}
@@ -48,8 +51,9 @@ body{margin:0;background:#fff;color:#37352f;line-height:1.55;
 /** Documento HTML autónomo con portada + icono + título + propiedades + cuerpo. */
 export function buildExportHtml(meta: ExportMeta, bodyInnerHtml: string): string {
   const title = esc(meta.title?.trim() || "Sin título");
+  const zoom = (meta.coverZoom ?? 100) / 100;
   const cover = meta.coverBg
-    ? `<div class="cover" style="background:${meta.coverBg}"></div>`
+    ? `<div class="cover"><div class="cover-img" style="background:${meta.coverBg};transform:scale(${zoom})"></div></div>`
     : "";
   const emoji = meta.emoji ? `<div class="emoji">${esc(meta.emoji)}</div>` : "";
   const props =

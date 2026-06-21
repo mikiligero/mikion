@@ -66,6 +66,7 @@ export function DatabaseContainer({
     title: string;
     cover: string | null;
     coverPosition: number;
+    coverZoom: number;
   };
   database: {
     id: string;
@@ -86,6 +87,7 @@ export function DatabaseContainer({
   const [title, setTitle] = useState(doc.title);
   const [cover, setCover] = useState(doc.cover);
   const [coverPosition, setCoverPosition] = useState(doc.coverPosition ?? 50);
+  const [coverZoom, setCoverZoom] = useState(doc.coverZoom ?? 100);
   const [, startTransition] = useTransition();
 
   const coverBg = coverBackground(cover, coverPosition);
@@ -103,14 +105,18 @@ export function DatabaseContainer({
   function saveCover(next: string | null) {
     setCover(next);
     setCoverPosition(50);
+    setCoverZoom(100);
     startTransition(() =>
-      updateDocMeta(doc.id, { cover: next, coverPosition: 50 })
+      updateDocMeta(doc.id, { cover: next, coverPosition: 50, coverZoom: 100 })
     );
   }
 
-  function saveCoverPosition(next: number) {
-    setCoverPosition(next);
-    startTransition(() => updateDocMeta(doc.id, { coverPosition: next }));
+  function saveCoverAdjust(position: number, zoom: number) {
+    setCoverPosition(position);
+    setCoverZoom(zoom);
+    startTransition(() =>
+      updateDocMeta(doc.id, { coverPosition: position, coverZoom: zoom })
+    );
   }
 
   function saveTitle() {
@@ -170,8 +176,9 @@ export function DatabaseContainer({
       <CoverHeader
         cover={cover}
         coverPosition={coverPosition}
+        coverZoom={coverZoom}
         onCoverChange={saveCover}
-        onPositionChange={saveCoverPosition}
+        onAdjust={saveCoverAdjust}
         height="h-[220px]"
       />
 

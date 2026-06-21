@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { docs, databases, views, rows } from "@/db/schema";
 import type { Block } from "@/lib/types";
 import { defaultDatabaseSchema } from "@/lib/database-utils";
+import { clampCoverZoom } from "@/lib/covers";
 import { extractText, extractMentions } from "@/lib/blocknote-utils";
 import {
   assertDocAccess,
@@ -205,6 +206,7 @@ export async function updateDocMeta(
     emoji?: string | null;
     cover?: string | null;
     coverPosition?: number;
+    coverZoom?: number;
     font?: "default" | "serif" | "mono";
     fullWidth?: boolean;
     smallText?: boolean;
@@ -213,7 +215,11 @@ export async function updateDocMeta(
   await assertDocAccess(docId);
   await db
     .update(docs)
-    .set({ ...meta, updatedAt: new Date() })
+    .set({
+      ...meta,
+      ...(meta.coverZoom !== undefined && { coverZoom: clampCoverZoom(meta.coverZoom) }),
+      updatedAt: new Date(),
+    })
     .where(eq(docs.id, docId));
   revalidateShell();
 }
@@ -275,6 +281,7 @@ async function duplicateSubtree(
       title: titleOverride ?? original.title,
       cover: original.cover,
       coverPosition: original.coverPosition,
+      coverZoom: original.coverZoom,
       blocks: original.blocks,
       textContent: original.textContent,
       font: original.font,

@@ -72,6 +72,7 @@ export default async function RowDocPage({
         values: row.values,
         cover: row.cover,
         coverPosition: row.coverPosition,
+        coverZoom: row.coverZoom,
         blocks: (row.blocks as Block[] | null) ?? null,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,

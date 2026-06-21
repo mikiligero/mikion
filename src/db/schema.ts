@@ -147,6 +147,7 @@ export const docs = pgTable(
     title: text("title").notNull().default(""),
     cover: text("cover"),
     coverPosition: integer("cover_position").notNull().default(50),
+    coverZoom: integer("cover_zoom").notNull().default(100),
     blocks: jsonb("blocks").$type<Block[]>(),
     // Texto plano extraído de los bloques, para búsqueda full-text.
     textContent: text("text_content").notNull().default(""),
@@ -221,6 +222,7 @@ export const rows = pgTable(
     blocks: jsonb("blocks").$type<Block[]>(),
     cover: text("cover"),
     coverPosition: integer("cover_position").notNull().default(50),
+    coverZoom: integer("cover_zoom").notNull().default(100),
     orderKey: text("order_key").notNull().default("a0"),
     deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

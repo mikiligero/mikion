@@ -36,6 +36,7 @@ function row(id: string, values: PropertyValues, orderKey = "a0"): Row {
     blocks: null,
     cover: null,
     coverPosition: 50,
+    coverZoom: 100,
     orderKey,
     deletedAt: null,
     createdAt: new Date(),

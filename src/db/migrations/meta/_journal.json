@@ -92,6 +92,13 @@
       "when": 1781801991063,
       "tag": "0012_doc_shares",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782040451207,
+      "tag": "0013_doc_row_cover_zoom",
+      "breakpoints": true
     }
   ]
 }

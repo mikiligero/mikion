@@ -30,6 +30,17 @@ export function clampCoverPosition(position: number | null | undefined): number 
   return Math.min(100, Math.max(0, Math.round(position)));
 }
 
+/** Zoom de la portada en %: 100 = «cover» (sin ampliar). Tope en 300 para no
+ * degradar la imagen; mínimo 100 porque por debajo dejaría huecos. */
+export const COVER_ZOOM_MIN = 100;
+export const COVER_ZOOM_MAX = 300;
+export const COVER_ZOOM_STEP = 10;
+
+export function clampCoverZoom(zoom: number | null | undefined): number {
+  if (typeof zoom !== "number" || !Number.isFinite(zoom)) return 100;
+  return Math.min(COVER_ZOOM_MAX, Math.max(COVER_ZOOM_MIN, Math.round(zoom)));
+}
+
 /** Resuelve el valor `cover` de un doc a un `background` CSS. Acepta:
  * - clave de gradiente conocida (clay…)
  * - una URL/ruta de imagen (http… o /uploads/…) → se envuelve como imagen

@@ -72,6 +72,7 @@ export function RowSidePeek({
                   values: row.values as PropertyValues | null,
                   cover: row.cover,
                   coverPosition: row.coverPosition,
+                  coverZoom: row.coverZoom,
                   blocks: row.blocks as Block[] | null,
                   createdAt: row.createdAt,
                   updatedAt: row.updatedAt,

@@ -35,6 +35,7 @@ type Props = {
     title: string;
     cover: string | null;
     coverPosition: number;
+    coverZoom: number;
     fullWidth: boolean;
     font: "default" | "serif" | "mono";
     smallText: boolean;
@@ -49,6 +50,7 @@ export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false
   const [emoji, setEmoji] = useState(doc.emoji);
   const [cover, setCover] = useState(doc.cover);
   const [coverPosition, setCoverPosition] = useState(doc.coverPosition ?? 50);
+  const [coverZoom, setCoverZoom] = useState(doc.coverZoom ?? 100);
   const [title, setTitle] = useState(doc.title);
   const [, startTransition] = useTransition();
 
@@ -66,13 +68,17 @@ export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false
   function saveCover(next: string | null) {
     setCover(next);
     setCoverPosition(50);
+    setCoverZoom(100);
     startTransition(() =>
-      updateDocMeta(doc.id, { cover: next, coverPosition: 50 })
+      updateDocMeta(doc.id, { cover: next, coverPosition: 50, coverZoom: 100 })
     );
   }
-  function saveCoverPosition(next: number) {
-    setCoverPosition(next);
-    startTransition(() => updateDocMeta(doc.id, { coverPosition: next }));
+  function saveCoverAdjust(position: number, zoom: number) {
+    setCoverPosition(position);
+    setCoverZoom(zoom);
+    startTransition(() =>
+      updateDocMeta(doc.id, { coverPosition: position, coverZoom: zoom })
+    );
   }
   function saveTitle() {
     if (title !== doc.title) startTransition(() => renameDoc(doc.id, title));
@@ -84,8 +90,9 @@ export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false
       <CoverHeader
         cover={cover}
         coverPosition={coverPosition}
+        coverZoom={coverZoom}
         onCoverChange={saveCover}
-        onPositionChange={saveCoverPosition}
+        onAdjust={saveCoverAdjust}
       />
 
       <div
@@ -169,7 +176,13 @@ export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false
             mentionUsers={mentionUsers}
             pageDocId={doc.id}
             editable={!readOnly}
-            exportMeta={{ id: doc.id, title, emoji, coverBg: coverBg ?? null }}
+            exportMeta={{
+              id: doc.id,
+              title,
+              emoji,
+              coverBg: coverBg ?? null,
+              coverZoom,
+            }}
             onSave={(blocks: BlockType[], text: string) =>
               void savePageContent(doc.id, blocks, text)
             }

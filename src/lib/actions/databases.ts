@@ -17,6 +17,7 @@ import type {
   ViewType,
 } from "@/lib/types";
 import { newPropertyDef, defaultDatabaseSchema } from "@/lib/database-utils";
+import { clampCoverPosition, clampCoverZoom } from "@/lib/covers";
 import { extractText } from "@/lib/blocknote-utils";
 import {
   assertDatabaseAccess,
@@ -176,23 +177,30 @@ export async function setRowEmoji(rowId: string, emoji: string | null) {
 }
 
 /** Establece (o quita) la portada de una fila. Al cambiarla, resetea la
- * posición vertical a 50 (centrada), igual que en las páginas. */
+ * posición vertical a 50 (centrada) y el zoom a 100, igual que en las páginas. */
 export async function setRowCover(rowId: string, cover: string | null) {
   await assertRowAccess(rowId);
   await db
     .update(rows)
-    .set({ cover, coverPosition: 50, updatedAt: new Date() })
+    .set({ cover, coverPosition: 50, coverZoom: 100, updatedAt: new Date() })
     .where(eq(rows.id, rowId));
   revalidateShell();
 }
 
-/** Guarda la posición vertical (0–100) de la portada de imagen de una fila. */
-export async function setRowCoverPosition(rowId: string, position: number) {
+/** Guarda la posición vertical (0–100) y el zoom (%) de la portada de imagen. */
+export async function setRowCoverAdjust(
+  rowId: string,
+  position: number,
+  zoom: number
+) {
   await assertRowAccess(rowId);
-  const clamped = Math.min(100, Math.max(0, Math.round(position)));
   await db
     .update(rows)
-    .set({ coverPosition: clamped, updatedAt: new Date() })
+    .set({
+      coverPosition: clampCoverPosition(position),
+      coverZoom: clampCoverZoom(zoom),
+      updatedAt: new Date(),
+    })
     .where(eq(rows.id, rowId));
   revalidateShell();
 }

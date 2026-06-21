@@ -19,7 +19,7 @@ import {
   saveRowContent,
   setRowEmoji,
   setRowCover,
-  setRowCoverPosition,
+  setRowCoverAdjust,
 } from "@/lib/actions/databases";
 import { addPerson } from "@/lib/actions/people";
 import { randomSelectColor, isSystemProperty } from "@/lib/types";
@@ -61,6 +61,7 @@ export function RowPage({
     values: PropertyValues | null;
     cover: string | null;
     coverPosition?: number | null;
+    coverZoom?: number | null;
     blocks: Block[] | null;
     createdAt?: Date | string | null;
     updatedAt?: Date | string | null;
@@ -81,6 +82,7 @@ export function RowPage({
   const [emoji, setEmoji] = useState(row.emoji);
   const [cover, setCover] = useState(row.cover);
   const [coverPosition, setCoverPosition] = useState(row.coverPosition ?? 50);
+  const [coverZoom, setCoverZoom] = useState(row.coverZoom ?? 100);
 
   const coverBg = coverBackground(cover, coverPosition);
 
@@ -92,12 +94,14 @@ export function RowPage({
   function saveCover(next: string | null) {
     setCover(next);
     setCoverPosition(50);
+    setCoverZoom(100);
     startTransition(() => setRowCover(row.id, next));
   }
 
-  function saveCoverPosition(next: number) {
-    setCoverPosition(next);
-    startTransition(() => setRowCoverPosition(row.id, next));
+  function saveCoverAdjust(position: number, zoom: number) {
+    setCoverPosition(position);
+    setCoverZoom(zoom);
+    startTransition(() => setRowCoverAdjust(row.id, position, zoom));
   }
   const otherProps = schema.properties.filter((p) => p.type !== "title");
   const [showVersions, setShowVersions] = useState(false);
@@ -171,8 +175,9 @@ export function RowPage({
         <CoverHeader
           cover={cover}
           coverPosition={coverPosition}
+          coverZoom={coverZoom}
           onCoverChange={saveCover}
-          onPositionChange={saveCoverPosition}
+          onAdjust={saveCoverAdjust}
           height="h-[220px]"
         />
       )}
@@ -287,6 +292,7 @@ export function RowPage({
               title,
               emoji,
               coverBg: coverBg ?? null,
+              coverZoom,
               properties: exportProperties,
             }}
             onSave={(blocks) => void saveRowContent(row.id, blocks)}

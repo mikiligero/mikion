@@ -46,6 +46,7 @@ export default async function DocPage({
           title: doc.title,
           cover: doc.cover,
           coverPosition: doc.coverPosition,
+          coverZoom: doc.coverZoom,
           fullWidth: doc.fullWidth,
           font: doc.font,
           smallText: doc.smallText,
@@ -96,6 +97,7 @@ export default async function DocPage({
           title: doc.title,
           cover: doc.cover,
           coverPosition: doc.coverPosition,
+          coverZoom: doc.coverZoom,
         }}
         people={people}
         database={{
