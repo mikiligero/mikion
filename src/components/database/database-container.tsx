@@ -179,7 +179,7 @@ export function DatabaseContainer({
         coverZoom={coverZoom}
         onCoverChange={saveCover}
         onAdjust={saveCoverAdjust}
-        height="h-[220px]"
+        baseHeight={220}
       />
 
       <div className="px-10 pt-8 pb-8">

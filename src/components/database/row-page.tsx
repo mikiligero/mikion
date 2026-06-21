@@ -178,7 +178,7 @@ export function RowPage({
           coverZoom={coverZoom}
           onCoverChange={saveCover}
           onAdjust={saveCoverAdjust}
-          height="h-[220px]"
+          baseHeight={220}
         />
       )}
 

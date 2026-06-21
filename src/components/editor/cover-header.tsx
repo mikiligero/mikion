@@ -20,14 +20,18 @@ import { CoverPicker } from "./cover-picker";
  * imagen para reposicionarla + zoom in/out → Guardar / Cancelar). Devuelve
  * `null` si no hay portada: el botón «Añadir portada» lo coloca cada host donde
  * le encaja. El componente padre es dueño de `cover`/`coverPosition`/`coverZoom`;
- * aquí solo se mantiene el estado efímero del ajuste. */
+ * aquí solo se mantiene el estado efímero del ajuste.
+ *
+ * Zoom: la imagen siempre ocupa todo el ancho (sin marcos laterales). Por
+ * encima de 100% se amplía dentro de una banda de altura fija (más recorte);
+ * por debajo de 100% la banda crece de alto para mostrar más de la imagen. */
 export function CoverHeader({
   cover,
   coverPosition,
   coverZoom = 100,
   onCoverChange,
   onAdjust,
-  height = "h-[240px]",
+  baseHeight = 240,
 }: {
   cover: string | null;
   coverPosition: number;
@@ -37,8 +41,8 @@ export function CoverHeader({
   onCoverChange: (next: string | null) => void;
   /** Persistir posición vertical (0–100) y zoom (%) tras «Guardar». */
   onAdjust: (position: number, zoom: number) => void;
-  /** Altura de la portada (clase Tailwind). Páginas 240, filas/BD 220. */
-  height?: string;
+  /** Altura base de la portada en px (a zoom 100). Páginas 240, filas/BD 220. */
+  baseHeight?: number;
 }) {
   const [isRepositioning, setIsRepositioning] = useState(false);
   const [draftPosition, setDraftPosition] = useState(coverPosition);
@@ -53,6 +57,11 @@ export function CoverHeader({
   const activePosition = isRepositioning ? draftPosition : coverPosition;
   const activeZoom = isRepositioning ? draftZoom : coverZoom;
   const coverBg = coverBackground(cover, activePosition);
+  // Por encima de 100% se amplía la imagen (banda fija); por debajo de 100% la
+  // banda crece de alto y la imagen queda a escala 1 (a todo el ancho), de modo
+  // que se ve más de la foto sin marcos laterales.
+  const imageScale = Math.max(activeZoom, 100) / 100;
+  const bandHeight = Math.round((baseHeight * 100) / Math.min(activeZoom, 100));
   if (!coverBg) return null;
 
   function beginReposition() {
@@ -101,12 +110,12 @@ export function CoverHeader({
   return (
     <div
       className={cn(
-        "group/cover relative w-full overflow-hidden",
-        height,
+        "group/cover relative w-full overflow-hidden transition-[height] duration-150",
         coverIsImage && !isRepositioning && "cursor-pointer",
         isRepositioning &&
           "cursor-grab touch-none select-none active:cursor-grabbing"
       )}
+      style={{ height: bandHeight }}
       onClick={() => {
         if (!isRepositioning) beginReposition();
       }}
@@ -122,7 +131,7 @@ export function CoverHeader({
         className="absolute inset-0"
         style={{
           background: coverBg,
-          transform: `scale(${activeZoom / 100})`,
+          transform: `scale(${imageScale})`,
           transformOrigin: "center",
         }}
       />
