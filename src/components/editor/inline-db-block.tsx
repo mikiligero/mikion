@@ -94,25 +94,32 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
         </Link>
       </div>
 
+      {/* Maquetado con divs `display:table` (no <table>/<td>): si usáramos
+          elementos de tabla reales, la extensión TableHandles de BlockNote los
+          confundiría con una tabla del editor y fallaría al leer
+          `block.content.rows` (este bloque tiene content: "none"). */}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-line border-b">
-              <th className="w-7" />
+        <div className="table w-full border-collapse text-sm">
+          <div className="table-header-group">
+            <div className="border-line table-row border-b">
+              <div className="table-cell w-7" />
               {props.map((p) => (
-                <th
+                <div
                   key={p.id}
-                  className="text-ink-faint border-line min-w-[140px] border-r px-2 py-1.5 text-left text-[12.5px] font-medium"
+                  className="text-ink-faint border-line table-cell min-w-[140px] border-r px-2 py-1.5 text-left text-[12.5px] font-medium"
                 >
                   {p.name}
-                </th>
+                </div>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </div>
+          </div>
+          <div className="table-row-group">
             {data.rows.map((row) => (
-              <tr key={row.id} className="border-line group/row border-b">
-                <td className="w-7 align-middle">
+              <div
+                key={row.id}
+                className="border-line group/row table-row border-b"
+              >
+                <div className="table-cell w-7 align-middle">
                   <Link
                     href={`/p/${data.docId}/${row.id}`}
                     className="text-ink-faint hover:bg-sidebar-hover mx-auto flex size-5 items-center justify-center rounded-sm opacity-0 group-hover/row:opacity-100"
@@ -120,9 +127,12 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
                   >
                     <Maximize2 className="size-3" />
                   </Link>
-                </td>
+                </div>
                 {props.map((p) => (
-                  <td key={p.id} className="border-line border-r align-top">
+                  <div
+                    key={p.id}
+                    className="border-line table-cell border-r align-top"
+                  >
                     <PropertyCell
                       property={p}
                       value={row.values?.[p.id] ?? null}
@@ -138,12 +148,12 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
                           : undefined
                       }
                     />
-                  </td>
+                  </div>
                 ))}
-              </tr>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
 
       <button
