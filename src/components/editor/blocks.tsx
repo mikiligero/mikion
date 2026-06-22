@@ -27,6 +27,8 @@ import {
   Columns2,
   Columns3,
   FileText,
+  Link2,
+  Database,
 } from "lucide-react";
 import { createInlineDatabase, createPageDatabase } from "@/lib/actions/databases";
 import { createSubPage } from "@/lib/actions/docs";
@@ -35,6 +37,22 @@ import { Embed } from "./embed-block";
 import { Equation } from "./equation-block";
 import { InlineDatabase } from "./inline-db-block";
 import { Mention, DateChip, PageLink } from "./inline-content";
+import { INSERT_EXISTING_EVENT, type InsertMode } from "./insert-existing-dialog";
+
+/** Abre el selector de elementos existentes (página/BD) en el bloque actual. */
+function openInsertExisting(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  editor: BlockNoteEditor<any, any, any>,
+  mode: InsertMode,
+  excludeId?: string
+) {
+  const blockId = editor.getTextCursorPosition().block.id;
+  window.dispatchEvent(
+    new CustomEvent(INSERT_EXISTING_EVENT, {
+      detail: { mode, blockId, excludeId: excludeId ?? null },
+    })
+  );
+}
 
 // --- Llamada (callout) ----------------------------------------------------
 const Callout = createReactBlockSpec(
@@ -277,6 +295,30 @@ export async function getSlashItems(
           { type: "date", props: { date: new Date().toISOString().slice(0, 10) } },
           " ",
         ]),
+    },
+    {
+      title: "Enlazar página existente",
+      subtext: "Inserta un enlace a una página que ya existe",
+      aliases: ["enlace", "enlazar", "pagina", "página", "existente", "link", "vincular", "referencia", "mencionar"],
+      group: "Básico",
+      icon: <Link2 className="size-4" />,
+      onItemClick: () => openInsertExisting(editor, "page", pageDocId),
+    },
+    {
+      title: "Base de datos existente: integrada",
+      subtext: "Incrusta la vista de una base de datos que ya existe",
+      aliases: ["bd", "base de datos", "database", "existente", "integrada", "incrustar", "embed", "vista"],
+      group: "Bases de datos",
+      icon: <Table2 className="size-4" />,
+      onItemClick: () => openInsertExisting(editor, "db-inline", pageDocId),
+    },
+    {
+      title: "Base de datos existente: enlace",
+      subtext: "Inserta un enlace a una base de datos que ya existe",
+      aliases: ["bd", "base de datos", "database", "existente", "enlace", "enlazar", "link", "vincular"],
+      group: "Bases de datos",
+      icon: <Database className="size-4" />,
+      onItemClick: () => openInsertExisting(editor, "db-link", pageDocId),
     },
   ];
 

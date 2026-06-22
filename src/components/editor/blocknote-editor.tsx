@@ -35,6 +35,7 @@ import {
 } from "@/lib/export-doc";
 import { translateEmojiQuery } from "@/lib/emoji-es";
 import { schema, getSlashItems, getMentionItems } from "./blocks";
+import { InsertExistingDialog } from "./insert-existing-dialog";
 
 /** Cuadrícula de emoji para el menú «:» en línea.
  *
@@ -346,6 +347,7 @@ export function BlockNoteEditor({
           />
         )}
       </BlockNoteView>
+      {editable && <InsertExistingDialog editor={editor} />}
     </div>
   );
 }

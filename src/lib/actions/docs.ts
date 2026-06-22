@@ -240,6 +240,33 @@ export async function getDocStyle(docId: string): Promise<{
   };
 }
 
+export type InsertableDoc = {
+  id: string;
+  title: string;
+  emoji: string | null;
+  kind: "page" | "database" | "calendar";
+  /** Para docs de tipo BD: el id de la base de datos (para incrustarla). */
+  databaseId: string | null;
+};
+
+/** Lista las páginas y bases de datos vivas del workspace, para el selector de
+ * «insertar página/BD existente». Incluye el `databaseId` de cada doc de BD. */
+export async function listInsertableDocs(): Promise<InsertableDoc[]> {
+  const ws = await getUserWorkspace();
+  return db
+    .select({
+      id: docs.id,
+      title: docs.title,
+      emoji: docs.emoji,
+      kind: docs.kind,
+      databaseId: databases.id,
+    })
+    .from(docs)
+    .leftJoin(databases, eq(databases.docId, docs.id))
+    .where(and(eq(docs.workspaceId, ws.id), isNull(docs.deletedAt)))
+    .orderBy(asc(docs.title));
+}
+
 export async function toggleFavorite(docId: string) {
   const doc = await assertDocAccess(docId);
   await db
