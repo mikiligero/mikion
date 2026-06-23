@@ -21,6 +21,12 @@ export default async function SettingsPage() {
         language: prefs?.language ?? "es",
         startupView: prefs?.startupView ?? "home",
         telegramChatId: prefs?.telegramChatId ?? "",
+        digestMorningEnabled: prefs?.digestMorningEnabled ?? true,
+        digestMorningTime: prefs?.digestMorningTime ?? "08:00",
+        digestMorningDays: prefs?.digestMorningDays ?? [0, 1, 2, 3, 4, 5, 6],
+        digestEveningEnabled: prefs?.digestEveningEnabled ?? true,
+        digestEveningTime: prefs?.digestEveningTime ?? "18:00",
+        digestEveningDays: prefs?.digestEveningDays ?? [0, 1, 2, 3, 4, 5, 6],
       }}
     />
   );

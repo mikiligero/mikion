@@ -121,6 +121,23 @@ export const preferences = pgTable("preferences", {
   language: text("language").notNull().default("es"),
   startupView: text("startup_view").notNull().default("home"),
   telegramChatId: text("telegram_chat_id"),
+  // Resúmenes de tareas (digest). Hora "HH:MM" (pasos de 30 min) y días de la
+  // semana (lun=0 … dom=6) en que aplica cada franja. `sentDate` ("YYYY-MM-DD")
+  // marca el último día enviado para no duplicar dentro de un mismo día.
+  digestMorningEnabled: boolean("digest_morning_enabled").notNull().default(true),
+  digestMorningTime: text("digest_morning_time").notNull().default("08:00"),
+  digestMorningDays: jsonb("digest_morning_days")
+    .$type<number[]>()
+    .notNull()
+    .default([0, 1, 2, 3, 4, 5, 6]),
+  digestMorningSentDate: text("digest_morning_sent_date"),
+  digestEveningEnabled: boolean("digest_evening_enabled").notNull().default(true),
+  digestEveningTime: text("digest_evening_time").notNull().default("18:00"),
+  digestEveningDays: jsonb("digest_evening_days")
+    .$type<number[]>()
+    .notNull()
+    .default([0, 1, 2, 3, 4, 5, 6]),
+  digestEveningSentDate: text("digest_evening_sent_date"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

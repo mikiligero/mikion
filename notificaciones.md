@@ -51,11 +51,17 @@ evento  ──►  createNotification({ userId, type, title, body })
 
 ## 3. Resúmenes de tareas (digest)
 
-Dos resúmenes diarios, en zona horaria **Europe/Madrid**:
+Dos resúmenes, en zona horaria **Europe/Madrid**:
 
-- **Mañana — 08:00** → «Tu día»: tareas con fecha **HOY**.
-- **Tarde — 18:00** → «Lo que viene»: **MAÑANA** + resto de la semana (hasta el
-  domingo; si hoy es domingo, hasta el domingo siguiente).
+- **Mañana** → «Tu día»: tareas con fecha **HOY**.
+- **Tarde** → «Lo que viene»: **MAÑANA** + resto de la semana (hasta el domingo;
+  si hoy es domingo, hasta el domingo siguiente).
+
+**La hora y los días de cada resumen los configura cada usuario** en
+**Ajustes › Preferencias › Resúmenes de tareas** (hora en pasos de 30 min, días
+de la semana, y un interruptor para activar/desactivar cada franja). Por defecto:
+mañana **08:00** y tarde **18:00**, todos los días. Hay un botón **«Enviar
+ahora»** por franja para mandarte el resumen al instante (a bandeja + Telegram).
 
 ### ¿Qué cuenta como «tarea que caduca»?
 
@@ -136,13 +142,18 @@ comentarios sí, porque son instantáneos).
 
 ### 5.1. Endpoint
 
-`GET /api/cron/digest?slot=morning|evening&secret=<CRON_SECRET>`
+`GET /api/cron/digest?secret=<CRON_SECRET>`
 ([src/app/api/cron/digest/route.ts](src/app/api/cron/digest/route.ts))
 
 - Protegido con `CRON_SECRET` (por query `?secret=` o cabecera
   `Authorization: Bearer ...`). Sin secreto configurado → 401.
-- `runDigest` recorre **todos los usuarios** (dueños de workspace) y envía a cada
-  uno **su** resumen. Un solo cron cubre a todos.
+- **Modo planificado (por defecto, sin `slot`):** en cada llamada `runScheduledDigests`
+  mira, por **usuario** y **franja**, si toca enviar según su **hora/días**
+  configurados (y solo **una vez al día** por franja, con marca anti-duplicado).
+  Por eso el cron debe **tiquear cada 30 min**.
+- **Modo forzado (para pruebas):** `&slot=morning|evening` envía esa franja a
+  **todos** ignorando el horario.
+- Un solo cron cubre a todos los usuarios.
 
 ### 5.2. Variable de entorno
 
@@ -156,22 +167,31 @@ CRON_SECRET=<aleatorio>     # p. ej.  openssl rand -hex 24
 
 ### 5.3. Crontab del host (LXC)
 
-`crontab -e` y añadir (cron interno del contenedor escucha en el puerto 3000):
+`crontab -e` y añadir **una sola línea** que tiquea cada 30 min (la hora real de
+envío la decide cada usuario en Ajustes):
 
 ```cron
-CRON_TZ=Europe/Madrid
-0 8  * * * curl -fsS "http://localhost:3000/api/cron/digest?slot=morning&secret=TU_CRON_SECRET" >/dev/null
-0 18 * * * curl -fsS "http://localhost:3000/api/cron/digest?slot=evening&secret=TU_CRON_SECRET" >/dev/null
+*/30 * * * * curl -fsS "http://localhost:3000/api/cron/digest?secret=TU_CRON_SECRET" >/dev/null
 ```
+
+> Las horas configurables van en pasos de 30 min, por eso el tic es cada 30 min.
 
 ### 5.4. Probar a mano
 
 ```bash
-curl "http://localhost:3000/api/cron/digest?slot=morning&secret=TU_CRON_SECRET"
-# → {"ok":true,"slot":"morning","usersNotified":N}
+# Modo planificado (respeta horarios): normalmente no enviará nada salvo que
+# justo coincida la hora de algún usuario.
+curl "http://localhost:3000/api/cron/digest?secret=TU_CRON_SECRET"
+# → {"ok":true,"mode":"scheduled","usersNotified":N,"slotsFired":M}
+
+# Modo forzado (envía ya esa franja a todos, ignora horarios):
+curl "http://localhost:3000/api/cron/digest?slot=evening&secret=TU_CRON_SECRET"
+# → {"ok":true,"mode":"forced","slot":"evening","usersNotified":N}
 ```
 
-Luego mira la bandeja (`/inbox`) y/o Telegram.
+También, desde **Ajustes › Preferencias › Resúmenes de tareas**, el botón
+**«Enviar ahora»** manda tu resumen al instante. Luego mira la bandeja
+(`/inbox`) y/o Telegram.
 
 ---
 

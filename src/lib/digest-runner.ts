@@ -5,19 +5,24 @@
 import "server-only";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { databases, docs, rows, workspaces } from "@/db/schema";
+import { databases, docs, preferences, rows, workspaces } from "@/db/schema";
 import { dateEnd, dateStart } from "@/lib/calendar-utils";
 import { getRowTitle } from "@/lib/database-utils";
 import type { DatabaseSchema, PropertyDef } from "@/lib/types";
 import { createNotification } from "@/lib/actions/helpers";
 import {
   buildDigest,
+  madridTime,
   madridToday,
   renderDigest,
+  shouldSendSlot,
   type Digest,
   type DigestItem,
   type DigestSlot,
+  type SlotConfig,
 } from "@/lib/digest";
+
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 function firstDateProperty(schema: DatabaseSchema): PropertyDef | null {
   return schema.properties.find((p) => p.type === "date") ?? null;
@@ -99,8 +104,8 @@ export async function computeUserDigest(
   return buildDigest(items, slot, today);
 }
 
-/** Calcula y entrega el digest a cada usuario (bandeja + Telegram). Devuelve
- * cuántos usuarios recibieron aviso (los de digest vacío se omiten). */
+/** Calcula y entrega el digest de una franja a TODOS los usuarios, ignorando su
+ * horario (modo forzado / compatibilidad). Devuelve cuántos recibieron aviso. */
 export async function runDigest(
   slot: DigestSlot,
   now: Date = new Date()
@@ -111,11 +116,88 @@ export async function runDigest(
 
   let usersNotified = 0;
   for (const { ownerId } of owners) {
-    const digest = await computeUserDigest(ownerId, slot, now);
-    if (digest.total === 0) continue;
-    const { title, body } = renderDigest(digest);
-    await createNotification({ userId: ownerId, type: "reminder", title, body });
-    usersNotified++;
+    if ((await sendUserDigestNow(ownerId, slot, now)).total > 0) usersNotified++;
   }
   return { usersNotified };
+}
+
+/** Calcula y, si hay tareas, entrega el digest de una franja a un usuario
+ * concreto (sin mirar su horario ni marcar nada). Para el botón «Enviar ahora».
+ * Devuelve cuántas tareas tenía. */
+export async function sendUserDigestNow(
+  userId: string,
+  slot: DigestSlot,
+  now: Date = new Date()
+): Promise<{ total: number }> {
+  const digest = await computeUserDigest(userId, slot, now);
+  if (digest.total > 0) {
+    const { title, body } = renderDigest(digest);
+    await createNotification({ userId, type: "reminder", title, body });
+  }
+  return { total: digest.total };
+}
+
+async function markSlotSent(
+  userId: string,
+  slot: DigestSlot,
+  dayISO: string
+): Promise<void> {
+  const field =
+    slot === "morning"
+      ? { digestMorningSentDate: dayISO }
+      : { digestEveningSentDate: dayISO };
+  await db
+    .insert(preferences)
+    .values({ userId, ...field })
+    .onConflictDoUpdate({ target: preferences.userId, set: field });
+}
+
+/** Modo planificado: el cron tiquea cada 30 min y aquí decidimos, por usuario y
+ * franja, si toca enviar según su hora/días configurados (una vez al día). */
+export async function runScheduledDigests(
+  now: Date = new Date()
+): Promise<{ usersNotified: number; slotsFired: number }> {
+  const todayISO = madridToday(now);
+  const nowHHMM = madridTime(now);
+
+  const owners = await db
+    .selectDistinct({ ownerId: workspaces.ownerId })
+    .from(workspaces);
+
+  let usersNotified = 0;
+  let slotsFired = 0;
+  for (const { ownerId } of owners) {
+    const pref = await db.query.preferences.findFirst({
+      where: eq(preferences.userId, ownerId),
+    });
+    const slots: { slot: DigestSlot; cfg: SlotConfig }[] = [
+      {
+        slot: "morning",
+        cfg: {
+          enabled: pref?.digestMorningEnabled ?? true,
+          time: pref?.digestMorningTime ?? "08:00",
+          days: pref?.digestMorningDays ?? ALL_DAYS,
+          sentDate: pref?.digestMorningSentDate ?? null,
+        },
+      },
+      {
+        slot: "evening",
+        cfg: {
+          enabled: pref?.digestEveningEnabled ?? true,
+          time: pref?.digestEveningTime ?? "18:00",
+          days: pref?.digestEveningDays ?? ALL_DAYS,
+          sentDate: pref?.digestEveningSentDate ?? null,
+        },
+      },
+    ];
+    for (const { slot, cfg } of slots) {
+      if (!shouldSendSlot(cfg, nowHHMM, todayISO)) continue;
+      slotsFired++;
+      const { total } = await sendUserDigestNow(ownerId, slot, now);
+      if (total > 0) usersNotified++;
+      // Marca enviado aunque esté vacío: la franja se evalúa una vez al día.
+      await markSlotSent(ownerId, slot, todayISO);
+    }
+  }
+  return { usersNotified, slotsFired };
 }

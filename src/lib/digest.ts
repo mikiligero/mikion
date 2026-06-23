@@ -30,6 +30,52 @@ export function madridToday(now: Date = new Date()): string {
   }).format(now);
 }
 
+/** Hora actual en Europe/Madrid como "HH:MM" (24h). */
+export function madridTime(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(now);
+}
+
+/** Día de la semana (lun=0 … dom=6) de un día ISO. */
+export function weekdayMon0OfISO(dayISO: string): number {
+  return weekdayMon0(dayISO);
+}
+
+/** Configuración de una franja del digest (guardada por usuario). */
+export type SlotConfig = {
+  enabled: boolean;
+  /** "HH:MM" (pasos de 30 min). */
+  time: string;
+  /** Días en que aplica (lun=0 … dom=6). */
+  days: number[];
+  /** Último día enviado ("YYYY-MM-DD"), para no duplicar. */
+  sentDate: string | null;
+};
+
+/** ¿Toca enviar esta franja ahora? Se dispara en el primer tic a partir de la
+ * hora configurada, una sola vez al día, y solo en los días marcados. */
+export function shouldSendSlot(
+  cfg: SlotConfig,
+  nowHHMM: string,
+  todayISO: string
+): boolean {
+  if (!cfg.enabled) return false;
+  if (!cfg.days.includes(weekdayMon0(todayISO))) return false;
+  if (cfg.sentDate === todayISO) return false; // ya enviado hoy
+  return nowHHMM >= cfg.time;
+}
+
+/** Opciones de hora en pasos de 30 min: "00:00" … "23:30". */
+export const TIME_OPTIONS: string[] = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
 function parseISO(s: string): Date {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);

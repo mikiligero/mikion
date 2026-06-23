@@ -4,7 +4,10 @@ import {
   dayLabel,
   digestWindow,
   renderDigest,
+  shouldSendSlot,
+  TIME_OPTIONS,
   type DigestItem,
+  type SlotConfig,
 } from "@/lib/digest";
 
 // Jueves 2026-06-25 como «hoy» de referencia (semana lun 22 … dom 28).
@@ -116,5 +119,41 @@ describe("renderDigest", () => {
       TODAY
     );
     expect(renderDigest(d).title).toBe("🌙 Lo que viene: 2 tareas");
+  });
+});
+
+describe("shouldSendSlot", () => {
+  const ALL = [0, 1, 2, 3, 4, 5, 6];
+  const base: SlotConfig = {
+    enabled: true,
+    time: "18:00",
+    days: ALL,
+    sentDate: null,
+  };
+
+  it("dispara a partir de la hora si no se envió hoy", () => {
+    expect(shouldSendSlot(base, "18:00", TODAY)).toBe(true);
+    expect(shouldSendSlot(base, "18:30", TODAY)).toBe(true);
+  });
+  it("no dispara antes de la hora", () => {
+    expect(shouldSendSlot(base, "17:30", TODAY)).toBe(false);
+  });
+  it("no dispara si está desactivado", () => {
+    expect(shouldSendSlot({ ...base, enabled: false }, "19:00", TODAY)).toBe(false);
+  });
+  it("no dispara si hoy no es un día activo", () => {
+    expect(shouldSendSlot({ ...base, days: [] }, "19:00", TODAY)).toBe(false);
+  });
+  it("no dispara si ya se envió hoy (anti-duplicado)", () => {
+    expect(shouldSendSlot({ ...base, sentDate: TODAY }, "19:00", TODAY)).toBe(false);
+  });
+});
+
+describe("TIME_OPTIONS", () => {
+  it("48 opciones de 30 min, de 00:00 a 23:30", () => {
+    expect(TIME_OPTIONS).toHaveLength(48);
+    expect(TIME_OPTIONS[0]).toBe("00:00");
+    expect(TIME_OPTIONS[1]).toBe("00:30");
+    expect(TIME_OPTIONS.at(-1)).toBe("23:30");
   });
 });

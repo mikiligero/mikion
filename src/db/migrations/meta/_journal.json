@@ -99,6 +99,13 @@
       "when": 1782040451207,
       "tag": "0013_doc_row_cover_zoom",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1782221992206,
+      "tag": "0014_digest_schedule_prefs",
+      "breakpoints": true
     }
   ]
 }

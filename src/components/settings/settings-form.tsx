@@ -8,7 +8,9 @@ import {
   updatePreferences,
   updateAccountName,
   testTelegram,
+  sendDigestNow,
 } from "@/lib/actions/preferences";
+import { TIME_OPTIONS, type DigestSlot } from "@/lib/digest";
 import { toast } from "sonner";
 import { signOut, deleteUser } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -43,7 +45,17 @@ type Prefs = {
   language: string;
   telegramChatId: string;
   startupView: string;
+  digestMorningEnabled: boolean;
+  digestMorningTime: string;
+  digestMorningDays: number[];
+  digestEveningEnabled: boolean;
+  digestEveningTime: string;
+  digestEveningDays: number[];
 };
+
+type SlotState = { enabled: boolean; time: string; days: number[] };
+
+const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
 
 const SCALES = [
   { value: 0.9, label: "Pequeño", size: 12 },
@@ -208,6 +220,16 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
   const [startupView, setStartupView] = useState(prefs.startupView);
   const [telegram, setTelegram] = useState(prefs.telegramChatId);
   const [testing, setTesting] = useState(false);
+  const [morning, setMorning] = useState<SlotState>({
+    enabled: prefs.digestMorningEnabled,
+    time: prefs.digestMorningTime,
+    days: prefs.digestMorningDays,
+  });
+  const [evening, setEvening] = useState<SlotState>({
+    enabled: prefs.digestEveningEnabled,
+    time: prefs.digestEveningTime,
+    days: prefs.digestEveningDays,
+  });
   // Guard de hidratación para next-themes (resolvedTheme fiable tras montar).
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
@@ -363,7 +385,143 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
           </Button>
         </div>
       </div>
+
+      <div className="py-3.5">
+        <p className="text-ink text-sm font-medium">Resúmenes de tareas</p>
+        <p className="text-ink-faint text-xs">
+          Avisos con tus tareas pendientes (las filas de tus bases de datos con
+          fecha, sin completar) a la bandeja y a Telegram. Elige hora y días de
+          cada resumen. Zona horaria: Europe/Madrid.
+        </p>
+        <div className="mt-3 space-y-2">
+          <DigestSlotCard
+            slot="morning"
+            title="☀️ Resumen de la mañana"
+            hint="Tareas con fecha de hoy"
+            value={morning}
+            onChange={(patch) => {
+              const next = { ...morning, ...patch };
+              setMorning(next);
+              void updatePreferences({
+                digestMorningEnabled: next.enabled,
+                digestMorningTime: next.time,
+                digestMorningDays: next.days,
+              });
+            }}
+          />
+          <DigestSlotCard
+            slot="evening"
+            title="🌙 Resumen de la tarde"
+            hint="Mañana + resto de la semana"
+            value={evening}
+            onChange={(patch) => {
+              const next = { ...evening, ...patch };
+              setEvening(next);
+              void updatePreferences({
+                digestEveningEnabled: next.enabled,
+                digestEveningTime: next.time,
+                digestEveningDays: next.days,
+              });
+            }}
+          />
+        </div>
+      </div>
     </section>
+  );
+}
+
+function DigestSlotCard({
+  slot,
+  title,
+  hint,
+  value,
+  onChange,
+}: {
+  slot: DigestSlot;
+  title: string;
+  hint: string;
+  value: SlotState;
+  onChange: (patch: Partial<SlotState>) => void;
+}) {
+  const [sending, setSending] = useState(false);
+
+  function toggleDay(d: number) {
+    const days = value.days.includes(d)
+      ? value.days.filter((x) => x !== d)
+      : [...value.days, d].sort((a, b) => a - b);
+    onChange({ days });
+  }
+
+  return (
+    <div className="border-line rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-ink text-sm font-medium">{title}</p>
+          <p className="text-ink-faint text-xs">{hint}</p>
+        </div>
+        <Switch
+          checked={value.enabled}
+          onCheckedChange={(enabled) => onChange({ enabled })}
+        />
+      </div>
+
+      {value.enabled && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Select value={value.time} onValueChange={(time) => onChange({ time })}>
+            <SelectTrigger className="h-8 w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {TIME_OPTIONS.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="flex gap-1">
+            {DAY_LABELS.map((label, d) => {
+              const on = value.days.includes(d);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleDay(d)}
+                  aria-pressed={on}
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-md border text-xs font-medium",
+                    on
+                      ? "border-brand bg-brand text-white"
+                      : "border-line text-ink-soft hover:bg-sidebar-hover"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={sending}
+            onClick={async () => {
+              setSending(true);
+              const { total } = await sendDigestNow(slot);
+              setSending(false);
+              toast.success(
+                total > 0
+                  ? `Resumen enviado (${total} ${total === 1 ? "tarea" : "tareas"}) ✅`
+                  : "No tienes tareas en esa ventana"
+              );
+            }}
+          >
+            {sending ? "Enviando…" : "Enviar ahora"}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
