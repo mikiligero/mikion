@@ -59,7 +59,18 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
               <div className="min-w-0 flex-1">
                 <p className="text-ink text-sm font-medium">{n.title}</p>
                 {n.body && (
-                  <p className="text-ink-soft mt-0.5 line-clamp-2 text-[13px]">{n.body}</p>
+                  <p
+                    className={cn(
+                      "text-ink-soft mt-0.5 text-[13px]",
+                      // Los resúmenes (digest) conservan los saltos de línea y se
+                      // muestran enteros, agrupados por día; el resto se recorta.
+                      n.type === "reminder"
+                        ? "whitespace-pre-line"
+                        : "line-clamp-2"
+                    )}
+                  >
+                    {n.body}
+                  </p>
                 )}
                 <p className="text-ink-faint mt-0.5 text-xs">{relTime(n.createdAt)}</p>
               </div>
