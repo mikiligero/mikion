@@ -20,6 +20,8 @@ services:
       # Integraciones opcionales (portadas Unsplash, notificaciones Telegram).
       UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      # Secreto para el cron de resúmenes de tareas (/api/cron/digest).
+      CRON_SECRET: ${CRON_SECRET:-}
     volumes:
       - notion-uploads:/app/uploads
     depends_on:
