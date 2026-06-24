@@ -199,9 +199,12 @@ export function TableView({
                 }
               />
             );
-            // Columna de título: icono/emoji de la fila + botón "Abrir" al hover.
+            // Columna de título: icono/emoji + el título como ENLACE a la página
+            // completa de la fila (cada fila es una página). El botón "Abrir"
+            // sigue abriendo la vista lateral (peek).
             if (prop.type === "title") {
               const r = ctx.row.original;
+              const titleText = typeof cellValue === "string" ? cellValue : "";
               return (
                 <div className="flex items-center gap-1 pl-1">
                   <EmojiPickerPopover
@@ -217,7 +220,15 @@ export function TableView({
                       </button>
                     }
                   />
-                  <div className="min-w-0 flex-1">{cell}</div>
+                  <Link
+                    href={`/p/${docId}/${r.id}`}
+                    className="text-ink min-w-0 flex-1 truncate py-1.5 hover:underline"
+                    title="Abrir como página"
+                  >
+                    {titleText || (
+                      <span className="text-ink-ghost">Sin título</span>
+                    )}
+                  </Link>
                   <button
                     onClick={() => setPeekId(r.id)}
                     className="text-ink-faint hover:bg-sidebar-hover ring-line mr-1 flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium opacity-0 ring-1 group-hover/row:opacity-100"
