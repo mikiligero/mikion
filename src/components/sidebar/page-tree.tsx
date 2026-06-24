@@ -25,6 +25,8 @@ type Props = {
   readOnly?: boolean;
   /** Rol a mostrar como etiqueta en las raíces compartidas (depth 0). */
   roleByRoot?: Map<string, "viewer" | "editor">;
+  /** Indicador de soltado durante el arrastre: fila objetivo + intención. */
+  dropHint?: { id: string; zone: "before" | "into" } | null;
 };
 
 export function PageTree(props: Props) {
@@ -48,6 +50,7 @@ function TreeRow({
   onTrash,
   readOnly,
   roleByRoot,
+  dropHint,
 }: { node: TreeNode } & Props) {
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.id);
@@ -55,6 +58,8 @@ function TreeRow({
 
   const drag = useDraggable({ id: node.id, disabled: readOnly });
   const drop = useDroppable({ id: `node:${node.id}`, disabled: readOnly });
+  const hintBefore = dropHint?.id === node.id && dropHint.zone === "before";
+  const hintInto = dropHint?.id === node.id && dropHint.zone === "into";
   const setRef = (n: HTMLElement | null) => {
     drag.setNodeRef(n);
     drop.setNodeRef(n);
@@ -72,7 +77,10 @@ function TreeRow({
           "group/row text-ink-soft hover:bg-sidebar-hover relative flex items-center gap-1 rounded-sm pr-1 text-sm transition-colors",
           isActive && "bg-sidebar-hover text-ink font-medium",
           !readOnly && drag.isDragging && "opacity-40",
-          !readOnly && drop.isOver && !drag.isDragging && "before:bg-brand before:absolute before:inset-x-0 before:-top-px before:h-0.5 before:content-['']"
+          // Reordenar (mitad superior): línea encima. Anidar (mitad inferior):
+          // resaltado de la fila destino para indicar "soltar dentro".
+          !readOnly && hintBefore && "before:bg-brand before:absolute before:inset-x-0 before:-top-px before:h-0.5 before:content-['']",
+          !readOnly && hintInto && "bg-brand-tint ring-brand ring-1 ring-inset"
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
@@ -148,6 +156,7 @@ function TreeRow({
           onTrash={onTrash}
           readOnly={readOnly}
           roleByRoot={roleByRoot}
+          dropHint={dropHint}
         />
       )}
     </li>

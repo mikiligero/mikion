@@ -25,6 +25,7 @@ import {
   useSensors,
   useDroppable,
   type DragEndEvent,
+  type DragMoveEvent,
 } from "@dnd-kit/core";
 import { buildTree, buildForest, type TreeDoc } from "@/lib/tree";
 import { createDoc, moveToTrash, moveDoc } from "@/lib/actions/docs";
@@ -116,24 +117,56 @@ export function AppSidebar({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
+  // Indicador de soltado: sobre qué fila y con qué intención (reordenar antes /
+  // anidar dentro), según dónde esté el puntero dentro de la fila.
+  const [dropHint, setDropHint] = useState<{
+    id: string;
+    zone: "before" | "into";
+  } | null>(null);
+
+  function descendantsOf(id: string): Set<string> {
+    const set = new Set<string>();
+    const collect = (pid: string) => {
+      for (const d of docs)
+        if (d.parentId === pid) {
+          set.add(d.id);
+          collect(d.id);
+        }
+    };
+    collect(id);
+    return set;
+  }
+
+  // Mitad superior de la fila → reordenar (hermano antes); mitad inferior →
+  // anidar dentro. Usamos la posición real del puntero (activador + desplazamiento).
+  function nodeDropZone(e: DragEndEvent | DragMoveEvent): "before" | "into" {
+    const rect = e.over?.rect;
+    const pe = e.activatorEvent as PointerEvent | null;
+    if (!rect || !pe || typeof pe.clientY !== "number") return "into";
+    const pointerY = pe.clientY + e.delta.y;
+    return (pointerY - rect.top) / rect.height < 0.5 ? "before" : "into";
+  }
+
+  function onDragMove(e: DragMoveEvent) {
+    const activeDocId = String(e.active.id);
+    const overId = e.over?.id ? String(e.over.id) : null;
+    if (!overId || !overId.startsWith("node:")) return setDropHint(null);
+    const targetId = overId.slice(5);
+    if (targetId === activeDocId || descendantsOf(activeDocId).has(targetId)) {
+      return setDropHint(null);
+    }
+    setDropHint({ id: targetId, zone: nodeDropZone(e) });
+  }
+
   function onDragEnd(e: DragEndEvent) {
+    setDropHint(null);
     const activeDocId = String(e.active.id);
     const overId = e.over?.id ? String(e.over.id) : null;
     if (!overId) return;
     const dragged = docs.find((d) => d.id === activeDocId);
     if (!dragged) return;
 
-    // Descendientes (para evitar mover dentro de sí mismo).
-    const descendants = new Set<string>();
-    const collect = (pid: string) => {
-      for (const d of docs)
-        if (d.parentId === pid) {
-          descendants.add(d.id);
-          collect(d.id);
-        }
-    };
-    collect(activeDocId);
-
+    const descendants = descendantsOf(activeDocId);
     const byKey = (a: TreeDoc, b: TreeDoc) =>
       a.orderKey < b.orderKey ? -1 : a.orderKey > b.orderKey ? 1 : 0;
 
@@ -154,19 +187,27 @@ export function AppSidebar({
       if (targetId === activeDocId || descendants.has(targetId)) return;
       const target = docs.find((d) => d.id === targetId);
       if (!target) return;
-      newParentId = target.parentId ?? null;
-      section = target.section;
-      const siblings = docs
-        .filter(
-          (d) =>
-            d.section === section &&
-            (d.parentId ?? null) === newParentId &&
-            d.id !== activeDocId
-        )
-        .sort(byKey);
-      const idx = siblings.findIndex((d) => d.id === targetId);
-      afterId = idx > 0 ? siblings[idx - 1].id : null;
-      beforeId = siblings[idx]?.id ?? null;
+      if (nodeDropZone(e) === "into") {
+        // Anidar: hija al final del destino (moveDoc añade al final sin vecinos).
+        newParentId = targetId;
+        section = target.section;
+        setExpanded((prev) => new Set(prev).add(targetId));
+      } else {
+        // Reordenar: hermano justo antes del destino.
+        newParentId = target.parentId ?? null;
+        section = target.section;
+        const siblings = docs
+          .filter(
+            (d) =>
+              d.section === section &&
+              (d.parentId ?? null) === newParentId &&
+              d.id !== activeDocId
+          )
+          .sort(byKey);
+        const idx = siblings.findIndex((d) => d.id === targetId);
+        afterId = idx > 0 ? siblings[idx - 1].id : null;
+        beforeId = siblings[idx]?.id ?? null;
+      }
     } else {
       return;
     }
@@ -182,6 +223,7 @@ export function AppSidebar({
     onToggle: toggleNode,
     onCreateChild: (parentId: string) => create("team", parentId),
     onTrash: trash,
+    dropHint,
   };
 
   return (
@@ -282,7 +324,13 @@ export function AppSidebar({
           </Section>
         )}
 
-        <DndContext id="sidebar-tree-dnd" sensors={sensors} onDragEnd={onDragEnd}>
+        <DndContext
+          id="sidebar-tree-dnd"
+          sensors={sensors}
+          onDragMove={onDragMove}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => setDropHint(null)}
+        >
           {/* Espacio de equipo */}
           <Section
             title="Espacio de equipo"
