@@ -240,6 +240,15 @@ export async function getDocStyle(docId: string): Promise<{
   };
 }
 
+export async function getDocBlocks(docId: string): Promise<{
+  title: string;
+  emoji: string | null;
+  blocks: unknown;
+}> {
+  const doc = await assertDocAccess(docId, { write: false });
+  return { title: doc.title, emoji: doc.emoji, blocks: doc.blocks };
+}
+
 export type InsertableDoc = {
   id: string;
   title: string;

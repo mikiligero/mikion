@@ -27,6 +27,7 @@ import {
   moveToTrash,
   duplicateDoc,
   getDocStyle,
+  getDocBlocks,
   updateDocMeta,
 } from "@/lib/actions/docs";
 import { cn } from "@/lib/utils";
@@ -122,6 +123,19 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
         detail: { docId: exportTargetId, format },
       })
     );
+  }
+
+  async function exportJson() {
+    if (!exportTargetId) return;
+    const data = await getDocBlocks(exportTargetId);
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${data.title || "pagina"}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   const crumbs: Crumb[] = (() => {
@@ -353,6 +367,10 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => exportAs("markdown")}>
                     Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportJson}>
+                    JSON (bloques)
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
