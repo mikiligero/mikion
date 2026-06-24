@@ -25,6 +25,7 @@ import {
   ChevronDown,
   LayoutTemplate,
   Bookmark,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Row } from "@/db/schema";
@@ -61,12 +62,13 @@ import {
   saveRowAsTemplate,
   createRowFromTemplate,
   deleteTemplate,
+  setDefaultTemplate,
 } from "@/lib/actions/databases";
 import { addPerson } from "@/lib/actions/people";
 import { PropertyCell, Tag, systemFieldValue } from "./property-cell";
 import { propertyIcon } from "./property-icon";
 import { PropertyOptionsEditor } from "./property-options-editor";
-import { randomId } from "@/lib/utils";
+import { randomId, cn } from "@/lib/utils";
 import { RowSidePeek } from "./row-side-peek";
 import { EmojiPickerPopover } from "@/components/editor/emoji-picker";
 import {
@@ -90,6 +92,16 @@ import {
 import { Button } from "@/components/ui/button";
 
 const columnHelper = createColumnHelper<Row>();
+
+/** Fecha de hoy como DD/MM/AAAA, solo para la vista previa del diálogo (el
+ * valor real lo calcula el servidor al crear la fila). */
+function todayTitleDate(): string {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date());
+}
 
 export function TableView({
   docId,
@@ -406,18 +418,53 @@ export function TableView({
                   <span className="flex items-center gap-1.5 truncate">
                     {t.emoji || <LayoutTemplate className="size-4" />}
                     <span className="truncate">{t.name}</span>
+                    {t.isDefault && (
+                      <span className="text-ink-faint shrink-0 text-[10px]">
+                        predet.
+                      </span>
+                    )}
                   </span>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startTransition(() => deleteTemplate(databaseId, t.id));
-                    }}
-                    className="text-ink-faint hover:text-destructive ml-2 shrink-0"
-                    aria-label="Eliminar plantilla"
-                  >
-                    <Trash2 className="size-3.5" />
+                  <span className="ml-2 flex shrink-0 items-center gap-1.5">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startTransition(() =>
+                          setDefaultTemplate(databaseId, t.isDefault ? null : t.id)
+                        );
+                      }}
+                      className={cn(
+                        "hover:text-brand",
+                        t.isDefault ? "text-brand" : "text-ink-faint"
+                      )}
+                      aria-label={
+                        t.isDefault
+                          ? "Quitar como predeterminada"
+                          : "Marcar como predeterminada (se aplica en «Nueva fila»)"
+                      }
+                      title={
+                        t.isDefault
+                          ? "Predeterminada · se aplica en «Nueva fila»"
+                          : "Marcar como predeterminada"
+                      }
+                    >
+                      <Star
+                        className={cn("size-3.5", t.isDefault && "fill-brand")}
+                      />
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startTransition(() => deleteTemplate(databaseId, t.id));
+                      }}
+                      className="text-ink-faint hover:text-destructive"
+                      aria-label="Eliminar plantilla"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </span>
                   </span>
                 </DropdownMenuItem>
               ))
@@ -679,6 +726,8 @@ function RowActionsMenu({
   const [, startTransition] = useTransition();
   const [tplOpen, setTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
+  const [tplDefault, setTplDefault] = useState(false);
+  const [tplTitleDate, setTplTitleDate] = useState(false);
 
   function copyLink() {
     const url = `${window.location.origin}/p/${docId}/${row.id}`;
@@ -689,12 +738,17 @@ function RowActionsMenu({
   function saveTemplate() {
     const name = tplName.trim();
     startTransition(() =>
-      saveRowAsTemplate(row.id, name).then(() => {
+      saveRowAsTemplate(row.id, name, {
+        isDefault: tplDefault,
+        titleFromDate: tplTitleDate,
+      }).then(() => {
         toast.success("Plantilla guardada");
       })
     );
     setTplOpen(false);
     setTplName("");
+    setTplDefault(false);
+    setTplTitleDate(false);
   }
 
   return (
@@ -757,6 +811,32 @@ function RowActionsMenu({
           placeholder="Nombre de la plantilla"
           className="border-line focus:ring-ring w-full rounded-md border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:ring-2"
         />
+        <div className="flex flex-col gap-2.5 text-sm">
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={tplDefault}
+              onChange={(e) => setTplDefault(e.target.checked)}
+              className="accent-brand size-4"
+            />
+            <span>
+              Predeterminada
+              <span className="text-ink-faint"> · se aplica en «Nueva fila»</span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={tplTitleDate}
+              onChange={(e) => setTplTitleDate(e.target.checked)}
+              className="accent-brand size-4"
+            />
+            <span>
+              Título con la fecha de hoy
+              <span className="text-ink-faint"> · p. ej. {todayTitleDate()}</span>
+            </span>
+          </label>
+        </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setTplOpen(false)}>
             Cancelar

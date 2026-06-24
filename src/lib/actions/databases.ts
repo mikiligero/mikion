@@ -42,14 +42,55 @@ async function nextRowOrderKey(databaseId: string): Promise<string> {
   return generateKeyBetween(row?.max ?? null, null);
 }
 
+/** Fecha de hoy como DD/MM/AAAA (zona Europe/Madrid), para títulos de diario. */
+function todayTitleDate(): string {
+  return new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date());
+}
+
+/** Valores de una fila a partir de una plantilla: copia los de la plantilla y,
+ * si `titleFromDate`, rellena el título con la fecha de hoy. Los valores
+ * explícitos (override) tienen prioridad (p. ej. el estado del tablero). */
+function valuesFromTemplate(
+  template: DbTemplate,
+  schema: DatabaseSchema,
+  override: Record<string, PropertyValue>
+): Record<string, PropertyValue> {
+  const out: Record<string, PropertyValue> = {
+    ...(template.values ?? {}),
+    ...override,
+  };
+  if (template.titleFromDate) {
+    const titleProp = schema.properties.find((p) => p.type === "title");
+    if (titleProp && override[titleProp.id] === undefined) {
+      out[titleProp.id] = todayTitleDate();
+    }
+  }
+  return out;
+}
+
 export async function createRow(
   databaseId: string,
-  values: Record<string, PropertyValue> = {}
+  values: Record<string, PropertyValue> = {},
+  opts?: { applyDefaultTemplate?: boolean }
 ) {
   const { database } = await assertDatabaseAccess(databaseId);
+  // Plantilla predeterminada: se aplica salvo que el caller la desactive.
+  const def =
+    (opts?.applyDefaultTemplate ?? true)
+      ? (database.templates ?? []).find((t) => t.isDefault)
+      : undefined;
+  // Base: valores de la plantilla (con título por fecha) o vacío; los valores
+  // explícitos del caller siempre mandan.
+  const seeded: Record<string, PropertyValue> = def
+    ? valuesFromTemplate(def, database.schema, values)
+    : { ...values };
   // Siembra el valor predeterminado de status/select (como Notion fija el
   // estado por defecto), sin pisar valores ya provistos.
-  const seeded: Record<string, PropertyValue> = { ...values };
   for (const p of database.schema.properties) {
     if (
       (p.type === "status" || p.type === "select") &&
@@ -62,7 +103,13 @@ export async function createRow(
   const orderKey = await nextRowOrderKey(databaseId);
   const [row] = await db
     .insert(rows)
-    .values({ databaseId, values: seeded, orderKey })
+    .values({
+      databaseId,
+      values: seeded,
+      blocks: def?.blocks ?? null,
+      emoji: def?.emoji ?? null,
+      orderKey,
+    })
     .returning();
   revalidateShell();
   return { id: row.id };
@@ -112,8 +159,14 @@ export async function updateCell(
   revalidateShell();
 }
 
-/** Guarda una fila como plantilla reutilizable de su base de datos. */
-export async function saveRowAsTemplate(rowId: string, name: string) {
+/** Guarda una fila como plantilla reutilizable de su base de datos.
+ * `isDefault` la marca como predeterminada (se aplica en «Nueva fila»; solo una
+ * por BD). `titleFromDate` rellena el título con la fecha de hoy al crear. */
+export async function saveRowAsTemplate(
+  rowId: string,
+  name: string,
+  opts?: { isDefault?: boolean; titleFromDate?: boolean }
+) {
   const { row } = await assertRowAccess(rowId);
   const { database } = await assertDatabaseAccess(row.databaseId);
   const template: DbTemplate = {
@@ -122,10 +175,17 @@ export async function saveRowAsTemplate(rowId: string, name: string) {
     emoji: row.emoji ?? null,
     values: row.values ?? {},
     blocks: row.blocks ?? null,
+    isDefault: opts?.isDefault ?? false,
+    titleFromDate: opts?.titleFromDate ?? false,
   };
+  const existing = database.templates ?? [];
+  // Si la nueva es predeterminada, las demás dejan de serlo.
+  const merged = template.isDefault
+    ? [...existing.map((t) => ({ ...t, isDefault: false })), template]
+    : [...existing, template];
   await db
     .update(databases)
-    .set({ templates: [...(database.templates ?? []), template] })
+    .set({ templates: merged })
     .where(eq(databases.id, database.id));
   revalidateShell();
   return { id: template.id };
@@ -145,13 +205,32 @@ export async function createRowFromTemplate(
     .values({
       databaseId,
       emoji: template.emoji ?? null,
-      values: template.values ?? {},
+      values: valuesFromTemplate(template, database.schema, {}),
       blocks: template.blocks ?? null,
       orderKey,
     })
     .returning();
   revalidateShell();
   return { id: row.id };
+}
+
+/** Marca una plantilla como predeterminada (o ninguna si `templateId` es null).
+ * Solo una puede serlo a la vez. */
+export async function setDefaultTemplate(
+  databaseId: string,
+  templateId: string | null
+) {
+  const { database } = await assertDatabaseAccess(databaseId);
+  await db
+    .update(databases)
+    .set({
+      templates: (database.templates ?? []).map((t) => ({
+        ...t,
+        isDefault: t.id === templateId,
+      })),
+    })
+    .where(eq(databases.id, database.id));
+  revalidateShell();
 }
 
 /** Elimina una plantilla de la base de datos. */

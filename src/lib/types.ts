@@ -137,6 +137,11 @@ export type DbTemplate = {
   emoji?: string | null;
   values: PropertyValues;
   blocks?: Block[] | null;
+  /** Se aplica automáticamente al crear una fila nueva («Nueva fila»). Solo una
+   * plantilla por BD puede ser la predeterminada. */
+  isDefault?: boolean;
+  /** Rellena el título de la nueva fila con la fecha de hoy (DD/MM/AAAA). */
+  titleFromDate?: boolean;
 };
 
 // Valor de una propiedad en una fila. Según el tipo:
