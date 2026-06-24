@@ -380,7 +380,11 @@ html.mikion-full-width .page-w {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 1.25rem;
+  /* El hueco entre columnas hace de "gutter" para el tirador de arrastre (⠿):
+     BlockNote lo coloca a la izquierda del bloque y necesita ~48px. Sin sitio,
+     el tirador de las columnas 2+ se metía en la columna anterior y el hover
+     se lo robaba (parpadeaba / desaparecía). */
+  gap: 3rem;
 }
 .content-scroll .bn-block-column {
   flex: 1 1 0;
