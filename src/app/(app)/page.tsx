@@ -128,7 +128,7 @@ export default async function HomePage() {
   return (
     <div className="page-w mx-auto max-w-4xl px-8 py-14">
       <p className="text-ink-faint text-sm">{dateLabel}</p>
-      <h1 className="font-serif text-ink mt-1 text-[34px] font-[540]">
+      <h1 className="font-serif text-ink mt-1 text-[2.267em] font-[540]">
         {greeting(now)}, {firstName} 👋
       </h1>
       <p className="text-ink-soft mt-1 text-[14.5px]">

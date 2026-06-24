@@ -165,7 +165,7 @@ export function PageEditor({ doc, initialContent, mentionUsers, readOnly = false
             readOnly={readOnly}
             rows={1}
             placeholder="Sin título"
-            className="font-serif text-ink placeholder:text-ink-ghost mt-2 w-full resize-none border-none bg-transparent text-[42px] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
+            className="font-serif text-ink placeholder:text-ink-ghost mt-2 w-full resize-none border-none bg-transparent text-[2.8em] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
           />
         </div>
 

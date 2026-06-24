@@ -305,15 +305,19 @@
 
 /* ---------------------------------------------------------------------------
    Tamaño de texto (preferencia) — escala SOLO el contenido.
-   El control y la persistencia llegan en la pieza 1.2 (Shell); aquí queda
-   listo el mecanismo: una var --text-scale en <html> y el wrapper de contenido.
+   Se escala con `font-size`, NO con `zoom`: el `zoom` rompe el posicionamiento
+   del menú lateral de BlockNote (el tirador «+ ⠿»). BlockNote/floating-ui
+   posiciona ese menú leyendo getBoundingClientRect (coordenadas ya «zoomeadas»)
+   y aplicándolas como `top` absoluto en el sistema local sin zoom, por lo que
+   el desfase crece con el scroll. Con `font-size` no hay ese problema.
+
+   Base en `.content-scroll` (15px × escala): los títulos/emoji de las páginas
+   usan unidades `em`, así que escalan colgando de aquí. El cuerpo del editor se
+   escala aparte en `.bn-default-styles` (BlockNote fija su propio font-size).
 --------------------------------------------------------------------------- */
 .content-scroll {
   font-size: calc(15px * var(--text-scale, 1));
   font-family: var(--content-font, var(--font-sans));
-}
-.content-scroll > * {
-  zoom: var(--text-scale, 1);
 }
 
 /* Ancho de página completo (preferencia global): anula el max-width de los
@@ -335,6 +339,14 @@ html.mikion-full-width .page-w {
 .content-scroll .bn-default-styles,
 .content-scroll .bn-editor .bn-default-styles {
   font-family: var(--content-font, var(--font-sans));
+}
+
+/* Tamaño de texto dentro del editor: BlockNote fija font-size: 16px en
+   .bn-default-styles (su editor.css), aplicado a varios elementos anidados, de
+   modo que no heredan ningún escalado. Lo escalamos aquí (encabezados y demás
+   usan `em`, así que el escalado es uniforme). Sustituye al antiguo `zoom`. */
+.content-scroll .bn-default-styles {
+  font-size: calc(16px * var(--text-scale, 1));
 }
 
 /* ---------------------------------------------------------------------------

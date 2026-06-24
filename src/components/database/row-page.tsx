@@ -230,7 +230,7 @@ export function RowPage({
           readOnly={readOnly}
           rows={1}
           placeholder="Sin título"
-          className="font-serif text-ink placeholder:text-ink-ghost mt-1 w-full resize-none border-none bg-transparent text-[40px] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
+          className="font-serif text-ink placeholder:text-ink-ghost mt-1 w-full resize-none border-none bg-transparent text-[2.667em] font-[560] leading-[1.12] tracking-[-0.018em] outline-none"
         />
 
         {/* Propiedades (cabecera tipo callout) */}
