@@ -11,7 +11,28 @@ import { listPeople } from "@/lib/people";
 import { PageEditor } from "@/components/editor/page-editor";
 import { DatabaseContainer } from "@/components/database/database-container";
 import { TeamCalendar, type CalEvent } from "@/components/calendar/team-calendar";
-import type { Block } from "@/lib/types";
+import type { Block, Filter, Sort } from "@/lib/types";
+
+/** Filtro/orden traídos por la query al «Abrir» una BD integrada (?ef=&es=,
+ * JSON). Se aplican en pantalla en la página completa, sin guardarse. */
+function parseEmbedOverride(
+  sp: Record<string, string | string[] | undefined>
+): { filters?: Filter[]; sorts?: Sort[] } | undefined {
+  const parse = <T,>(raw: string | string[] | undefined): T[] | undefined => {
+    const s = Array.isArray(raw) ? raw[0] : raw;
+    if (!s) return undefined;
+    try {
+      const v = JSON.parse(s);
+      return Array.isArray(v) ? (v as T[]) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const filters = parse<Filter>(sp.ef);
+  const sorts = parse<Sort>(sp.es);
+  if (!filters && !sorts) return undefined;
+  return { ...(filters ? { filters } : {}), ...(sorts ? { sorts } : {}) };
+}
 
 export async function generateMetadata({
   params,
@@ -26,10 +47,13 @@ export async function generateMetadata({
 
 export default async function DocPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ docId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { docId } = await params;
+  const sp = await searchParams;
   const session = await requireSession();
   const access = await resolveDocAccess(docId, session.user.id);
   if (!access || access.doc.deletedAt) notFound();
@@ -110,6 +134,7 @@ export default async function DocPage({
         rows={rowRows}
         mentionUsers={mentionUsers}
         readOnly={readOnly}
+        embedOverride={parseEmbedOverride(sp)}
       />
     );
   }

@@ -117,6 +117,16 @@ function InlineDatabaseView({
   const props = visibleProperties(data.schema, config);
   const rows = applyView(data.rows, data.schema, config);
 
+  // Enlace «Abrir»: lleva el filtro/orden del embed a la página completa (solo
+  // en pantalla; la página tiene su propia vista). Solo si hay algo aplicado.
+  const openParams = new URLSearchParams();
+  if (config.filters?.length)
+    openParams.set("ef", JSON.stringify(config.filters));
+  if (config.sorts?.length) openParams.set("es", JSON.stringify(config.sorts));
+  const openHref = `/p/${data.docId}${
+    openParams.toString() ? `?${openParams}` : ""
+  }`;
+
   async function setCell(rowId: string, propertyId: string, value: PropertyValue) {
     await updateCell(rowId, propertyId, value);
     refresh();
@@ -150,7 +160,7 @@ function InlineDatabaseView({
             sections={["filter", "sort"]}
           />
           <Link
-            href={`/p/${data.docId}`}
+            href={openHref}
             className="text-ink-faint hover:text-brand flex items-center gap-1 text-xs"
           >
             Abrir <Maximize2 className="size-3" />

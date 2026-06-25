@@ -59,6 +59,7 @@ export function DatabaseContainer({
   mentionUsers,
   people,
   readOnly = false,
+  embedOverride,
 }: {
   doc: {
     id: string;
@@ -80,6 +81,9 @@ export function DatabaseContainer({
   people?: SelectOption[];
   /** BD compartida en modo lector: edición deshabilitada. */
   readOnly?: boolean;
+  /** Filtro/orden traídos al «Abrir» una BD integrada: se aplican a la vista
+   * activa solo en pantalla (no se guardan). */
+  embedOverride?: Partial<ViewConfig>;
 }) {
   const [activeId, setActiveId] = useState(views[0]?.id ?? null);
   const [autoOpen, setAutoOpen] = useState(false);
@@ -131,9 +135,18 @@ export function DatabaseContainer({
       void deleteView(viewId);
     });
   }
-  const [configs, setConfigs] = useState<Record<string, ViewConfig>>(() =>
-    Object.fromEntries(views.map((v) => [v.id, v.config]))
-  );
+  // Filtro/orden traídos al «Abrir» una BD integrada (embedOverride). Se aplican
+  // a la vista activa SOLO en pantalla; no se guardan salvo que el usuario edite.
+  // La vista propia de la página y la del embed (props del bloque) son
+  // independientes, así que el embed nunca pierde su config.
+  const [configs, setConfigs] = useState<Record<string, ViewConfig>>(() => {
+    const base = Object.fromEntries(views.map((v) => [v.id, v.config]));
+    const first = views[0];
+    if (first && embedOverride && (embedOverride.filters || embedOverride.sorts)) {
+      base[first.id] = { ...base[first.id], ...embedOverride };
+    }
+    return base;
+  });
 
   const activeView = views.find((v) => v.id === activeId) ?? views[0];
   const config = useMemo<ViewConfig>(
