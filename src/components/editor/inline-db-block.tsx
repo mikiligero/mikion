@@ -5,7 +5,12 @@ import Link from "next/link";
 import { createReactBlockSpec } from "@blocknote/react";
 import { Plus, Maximize2, Database } from "lucide-react";
 import type { Row } from "@/db/schema";
-import type { DatabaseSchema, PropertyValue, SelectOption } from "@/lib/types";
+import type {
+  DatabaseSchema,
+  PropertyValue,
+  SelectOption,
+  ViewConfig,
+} from "@/lib/types";
 import { randomSelectColor } from "@/lib/types";
 import {
   getInlineDatabase,
@@ -13,22 +18,72 @@ import {
   updateCell,
   updateProperty,
 } from "@/lib/actions/databases";
-import { visibleProperties } from "@/lib/database-view";
+import { visibleProperties, applyView } from "@/lib/database-view";
 import { randomId } from "@/lib/utils";
 import { PropertyCell } from "../database/property-cell";
+import { DatabaseToolbar } from "../database/toolbar";
 
 export const InlineDatabase = createReactBlockSpec(
-  { type: "inlineDatabase", propSchema: { databaseId: { default: "" } }, content: "none" },
   {
-    render: ({ block }) => (
-      <div contentEditable={false} className="my-2">
-        <InlineDatabaseView databaseId={block.props.databaseId as string} />
-      </div>
-    ),
+    type: "inlineDatabase",
+    // filters/sorts: config de filtro y orden de ESTE embed (JSON). Se guarda en
+    // los props del bloque → persiste en el doc, así se recuerda por integración.
+    propSchema: {
+      databaseId: { default: "" },
+      filters: { default: "" },
+      sorts: { default: "" },
+    },
+    content: "none",
+  },
+  {
+    render: ({ block, editor }) => {
+      const databaseId = block.props.databaseId as string;
+      const config: ViewConfig = {
+        filters: parseConfig(block.props.filters as string),
+        sorts: parseConfig(block.props.sorts as string),
+      };
+      const onConfigChange = (patch: Partial<ViewConfig>) => {
+        const next = { ...config, ...patch };
+        editor.updateBlock(block, {
+          props: {
+            filters: JSON.stringify(next.filters ?? []),
+            sorts: JSON.stringify(next.sorts ?? []),
+          },
+        });
+      };
+      return (
+        <div contentEditable={false} className="my-2">
+          <InlineDatabaseView
+            databaseId={databaseId}
+            config={config}
+            onConfigChange={onConfigChange}
+          />
+        </div>
+      );
+    },
   }
 );
 
-function InlineDatabaseView({ databaseId }: { databaseId: string }) {
+/** Parsea un array JSON guardado en props del bloque; [] si vacío/ inválido. */
+function parseConfig<T>(raw: string): T[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? (v as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function InlineDatabaseView({
+  databaseId,
+  config,
+  onConfigChange,
+}: {
+  databaseId: string;
+  config: ViewConfig;
+  onConfigChange: (patch: Partial<ViewConfig>) => void;
+}) {
   const [data, setData] = useState<{
     schema: DatabaseSchema;
     rows: Row[];
@@ -59,7 +114,8 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
     );
   }
 
-  const props = visibleProperties(data.schema, { filters: [], sorts: [] });
+  const props = visibleProperties(data.schema, config);
+  const rows = applyView(data.rows, data.schema, config);
 
   async function setCell(rowId: string, propertyId: string, value: PropertyValue) {
     await updateCell(rowId, propertyId, value);
@@ -86,12 +142,20 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
         <span className="text-ink-soft text-[13px] font-medium">
           Base de datos
         </span>
-        <Link
-          href={`/p/${data.docId}`}
-          className="text-ink-faint hover:text-brand ml-auto flex items-center gap-1 text-xs"
-        >
-          Abrir <Maximize2 className="size-3" />
-        </Link>
+        <div className="ml-auto flex items-center gap-1">
+          <DatabaseToolbar
+            schema={data.schema}
+            config={config}
+            onChange={onConfigChange}
+            sections={["filter", "sort"]}
+          />
+          <Link
+            href={`/p/${data.docId}`}
+            className="text-ink-faint hover:text-brand flex items-center gap-1 text-xs"
+          >
+            Abrir <Maximize2 className="size-3" />
+          </Link>
+        </div>
       </div>
 
       {/* Maquetado con divs `display:table` (no <table>/<td>): si usáramos
@@ -114,7 +178,7 @@ function InlineDatabaseView({ databaseId }: { databaseId: string }) {
             </div>
           </div>
           <div className="table-row-group">
-            {data.rows.map((row) => (
+            {rows.map((row) => (
               <div
                 key={row.id}
                 className="border-line group/row table-row border-b"

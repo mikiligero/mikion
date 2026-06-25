@@ -20,21 +20,33 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+type Section = "filter" | "sort" | "group" | "properties";
+
 type Props = {
   schema: DatabaseSchema;
   config: ViewConfig;
   onChange: (patch: Partial<ViewConfig>) => void;
+  /** Secciones a mostrar (por defecto todas). La BD integrada solo usa
+   * filtro y orden. */
+  sections?: Section[];
 };
 
-export function DatabaseToolbar({ schema, config, onChange }: Props) {
+export function DatabaseToolbar({
+  schema,
+  config,
+  onChange,
+  sections = ["filter", "sort", "group", "properties"],
+}: Props) {
   const filterableProps = schema.properties.filter(
     (p) => p.type === "select" || p.type === "status"
   );
   const groupableProps = filterableProps;
+  const show = (s: Section) => sections.includes(s);
 
   return (
     <div className="flex items-center gap-0.5">
       {/* Filtrar */}
+      {show("filter") && (
       <ToolbarPopover
         icon={<FilterIcon className="size-3.5" />}
         label="Filtrar"
@@ -107,8 +119,10 @@ export function DatabaseToolbar({ schema, config, onChange }: Props) {
           )}
         </div>
       </ToolbarPopover>
+      )}
 
       {/* Ordenar */}
+      {show("sort") && (
       <ToolbarPopover
         icon={<ArrowUpDown className="size-3.5" />}
         label="Ordenar"
@@ -174,8 +188,10 @@ export function DatabaseToolbar({ schema, config, onChange }: Props) {
           )}
         </div>
       </ToolbarPopover>
+      )}
 
       {/* Agrupar */}
+      {show("group") && (
       <ToolbarPopover
         icon={<Group className="size-3.5" />}
         label="Agrupar"
@@ -203,14 +219,17 @@ export function DatabaseToolbar({ schema, config, onChange }: Props) {
           ))}
         </div>
       </ToolbarPopover>
+      )}
 
       {/* Propiedades */}
+      {show("properties") && (
       <ToolbarPopover
         icon={<SlidersHorizontal className="size-3.5" />}
         label="Propiedades"
       >
         <PropertiesPanel schema={schema} config={config} onChange={onChange} />
       </ToolbarPopover>
+      )}
     </div>
   );
 }
