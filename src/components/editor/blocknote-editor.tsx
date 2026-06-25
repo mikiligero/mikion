@@ -21,10 +21,11 @@ import { BlockNoteView } from "@blocknote/shadcn";
 import { filterSuggestionItems, type PartialBlock } from "@blocknote/core";
 import { MessageSquarePlus } from "lucide-react";
 import { es } from "@blocknote/core/locales";
+import { locales as multiColumnLocales } from "@blocknote/xl-multi-column";
 import {
-  multiColumnDropCursor,
-  locales as multiColumnLocales,
-} from "@blocknote/xl-multi-column";
+  columnEdgeDropCursor,
+  columnEdgeDropExtension,
+} from "./column-edge-drop";
 import type { Block } from "@/lib/types";
 import { extractText } from "@/lib/blocknote-utils";
 import { embedInfo } from "@/lib/embed";
@@ -184,7 +185,8 @@ export function BlockNoteEditor({
 
   const editor = useCreateBlockNote({
     schema,
-    dropCursor: multiColumnDropCursor,
+    extensions: [columnEdgeDropExtension()],
+    dropCursor: columnEdgeDropCursor,
     dictionary: {
       ...es,
       slash_menu: {
