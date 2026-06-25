@@ -16,10 +16,14 @@ export function buildTree(
   docs: TreeDoc[],
   section: "team" | "private"
 ): TreeNode[] {
+  const inSection = docs.filter((d) => d.section === section);
+  const ids = new Set(inSection.map((d) => d.id));
   const childrenOf = new Map<string | null, TreeDoc[]>();
-  for (const d of docs) {
-    if (d.section !== section) continue;
-    const key = d.parentId ?? null;
+  for (const d of inSection) {
+    // Si el parentId no apunta a una página viva de la sección (ancestro en la
+    // papelera o de otra sección), tratamos el nodo como raíz para que NO
+    // desaparezca de la barra lateral (página huérfana, antes invisible).
+    const key = d.parentId && ids.has(d.parentId) ? d.parentId : null;
     const list = childrenOf.get(key);
     if (list) list.push(d);
     else childrenOf.set(key, [d]);

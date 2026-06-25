@@ -49,6 +49,29 @@ describe("buildTree", () => {
   it("devuelve [] si no hay docs en la sección", () => {
     expect(buildTree([], "team")).toEqual([]);
   });
+
+  it("saca a la luz huérfanos (parent borrado) como nodos raíz", () => {
+    // "x" no está (en papelera); su hijo "orf" y el nieto "orf2" no deben
+    // desaparecer: "orf" sube a raíz con su subárbol.
+    const withOrphan: TreeDoc[] = [
+      d({ id: "a", orderKey: "a0" }),
+      d({ id: "orf", parentId: "x", orderKey: "a5", title: "Huérfano" }),
+      d({ id: "orf2", parentId: "orf", orderKey: "a0" }),
+    ];
+    const team = buildTree(withOrphan, "team");
+    expect(team.map((n) => n.id).sort()).toEqual(["a", "orf"]);
+    const orf = team.find((n) => n.id === "orf")!;
+    expect(orf.children.map((n) => n.id)).toEqual(["orf2"]);
+  });
+
+  it("un parent en otra sección también deja huérfano (sube a raíz)", () => {
+    const cross: TreeDoc[] = [
+      d({ id: "teamRoot", section: "team", orderKey: "a0" }),
+      d({ id: "child", section: "private", parentId: "teamRoot" }),
+    ];
+    const priv = buildTree(cross, "private");
+    expect(priv.map((n) => n.id)).toEqual(["child"]);
+  });
 });
 
 describe("buildForest", () => {
