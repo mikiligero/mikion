@@ -12,7 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import type { DatabaseSchema, Filter, ViewConfig } from "@/lib/types";
-import { visibleProperties } from "@/lib/database-view";
+import { visibleProperties, EMPTY_FILTER } from "@/lib/database-view";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -72,40 +72,58 @@ export function DatabaseToolbar({
                 <p className="text-ink-faint mb-1 px-1 text-xs font-medium">
                   {prop.name}
                 </p>
-                {(prop.options ?? []).map((o) => {
-                  const on = selected.includes(o.id);
+                {(() => {
+                  const setValue = (valueId: string) => {
+                    const on = selected.includes(valueId);
+                    const next = on
+                      ? selected.filter((id) => id !== valueId)
+                      : [...selected, valueId];
+                    const others = (config.filters ?? []).filter(
+                      (f) => f.propertyId !== prop.id
+                    );
+                    const filters: Filter[] =
+                      next.length > 0
+                        ? [
+                            ...others,
+                            {
+                              propertyId: prop.id,
+                              operator: "equals",
+                              value: next,
+                            },
+                          ]
+                        : others;
+                    onChange({ filters });
+                  };
                   return (
-                    <button
-                      key={o.id}
-                      onClick={() => {
-                        const next = on
-                          ? selected.filter((id) => id !== o.id)
-                          : [...selected, o.id];
-                        const others = (config.filters ?? []).filter(
-                          (f) => f.propertyId !== prop.id
+                    <>
+                      {(prop.options ?? []).map((o) => {
+                        const on = selected.includes(o.id);
+                        return (
+                          <button
+                            key={o.id}
+                            onClick={() => setValue(o.id)}
+                            className="hover:bg-sidebar-hover flex w-full items-center justify-between rounded-sm px-1.5 py-1 text-sm"
+                          >
+                            <span style={{ color: `var(--tint-${o.color})` }}>
+                              {o.name}
+                            </span>
+                            {on && <Check className="text-ink-faint size-3.5" />}
+                          </button>
                         );
-                        const filters: Filter[] =
-                          next.length > 0
-                            ? [
-                                ...others,
-                                {
-                                  propertyId: prop.id,
-                                  operator: "equals",
-                                  value: next,
-                                },
-                              ]
-                            : others;
-                        onChange({ filters });
-                      }}
-                      className="hover:bg-sidebar-hover flex w-full items-center justify-between rounded-sm px-1.5 py-1 text-sm"
-                    >
-                      <span style={{ color: `var(--tint-${o.color})` }}>
-                        {o.name}
-                      </span>
-                      {on && <Check className="text-ink-faint size-3.5" />}
-                    </button>
+                      })}
+                      {/* Filtrar por «sin valor» */}
+                      <button
+                        onClick={() => setValue(EMPTY_FILTER)}
+                        className="hover:bg-sidebar-hover flex w-full items-center justify-between rounded-sm px-1.5 py-1 text-sm"
+                      >
+                        <span className="text-ink-faint italic">Vacío</span>
+                        {selected.includes(EMPTY_FILTER) && (
+                          <Check className="text-ink-faint size-3.5" />
+                        )}
+                      </button>
+                    </>
                   );
-                })}
+                })()}
               </div>
             );
           })}

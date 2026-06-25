@@ -349,6 +349,34 @@ html.mikion-full-width .page-w {
   font-size: calc(16px * var(--text-scale, 1));
 }
 
+/* Base de datos integrada (bloque inlineDatabase) --------------------------- */
+/* Sin el contorno azul de "nodo seleccionado" (BlockNote pinta
+   outline:4px #64a0ff en los hijos de .ProseMirror-selectednode). */
+.ProseMirror-selectednode
+  > .bn-block-content[data-content-type="inlineDatabase"]
+  > *,
+.bn-block-content[data-content-type="inlineDatabase"].ProseMirror-selectednode
+  > * {
+  outline: none !important;
+}
+/* El contenido (envoltorio .my-2) llena el ancho del bloque: .bn-block-content
+   es flex y el hijo, por defecto, se encoge al ancho natural de la tabla. */
+.bn-block-content[data-content-type="inlineDatabase"] > div {
+  flex: 1;
+  min-width: 0;
+}
+/* Ancho completo: solo para una BD integrada en el NIVEL SUPERIOR del editor
+   (no dentro de columnas), rompe su padding lateral (54px) para ocupar todo el
+   ancho de la página. */
+.bn-editor
+  > .bn-block-group
+  > .bn-block-outer
+  > .bn-block
+  > .react-renderer
+  > .bn-block-content[data-content-type="inlineDatabase"] {
+  margin-inline: -54px;
+}
+
 /* ---------------------------------------------------------------------------
    BlockNote → tokens Mikion. Mapeamos las variables del editor a los tokens
    del tema (que ya cambian con .dark), para que se funda con la página en

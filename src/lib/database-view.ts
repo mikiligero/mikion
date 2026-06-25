@@ -10,6 +10,9 @@ import type {
   ViewConfig,
 } from "@/lib/types";
 
+/** Valor centinela en un filtro select/status para «sin valor» (vacío). */
+export const EMPTY_FILTER = "__empty__";
+
 export function findProperty(
   schema: DatabaseSchema,
   id: string
@@ -54,10 +57,13 @@ function matchesFilter(row: Row, schema: DatabaseSchema, f: Filter): boolean {
   switch (prop.type) {
     case "select":
     case "status": {
-      // value = array de ids de opción seleccionados (multi-check).
+      // value = array de ids de opción seleccionados (multi-check). Puede incluir
+      // EMPTY_FILTER para «sin valor».
       const allowed = Array.isArray(f.value) ? f.value : [];
       if (allowed.length === 0) return true;
-      return typeof v === "string" && allowed.includes(v);
+      const isEmpty = typeof v !== "string" || v === "";
+      if (isEmpty) return allowed.includes(EMPTY_FILTER);
+      return allowed.includes(v);
     }
     case "checkbox":
       return f.operator === "isNotChecked" ? !v : !!v;
