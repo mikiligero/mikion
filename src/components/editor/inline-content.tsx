@@ -148,6 +148,47 @@ export const PageLink = createReactInlineContentSpec(
         emoji={inlineContent.props.emoji as string}
       />
     ),
+    // HTML para copiar/arrastrar. Lo emitimos como <span> con marcadores (NO un
+    // <a>): si fuera un <a href> y se perdiera el envoltorio data-inline-content
+    // -type, la regla por defecto de enlace lo capturaría como enlace normal
+    // (con target="_blank" → abría página nueva). Un <span> no compite con esa
+    // regla, así que `parse` lo reconstruye siempre como chip de página.
+    toExternalHTML: ({ inlineContent }) => {
+      const docId = inlineContent.props.docId as string;
+      const title = inlineContent.props.title as string;
+      const emoji = inlineContent.props.emoji as string;
+      return (
+        <span
+          data-page-link="true"
+          data-doc-id={docId}
+          data-title={title}
+          data-emoji={emoji}
+        >
+          {emoji ? `${emoji} ` : ""}
+          {title || "Nueva página"}
+        </span>
+      );
+    },
+    // Reclama como pageLink cualquier elemento marcado (data-doc-id), o un <a>
+    // que apunte a una página interna (/p/<id>). Evita que arrastrar/pegar lo
+    // degrade a enlace normal.
+    parse: (el) => {
+      const href = el.getAttribute("href") || "";
+      const match = href.match(/\/p\/([0-9a-fA-F-]{8,})/);
+      const docId =
+        el.getAttribute("data-doc-id") ||
+        (el.tagName === "A" && match ? match[1] : "");
+      if (!docId) return undefined;
+      const emoji = el.getAttribute("data-emoji") || "";
+      let title = el.getAttribute("data-title") || "";
+      if (!title) {
+        const text = (el.textContent || "").trim();
+        title = emoji && text.startsWith(emoji)
+          ? text.slice(emoji.length).trim()
+          : text;
+      }
+      return { docId, title, emoji };
+    },
   }
 );
 
