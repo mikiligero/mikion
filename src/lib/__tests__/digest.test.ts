@@ -4,6 +4,7 @@ import {
   dayLabel,
   digestWindow,
   renderDigest,
+  rowAssignedTo,
   shouldSendSlot,
   TIME_OPTIONS,
   type DigestItem,
@@ -155,5 +156,25 @@ describe("TIME_OPTIONS", () => {
     expect(TIME_OPTIONS[0]).toBe("00:00");
     expect(TIME_OPTIONS[1]).toBe("00:30");
     expect(TIME_OPTIONS.at(-1)).toBe("23:30");
+  });
+});
+
+describe("rowAssignedTo", () => {
+  const values = { p1: ["u-bob", "u-ana"], p2: ["u-leo"], title: "x" };
+
+  it("true si la persona está en alguna propiedad persona", () => {
+    expect(rowAssignedTo(values, ["p1", "p2"], "u-ana")).toBe(true);
+    expect(rowAssignedTo(values, ["p2"], "u-leo")).toBe(true);
+  });
+
+  it("false si no aparece o la propiedad no se mira", () => {
+    expect(rowAssignedTo(values, ["p1"], "u-leo")).toBe(false);
+    expect(rowAssignedTo(values, ["p1", "p2"], "u-zoe")).toBe(false);
+  });
+
+  it("false con valores nulos, vacíos o no-array", () => {
+    expect(rowAssignedTo(null, ["p1"], "u-bob")).toBe(false);
+    expect(rowAssignedTo({ p1: "u-bob" }, ["p1"], "u-bob")).toBe(false);
+    expect(rowAssignedTo(values, [], "u-bob")).toBe(false);
   });
 });

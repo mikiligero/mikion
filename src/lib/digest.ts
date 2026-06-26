@@ -20,6 +20,24 @@ export type DigestItem = {
 type DigestGroup = { dayISO: string; label: string; items: DigestItem[] };
 export type Digest = { slot: DigestSlot; total: number; groups: DigestGroup[] };
 
+/**
+ * ¿Los valores de una fila referencian a `personId` en alguna de las propiedades
+ * de tipo persona indicadas? Esas propiedades guardan un `string[]` de ids de
+ * persona. Se usa para filtrar el digest de una BD compartida a las tareas
+ * asignadas al destinatario.
+ */
+export function rowAssignedTo(
+  values: Record<string, unknown> | null | undefined,
+  personPropIds: string[],
+  personId: string
+): boolean {
+  for (const pid of personPropIds) {
+    const v = values?.[pid];
+    if (Array.isArray(v) && (v as unknown[]).includes(personId)) return true;
+  }
+  return false;
+}
+
 /** Fecha de hoy en Europe/Madrid como "YYYY-MM-DD". */
 export function madridToday(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {

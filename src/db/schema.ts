@@ -349,11 +349,18 @@ export const people = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     scope: docSection("scope").notNull(),
+    // userId: persona vinculada a una cuenta del sistema (se siembran solas en
+    // cada ámbito). Null = persona manual añadida a mano (sin cuenta).
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     color: text("color").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("people_dir_idx").on(t.workspaceId, t.scope)]
+  (t) => [
+    index("people_dir_idx").on(t.workspaceId, t.scope),
+    // Una sola fila por usuario en cada ámbito (sembrado idempotente).
+    uniqueIndex("people_user_idx").on(t.workspaceId, t.scope, t.userId),
+  ]
 );
 
 // ---------------------------------------------------------------------------
