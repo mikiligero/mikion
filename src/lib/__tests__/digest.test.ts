@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   buildDigest,
+  bucketOfDay,
   dayLabel,
-  digestWindow,
   renderDigest,
   rowAssignedTo,
-  shouldSendSlot,
+  shouldSendRule,
   TIME_OPTIONS,
   type DigestItem,
-  type SlotConfig,
+  type RuleSchedule,
 } from "@/lib/digest";
 
 // Jueves 2026-06-25 como «hoy» de referencia (semana lun 22 … dom 28).
@@ -24,28 +24,16 @@ function item(p: Partial<DigestItem> & { dayISO: string }): DigestItem {
   };
 }
 
-describe("digestWindow", () => {
-  it("morning = solo hoy", () => {
-    expect(digestWindow("morning", TODAY)).toEqual({
-      start: "2026-06-25",
-      end: "2026-06-25",
-    });
+describe("bucketOfDay", () => {
+  it("clasifica cada fecha en su tramo relativo a hoy", () => {
+    expect(bucketOfDay("2026-06-24", TODAY)).toBe("overdue"); // ayer
+    expect(bucketOfDay("2026-06-25", TODAY)).toBe("today");
+    expect(bucketOfDay("2026-06-26", TODAY)).toBe("tomorrow");
+    expect(bucketOfDay("2026-06-27", TODAY)).toBe("week"); // hoy+2
+    expect(bucketOfDay("2026-07-06", TODAY)).toBe("week"); // hoy+11 (límite)
   });
-
-  it("evening = mañana hasta el domingo", () => {
-    // jueves → mañana viernes 26, fin domingo 28.
-    expect(digestWindow("evening", TODAY)).toEqual({
-      start: "2026-06-26",
-      end: "2026-06-28",
-    });
-  });
-
-  it("evening en domingo = lunes a domingo siguiente", () => {
-    // domingo 2026-06-28 → mañana lunes 29, fin domingo 2026-07-05.
-    expect(digestWindow("evening", "2026-06-28")).toEqual({
-      start: "2026-06-29",
-      end: "2026-07-05",
-    });
+  it("null más allá de los próximos 10 días", () => {
+    expect(bucketOfDay("2026-07-07", TODAY)).toBeNull(); // hoy+12
   });
 });
 
@@ -58,15 +46,14 @@ describe("dayLabel", () => {
 });
 
 describe("buildDigest", () => {
-  it("morning incluye solo hoy y excluye completadas", () => {
+  it("incluye solo los tramos pedidos y agrupa por día", () => {
     const d = buildDigest(
       [
         item({ title: "Hoy A", dayISO: "2026-06-25" }),
-        item({ title: "Hoy hecha", dayISO: "2026-06-25", done: true }),
         item({ title: "Mañana", dayISO: "2026-06-26" }),
         item({ title: "Ayer", dayISO: "2026-06-24" }),
       ],
-      "morning",
+      ["today"],
       TODAY
     );
     expect(d.total).toBe(1);
@@ -75,78 +62,77 @@ describe("buildDigest", () => {
     expect(d.groups[0].items[0].title).toBe("Hoy A");
   });
 
-  it("evening agrupa por día en orden cronológico, sin hoy", () => {
+  it("varios tramos: retrasados + próximos 10 días, orden cronológico", () => {
     const d = buildDigest(
       [
-        item({ title: "Hoy", dayISO: "2026-06-25" }), // fuera
-        item({ title: "Z mañana", dayISO: "2026-06-26" }),
-        item({ title: "A mañana", dayISO: "2026-06-26" }),
-        item({ title: "Domingo", dayISO: "2026-06-28" }),
-        item({ title: "Semana que viene", dayISO: "2026-06-30" }), // fuera
+        item({ title: "Ayer", dayISO: "2026-06-24" }), // overdue
+        item({ title: "Hoy", dayISO: "2026-06-25" }), // fuera (no pedido)
+        item({ title: "Z futuro", dayISO: "2026-06-27" }), // week
+        item({ title: "A futuro", dayISO: "2026-06-27" }), // week
+        item({ title: "Lejano", dayISO: "2026-07-20" }), // fuera
       ],
-      "evening",
+      ["overdue", "week"],
       TODAY
     );
     expect(d.total).toBe(3);
-    expect(d.groups.map((g) => g.label)).toEqual(["Mañana", "dom 28 jun"]);
-    // Orden alfabético dentro del día.
-    expect(d.groups[0].items.map((i) => i.title)).toEqual([
-      "A mañana",
-      "Z mañana",
+    expect(d.groups.map((g) => g.label)).toEqual(["mié 24 jun", "sáb 27 jun"]);
+    expect(d.groups[1].items.map((i) => i.title)).toEqual([
+      "A futuro",
+      "Z futuro",
     ]);
   });
 });
 
 describe("renderDigest", () => {
-  it("título y cuerpo con bullets y meta", () => {
+  it("título con conteo y cuerpo con bullets y meta", () => {
     const d = buildDigest(
       [item({ title: "Llamar", dbTitle: "TAREAS", statusName: "En curso", dayISO: "2026-06-25" })],
-      "morning",
+      ["today"],
       TODAY
     );
     const { title, body } = renderDigest(d);
-    expect(title).toBe("☀️ Tu día: 1 tarea para hoy");
+    expect(title).toBe("🔔 1 tarea");
     expect(body).toContain("Hoy");
     expect(body).toContain("• Llamar (TAREAS · En curso)");
   });
 
-  it("plural en la tarde", () => {
+  it("plural en el título", () => {
     const d = buildDigest(
       [
         item({ title: "A", dayISO: "2026-06-26" }),
         item({ title: "B", dayISO: "2026-06-27" }),
       ],
-      "evening",
+      ["tomorrow", "week"],
       TODAY
     );
-    expect(renderDigest(d).title).toBe("🌙 Lo que viene: 2 tareas");
+    expect(renderDigest(d).title).toBe("🔔 2 tareas");
   });
 });
 
-describe("shouldSendSlot", () => {
+describe("shouldSendRule", () => {
   const ALL = [0, 1, 2, 3, 4, 5, 6];
-  const base: SlotConfig = {
+  const base: RuleSchedule = {
     enabled: true,
     time: "18:00",
     days: ALL,
-    sentDate: null,
+    lastSentDate: null,
   };
 
   it("dispara a partir de la hora si no se envió hoy", () => {
-    expect(shouldSendSlot(base, "18:00", TODAY)).toBe(true);
-    expect(shouldSendSlot(base, "18:30", TODAY)).toBe(true);
+    expect(shouldSendRule(base, "18:00", TODAY)).toBe(true);
+    expect(shouldSendRule(base, "18:30", TODAY)).toBe(true);
   });
   it("no dispara antes de la hora", () => {
-    expect(shouldSendSlot(base, "17:30", TODAY)).toBe(false);
+    expect(shouldSendRule(base, "17:30", TODAY)).toBe(false);
   });
   it("no dispara si está desactivado", () => {
-    expect(shouldSendSlot({ ...base, enabled: false }, "19:00", TODAY)).toBe(false);
+    expect(shouldSendRule({ ...base, enabled: false }, "19:00", TODAY)).toBe(false);
   });
   it("no dispara si hoy no es un día activo", () => {
-    expect(shouldSendSlot({ ...base, days: [] }, "19:00", TODAY)).toBe(false);
+    expect(shouldSendRule({ ...base, days: [] }, "19:00", TODAY)).toBe(false);
   });
   it("no dispara si ya se envió hoy (anti-duplicado)", () => {
-    expect(shouldSendSlot({ ...base, sentDate: TODAY }, "19:00", TODAY)).toBe(false);
+    expect(shouldSendRule({ ...base, lastSentDate: TODAY }, "19:00", TODAY)).toBe(false);
   });
 });
 

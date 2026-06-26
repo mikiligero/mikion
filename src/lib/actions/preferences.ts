@@ -6,8 +6,6 @@ import { db } from "@/db";
 import { preferences, users } from "@/db/schema";
 import type { ThemePref, FontPref } from "@/lib/types";
 import { sendTelegramMessage } from "@/lib/telegram";
-import { sendUserDigestNow } from "@/lib/digest-runner";
-import type { DigestSlot } from "@/lib/digest";
 import { requireUserId } from "./helpers";
 
 export async function updatePreferences(
@@ -19,12 +17,6 @@ export async function updatePreferences(
     language: string;
     startupView: string;
     telegramChatId: string | null;
-    digestMorningEnabled: boolean;
-    digestMorningTime: string;
-    digestMorningDays: number[];
-    digestEveningEnabled: boolean;
-    digestEveningTime: string;
-    digestEveningDays: number[];
   }>
 ) {
   const userId = await requireUserId();
@@ -32,15 +24,6 @@ export async function updatePreferences(
     .update(preferences)
     .set({ ...patch, updatedAt: new Date() })
     .where(eq(preferences.userId, userId));
-}
-
-/** Envía AHORA el resumen de una franja al usuario actual (bandeja + Telegram),
- * ignorando su horario. Para el botón «Enviar ahora» de Ajustes. */
-export async function sendDigestNow(
-  slot: DigestSlot
-): Promise<{ total: number }> {
-  const userId = await requireUserId();
-  return sendUserDigestNow(userId, slot);
 }
 
 /** Envía un mensaje de prueba al chat_id indicado (Telegram). */

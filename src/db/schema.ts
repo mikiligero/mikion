@@ -393,12 +393,43 @@ export const docShares = pgTable(
   ]
 );
 
+// digest_rules: avisos de tareas que el usuario crea (lista; vacía por defecto).
+// Cada uno: hora + días de la semana, qué tramos incluir (retrasados/hoy/mañana/
+// próximos 10 días) y filtros por grupo de estado y de prioridad. `lastSentDate`
+// evita duplicar dentro del mismo día.
+// ---------------------------------------------------------------------------
+export const digestRules = pgTable(
+  "digest_rules",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    time: text("time").notNull().default("08:00"),
+    days: jsonb("days").$type<number[]>().notNull().default([0, 1, 2, 3, 4, 5, 6]),
+    buckets: jsonb("buckets").$type<string[]>().notNull().default(["today"]),
+    statusGroups: jsonb("status_groups")
+      .$type<string[]>()
+      .notNull()
+      .default(["todo", "inProgress"]),
+    priorityGroups: jsonb("priority_groups").$type<string[]>().notNull().default([]),
+    enabled: boolean("enabled").notNull().default(true),
+    lastSentDate: text("last_sent_date"),
+    orderKey: text("order_key").notNull().default("a0"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("digest_rules_user_idx").on(t.userId)]
+);
+
 // ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 export type Workspace = typeof workspaces.$inferSelect;
 export type Person = typeof people.$inferSelect;
 export type DocShare = typeof docShares.$inferSelect;
+export type DigestRule = typeof digestRules.$inferSelect;
 export type Preferences = typeof preferences.$inferSelect;
 export type Doc = typeof docs.$inferSelect;
 export type DbDatabase = typeof databases.$inferSelect;

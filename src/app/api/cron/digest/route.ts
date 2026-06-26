@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import { runDigest, runScheduledDigests } from "@/lib/digest-runner";
-import { type DigestSlot } from "@/lib/digest";
+import { runDigestNow, runScheduledDigests } from "@/lib/digest-runner";
 
 // Disparador de los resúmenes de tareas. Pensado para llamarse desde el cron del
 // host (LXC) cada 30 minutos:
 //
 //   curl -fsS "http://localhost:3000/api/cron/digest?secret=$CRON_SECRET"
 //
-// En cada tic decide, por usuario y franja, si toca enviar según la hora/días
-// que cada uno ha configurado en Ajustes (una vez al día por franja).
+// En cada tic decide, por cada aviso, si toca enviar según la hora/días que el
+// usuario ha configurado en Ajustes (una vez al día por aviso).
 //
-// Modo forzado (opcional, para pruebas): añade &slot=morning|evening y se envía
-// esa franja a todos ignorando el horario.
+// Modo forzado (opcional, para pruebas): añade &force=1 y se entregan todos los
+// avisos activos ignorando el horario.
 //
 // Protegido con CRON_SECRET (cabecera Authorization: Bearer … o ?secret=…).
 // Nunca se cachea.
@@ -32,19 +31,12 @@ export async function GET(req: Request) {
   if (!authorized(req)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  const slot = new URL(req.url).searchParams.get("slot");
-  // Modo forzado: ?slot=morning|evening → envía esa franja a todos.
-  if (slot === "morning" || slot === "evening") {
-    const result = await runDigest(slot as DigestSlot);
-    return NextResponse.json({ ok: true, mode: "forced", slot, ...result });
+  // Modo forzado: ?force=1 → entrega todos los avisos activos ya.
+  if (new URL(req.url).searchParams.get("force") === "1") {
+    const result = await runDigestNow();
+    return NextResponse.json({ ok: true, mode: "forced", ...result });
   }
-  if (slot) {
-    return NextResponse.json(
-      { error: "Parámetro 'slot' debe ser 'morning' o 'evening'" },
-      { status: 400 }
-    );
-  }
-  // Modo planificado (por defecto): respeta el horario de cada usuario.
+  // Modo planificado (por defecto): respeta el horario de cada aviso.
   const result = await runScheduledDigests();
   return NextResponse.json({ ok: true, mode: "scheduled", ...result });
 }

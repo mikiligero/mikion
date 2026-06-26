@@ -5,10 +5,11 @@
 import "server-only";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { databases, docs, people, preferences, rows, workspaces } from "@/db/schema";
+import { databases, digestRules, docs, people, rows, workspaces } from "@/db/schema";
+import type { DigestRule } from "@/db/schema";
 import { dateEnd, dateStart } from "@/lib/calendar-utils";
 import { getRowTitle } from "@/lib/database-utils";
-import type { DatabaseSchema, PropertyDef } from "@/lib/types";
+import type { DatabaseSchema, PropertyDef, SelectOption } from "@/lib/types";
 import { createNotification, getSharedTreeForUser } from "@/lib/actions/helpers";
 import {
   buildDigest,
@@ -16,20 +17,34 @@ import {
   madridToday,
   renderDigest,
   rowAssignedTo,
-  shouldSendSlot,
+  shouldSendRule,
+  type Bucket,
   type Digest,
   type DigestItem,
-  type DigestSlot,
-  type SlotConfig,
 } from "@/lib/digest";
-
-const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 function firstDateProperty(schema: DatabaseSchema): PropertyDef | null {
   return schema.properties.find((p) => p.type === "date") ?? null;
 }
-function statusProperty(schema: DatabaseSchema): PropertyDef | null {
-  return schema.properties.find((p) => p.type === "status") ?? null;
+
+/** Opción seleccionada de la primera propiedad de un tipo con grupos. */
+function groupedOption(
+  schema: DatabaseSchema,
+  type: "status" | "priority",
+  values: Record<string, unknown> | null
+): SelectOption | undefined {
+  const prop = schema.properties.find((p) => p.type === type);
+  if (!prop) return undefined;
+  const optId = values?.[prop.id];
+  return prop.options?.find((o) => o.id === optId);
+}
+
+/** ¿Pasa el filtro por grupo? Vacío = sin filtro. Sin grupo (sin propiedad o sin
+ * valor) NO se descarta, para no perder tareas. */
+function passesGroupFilter(group: string | undefined, allowed: string[]): boolean {
+  if (allowed.length === 0) return true;
+  if (group === undefined) return true;
+  return allowed.includes(group);
 }
 
 type DigestDb = {
@@ -124,16 +139,17 @@ function personPropertyIds(schema: DatabaseSchema): string[] {
   return schema.properties.filter((p) => p.type === "person").map((p) => p.id);
 }
 
-/** Reúne las tareas con fecha (de BD propias y compartidas) y construye el digest. */
+/** Reúne las tareas con fecha (de BD propias y compartidas), aplica los filtros
+ * de estado/prioridad del aviso y construye el digest de sus tramos. */
 export async function computeUserDigest(
   userId: string,
-  slot: DigestSlot,
+  rule: DigestRule,
   now: Date = new Date()
 ): Promise<Digest> {
   const today = madridToday(now);
 
   const dbRows = await collectDigestDatabases(userId);
-  if (dbRows.length === 0) return { slot, total: 0, groups: [] };
+  if (dbRows.length === 0) return { total: 0, groups: [] };
 
   // En las BD compartidas solo cuentan las tareas asignadas al usuario; para eso
   // necesitamos su `people.id` en el ámbito/workspace dueño de cada BD.
@@ -143,7 +159,7 @@ export async function computeUserDigest(
   const withDate = dbRows
     .map((d) => ({ ...d, dateProp: firstDateProperty(d.schema) }))
     .filter((d): d is typeof d & { dateProp: PropertyDef } => !!d.dateProp);
-  if (withDate.length === 0) return { slot, total: 0, groups: [] };
+  if (withDate.length === 0) return { total: 0, groups: [] };
 
   const allRows = await db
     .select()
@@ -179,124 +195,94 @@ export async function computeUserDigest(
     const due = dateEnd(dateVal) ?? dateStart(dateVal);
     if (!due) continue;
 
-    const stProp = statusProperty(meta.schema);
-    let done = false;
-    let statusName: string | undefined;
-    if (stProp) {
-      const optId = row.values?.[stProp.id];
-      const opt = stProp.options?.find((o) => o.id === optId);
-      if (opt) {
-        statusName = opt.name;
-        done = opt.group === "done";
-      }
-    }
+    // Filtros del aviso: por grupo de estado y de prioridad.
+    const stOpt = groupedOption(meta.schema, "status", row.values);
+    if (!passesGroupFilter(stOpt?.group, rule.statusGroups)) continue;
+    const prOpt = groupedOption(meta.schema, "priority", row.values);
+    if (!passesGroupFilter(prOpt?.group, rule.priorityGroups)) continue;
 
     items.push({
       title: getRowTitle(row.values, meta.schema),
       dbTitle: meta.title || "Sin título",
       dayISO: due.slice(0, 10),
-      statusName,
-      done,
+      statusName: stOpt?.name,
+      done: stOpt?.group === "done",
     });
   }
 
-  return buildDigest(items, slot, today);
+  return buildDigest(items, rule.buckets as Bucket[], today);
 }
 
-/** Calcula y entrega el digest de una franja a TODOS los usuarios, ignorando su
- * horario (modo forzado / compatibilidad). Devuelve cuántos recibieron aviso. */
-export async function runDigest(
-  slot: DigestSlot,
-  now: Date = new Date()
-): Promise<{ usersNotified: number }> {
-  const owners = await db
-    .selectDistinct({ ownerId: workspaces.ownerId })
-    .from(workspaces);
-
-  let usersNotified = 0;
-  for (const { ownerId } of owners) {
-    if ((await sendUserDigestNow(ownerId, slot, now)).total > 0) usersNotified++;
-  }
-  return { usersNotified };
-}
-
-/** Calcula y, si hay tareas, entrega el digest de una franja a un usuario
- * concreto (sin mirar su horario ni marcar nada). Para el botón «Enviar ahora».
- * Devuelve cuántas tareas tenía. */
-export async function sendUserDigestNow(
-  userId: string,
-  slot: DigestSlot,
+/** Calcula y, si hay tareas, entrega el aviso (bandeja + Telegram). No marca
+ * nada (lo hace el planificador). Devuelve cuántas tareas tenía. */
+export async function deliverRule(
+  rule: DigestRule,
   now: Date = new Date()
 ): Promise<{ total: number }> {
-  const digest = await computeUserDigest(userId, slot, now);
+  const digest = await computeUserDigest(rule.userId, rule, now);
   if (digest.total > 0) {
     const { title, body } = renderDigest(digest);
-    await createNotification({ userId, type: "reminder", title, body });
+    await createNotification({
+      userId: rule.userId,
+      type: "reminder",
+      title,
+      body,
+    });
   }
   return { total: digest.total };
 }
 
-async function markSlotSent(
-  userId: string,
-  slot: DigestSlot,
-  dayISO: string
-): Promise<void> {
-  const field =
-    slot === "morning"
-      ? { digestMorningSentDate: dayISO }
-      : { digestEveningSentDate: dayISO };
+async function markRuleSent(ruleId: string, dayISO: string): Promise<void> {
   await db
-    .insert(preferences)
-    .values({ userId, ...field })
-    .onConflictDoUpdate({ target: preferences.userId, set: field });
+    .update(digestRules)
+    .set({ lastSentDate: dayISO })
+    .where(eq(digestRules.id, ruleId));
 }
 
-/** Modo planificado: el cron tiquea cada 30 min y aquí decidimos, por usuario y
- * franja, si toca enviar según su hora/días configurados (una vez al día). */
+/** Modo forzado (pruebas): entrega TODOS los avisos activos ignorando horario. */
+export async function runDigestNow(
+  now: Date = new Date()
+): Promise<{ rulesDelivered: number }> {
+  const all = await db
+    .select()
+    .from(digestRules)
+    .where(eq(digestRules.enabled, true));
+  let rulesDelivered = 0;
+  for (const rule of all) {
+    if ((await deliverRule(rule, now)).total > 0) rulesDelivered++;
+  }
+  return { rulesDelivered };
+}
+
+/** Modo planificado: el cron tiquea cada 30 min y aquí, por cada aviso, decide
+ * si toca enviarlo según su hora/días (una vez al día). */
 export async function runScheduledDigests(
   now: Date = new Date()
-): Promise<{ usersNotified: number; slotsFired: number }> {
+): Promise<{ usersNotified: number; rulesFired: number }> {
   const todayISO = madridToday(now);
   const nowHHMM = madridTime(now);
 
-  const owners = await db
-    .selectDistinct({ ownerId: workspaces.ownerId })
-    .from(workspaces);
+  const all = await db.select().from(digestRules);
 
   let usersNotified = 0;
-  let slotsFired = 0;
-  for (const { ownerId } of owners) {
-    const pref = await db.query.preferences.findFirst({
-      where: eq(preferences.userId, ownerId),
-    });
-    const slots: { slot: DigestSlot; cfg: SlotConfig }[] = [
+  let rulesFired = 0;
+  for (const rule of all) {
+    const due = shouldSendRule(
       {
-        slot: "morning",
-        cfg: {
-          enabled: pref?.digestMorningEnabled ?? true,
-          time: pref?.digestMorningTime ?? "08:00",
-          days: pref?.digestMorningDays ?? ALL_DAYS,
-          sentDate: pref?.digestMorningSentDate ?? null,
-        },
+        enabled: rule.enabled,
+        time: rule.time,
+        days: rule.days,
+        lastSentDate: rule.lastSentDate,
       },
-      {
-        slot: "evening",
-        cfg: {
-          enabled: pref?.digestEveningEnabled ?? true,
-          time: pref?.digestEveningTime ?? "18:00",
-          days: pref?.digestEveningDays ?? ALL_DAYS,
-          sentDate: pref?.digestEveningSentDate ?? null,
-        },
-      },
-    ];
-    for (const { slot, cfg } of slots) {
-      if (!shouldSendSlot(cfg, nowHHMM, todayISO)) continue;
-      slotsFired++;
-      const { total } = await sendUserDigestNow(ownerId, slot, now);
-      if (total > 0) usersNotified++;
-      // Marca enviado aunque esté vacío: la franja se evalúa una vez al día.
-      await markSlotSent(ownerId, slot, todayISO);
-    }
+      nowHHMM,
+      todayISO
+    );
+    if (!due) continue;
+    rulesFired++;
+    const { total } = await deliverRule(rule, now);
+    if (total > 0) usersNotified++;
+    // Marca enviado aunque esté vacío: el aviso se evalúa una vez al día.
+    await markRuleSent(rule.id, todayISO);
   }
-  return { usersNotified, slotsFired };
+  return { usersNotified, rulesFired };
 }

@@ -8,9 +8,16 @@ import {
   updatePreferences,
   updateAccountName,
   testTelegram,
-  sendDigestNow,
 } from "@/lib/actions/preferences";
-import { TIME_OPTIONS, type DigestSlot } from "@/lib/digest";
+import { TIME_OPTIONS, BUCKETS } from "@/lib/digest";
+import { STATUS_GROUPS, PRIORITY_GROUPS } from "@/lib/types";
+import {
+  createDigestRule,
+  updateDigestRule,
+  deleteDigestRule,
+  sendDigestRuleNow,
+  type DigestRuleDTO,
+} from "@/lib/actions/digest-rules";
 import {
   setShareRole,
   unshareDoc,
@@ -23,7 +30,7 @@ import { signOut, deleteUser } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { docIcon } from "@/components/sidebar/doc-icon";
-import { LogOut, X } from "lucide-react";
+import { LogOut, X, Plus, Trash2, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -55,15 +62,7 @@ type Prefs = {
   language: string;
   telegramChatId: string;
   startupView: string;
-  digestMorningEnabled: boolean;
-  digestMorningTime: string;
-  digestMorningDays: number[];
-  digestEveningEnabled: boolean;
-  digestEveningTime: string;
-  digestEveningDays: number[];
 };
-
-type SlotState = { enabled: boolean; time: string; days: number[] };
 
 const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
 
@@ -78,10 +77,12 @@ export function SettingsForm({
   user,
   prefs,
   shares,
+  rules,
 }: {
   user: { name: string; email: string };
   prefs: Prefs;
   shares: { byMe: SharedByMe[]; withMe: SharedWithMe[] };
+  rules: DigestRuleDTO[];
 }) {
   const [section, setSection] = useState<
     "account" | "prefs" | "notifications" | "shares"
@@ -127,7 +128,7 @@ export function SettingsForm({
         ) : section === "prefs" ? (
           <PreferencesPanel prefs={prefs} />
         ) : section === "notifications" ? (
-          <NotificationsPanel prefs={prefs} />
+          <NotificationsPanel prefs={prefs} rules={rules} />
         ) : (
           <SharesPanel shares={shares} />
         )}
@@ -552,19 +553,31 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
   );
 }
 
-function NotificationsPanel({ prefs }: { prefs: Prefs }) {
+function NotificationsPanel({
+  prefs,
+  rules: initialRules,
+}: {
+  prefs: Prefs;
+  rules: DigestRuleDTO[];
+}) {
   const [telegram, setTelegram] = useState(prefs.telegramChatId);
   const [testing, setTesting] = useState(false);
-  const [morning, setMorning] = useState<SlotState>({
-    enabled: prefs.digestMorningEnabled,
-    time: prefs.digestMorningTime,
-    days: prefs.digestMorningDays,
-  });
-  const [evening, setEvening] = useState<SlotState>({
-    enabled: prefs.digestEveningEnabled,
-    time: prefs.digestEveningTime,
-    days: prefs.digestEveningDays,
-  });
+  const [rules, setRules] = useState<DigestRuleDTO[]>(initialRules);
+
+  function patchRule(id: string, patch: Partial<DigestRuleDTO>) {
+    setRules((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    void updateDigestRule(id, patch);
+  }
+
+  async function addRule() {
+    const created = await createDigestRule();
+    setRules((rs) => [...rs, created]);
+  }
+
+  function removeRule(id: string) {
+    setRules((rs) => rs.filter((r) => r.id !== id));
+    void deleteDigestRule(id);
+  }
 
   return (
     <section className="space-y-1">
@@ -606,140 +619,213 @@ function NotificationsPanel({ prefs }: { prefs: Prefs }) {
       </div>
 
       <div className="py-3.5">
-        <p className="text-ink text-sm font-medium">Resúmenes de tareas</p>
+        <p className="text-ink text-sm font-medium">Avisos de tareas</p>
         <p className="text-ink-faint text-xs">
-          Avisos con tus tareas pendientes (las filas de tus bases de datos con
-          fecha, sin completar) a la bandeja y a Telegram. Elige hora y días de
-          cada resumen. Zona horaria: Europe/Madrid.
+          Crea avisos a medida: elige la hora, los días, qué incluir (retrasados,
+          hoy, mañana, próximos 10 días) y filtra por estado y prioridad. Llegan a
+          la bandeja y a Telegram. Zona horaria: Europe/Madrid.
         </p>
-        <div className="mt-3 space-y-2">
-          <DigestSlotCard
-            slot="morning"
-            title="☀️ Resumen de la mañana"
-            hint="Tareas con fecha de hoy"
-            value={morning}
-            onChange={(patch) => {
-              const next = { ...morning, ...patch };
-              setMorning(next);
-              void updatePreferences({
-                digestMorningEnabled: next.enabled,
-                digestMorningTime: next.time,
-                digestMorningDays: next.days,
-              });
-            }}
-          />
-          <DigestSlotCard
-            slot="evening"
-            title="🌙 Resumen de la tarde"
-            hint="Mañana + resto de la semana"
-            value={evening}
-            onChange={(patch) => {
-              const next = { ...evening, ...patch };
-              setEvening(next);
-              void updatePreferences({
-                digestEveningEnabled: next.enabled,
-                digestEveningTime: next.time,
-                digestEveningDays: next.days,
-              });
-            }}
-          />
-        </div>
+
+        {rules.length === 0 ? (
+          <p className="text-ink-faint mt-4 text-sm">
+            No tienes ningún aviso. Añade el primero.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {rules.map((r) => (
+              <RuleCard
+                key={r.id}
+                rule={r}
+                onChange={(patch) => patchRule(r.id, patch)}
+                onDelete={() => removeRule(r.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={addRule}
+          className="text-ink-soft hover:bg-sidebar-hover mt-3 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+        >
+          <Plus className="size-4" /> Añadir aviso
+        </button>
       </div>
     </section>
   );
 }
 
-function DigestSlotCard({
-  slot,
-  title,
-  hint,
-  value,
-  onChange,
+/** Botones tipo «chip» multiselección (días, tramos, grupos). */
+function ChipToggle({
+  on,
+  onClick,
+  children,
 }: {
-  slot: DigestSlot;
-  title: string;
-  hint: string;
-  value: SlotState;
-  onChange: (patch: Partial<SlotState>) => void;
+  on: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={cn(
+        "rounded-md border px-2 py-1 text-xs font-medium",
+        on
+          ? "border-brand bg-brand text-white"
+          : "border-line text-ink-soft hover:bg-sidebar-hover"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RuleCard({
+  rule,
+  onChange,
+  onDelete,
+}: {
+  rule: DigestRuleDTO;
+  onChange: (patch: Partial<DigestRuleDTO>) => void;
+  onDelete: () => void;
 }) {
   const [sending, setSending] = useState(false);
 
-  function toggleDay(d: number) {
-    const days = value.days.includes(d)
-      ? value.days.filter((x) => x !== d)
-      : [...value.days, d].sort((a, b) => a - b);
-    onChange({ days });
+  function toggleIn(key: "days", value: number): void;
+  function toggleIn(
+    key: "buckets" | "statusGroups" | "priorityGroups",
+    value: string
+  ): void;
+  function toggleIn(
+    key: "days" | "buckets" | "statusGroups" | "priorityGroups",
+    value: number | string
+  ) {
+    const list = rule[key] as (number | string)[];
+    const next = list.includes(value)
+      ? list.filter((x) => x !== value)
+      : [...list, value];
+    onChange({ [key]: next } as Partial<DigestRuleDTO>);
   }
 
   return (
     <div className="border-line rounded-lg border p-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-ink text-sm font-medium">{title}</p>
-          <p className="text-ink-faint text-xs">{hint}</p>
+        <Select value={rule.time} onValueChange={(time) => onChange({ time })}>
+          <SelectTrigger className="h-8 w-24">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-h-60">
+            {TIME_OPTIONS.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1">
+          <Switch
+            checked={rule.enabled}
+            onCheckedChange={(enabled) => onChange({ enabled })}
+          />
+          <button
+            onClick={onDelete}
+            aria-label="Eliminar aviso"
+            title="Eliminar aviso"
+            className="text-ink-faint hover:bg-sidebar-hover flex size-8 items-center justify-center rounded-md hover:text-red-600"
+          >
+            <Trash2 className="size-4" />
+          </button>
         </div>
-        <Switch
-          checked={value.enabled}
-          onCheckedChange={(enabled) => onChange({ enabled })}
-        />
       </div>
 
-      {value.enabled && (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Select value={value.time} onValueChange={(time) => onChange({ time })}>
-            <SelectTrigger className="h-8 w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {TIME_OPTIONS.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
+      <div className="mt-3 space-y-2.5">
+        <div>
+          <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
+            Días
+          </p>
           <div className="flex gap-1">
-            {DAY_LABELS.map((label, d) => {
-              const on = value.days.includes(d);
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => toggleDay(d)}
-                  aria-pressed={on}
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-md border text-xs font-medium",
-                    on
-                      ? "border-brand bg-brand text-white"
-                      : "border-line text-ink-soft hover:bg-sidebar-hover"
-                  )}
-                >
-                  {label}
-                </button>
-              );
-            })}
+            {DAY_LABELS.map((label, d) => (
+              <ChipToggle
+                key={d}
+                on={rule.days.includes(d)}
+                onClick={() => toggleIn("days", d)}
+              >
+                {label}
+              </ChipToggle>
+            ))}
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={sending}
-            onClick={async () => {
-              setSending(true);
-              const { total } = await sendDigestNow(slot);
-              setSending(false);
-              toast.success(
-                total > 0
-                  ? `Resumen enviado (${total} ${total === 1 ? "tarea" : "tareas"}) ✅`
-                  : "No tienes tareas en esa ventana"
-              );
-            }}
-          >
-            {sending ? "Enviando…" : "Enviar ahora"}
-          </Button>
         </div>
-      )}
+
+        <div>
+          <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
+            Qué incluir
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {BUCKETS.map((b) => (
+              <ChipToggle
+                key={b.value}
+                on={rule.buckets.includes(b.value)}
+                onClick={() => toggleIn("buckets", b.value)}
+              >
+                {b.label}
+              </ChipToggle>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
+            Estado
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {STATUS_GROUPS.map((g) => (
+              <ChipToggle
+                key={g.value}
+                on={rule.statusGroups.includes(g.value)}
+                onClick={() => toggleIn("statusGroups", g.value)}
+              >
+                {g.label}
+              </ChipToggle>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
+            Prioridad <span className="lowercase">(vacío = todas)</span>
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {PRIORITY_GROUPS.map((g) => (
+              <ChipToggle
+                key={g.value}
+                on={rule.priorityGroups.includes(g.value)}
+                onClick={() => toggleIn("priorityGroups", g.value)}
+              >
+                {g.label}
+              </ChipToggle>
+            ))}
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={sending}
+          onClick={async () => {
+            setSending(true);
+            const { total } = await sendDigestRuleNow(rule.id);
+            setSending(false);
+            toast.success(
+              total > 0
+                ? `Enviado (${total} ${total === 1 ? "tarea" : "tareas"}) ✅`
+                : "Sin tareas que avisar ahora"
+            );
+          }}
+        >
+          <Send className="size-3.5" /> {sending ? "Enviando…" : "Enviar ahora"}
+        </Button>
+      </div>
     </div>
   );
 }

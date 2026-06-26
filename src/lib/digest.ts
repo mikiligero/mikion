@@ -1,14 +1,21 @@
-// Lógica PURA de los resúmenes de tareas próximas («digest»). Sin acceso a BD
-// (el runner que toca Postgres está en digest-runner.ts), para poder testearla.
+// Lógica PURA de los resúmenes de tareas («digest»). Sin acceso a BD (el runner
+// que toca Postgres está en digest-runner.ts), para poder testearla.
 //
-// Dos franjas:
-//   - morning (08:00): solo las tareas con fecha = HOY.
-//   - evening (18:00): MAÑANA + resto de la semana (hasta el domingo).
+// Cada aviso elige uno o varios TRAMOS según la fecha de la tarea (relativos a
+// hoy): retrasados (< hoy), hoy, mañana, y «próximos 10 días» (hoy+2 … hoy+11).
 // Zona horaria de referencia: Europe/Madrid.
 
 import { isoDay, MONTHS, WEEKDAYS } from "@/lib/calendar-utils";
 
-export type DigestSlot = "morning" | "evening";
+// Tramos seleccionables en un aviso.
+export type Bucket = "overdue" | "today" | "tomorrow" | "week";
+
+export const BUCKETS: { value: Bucket; label: string }[] = [
+  { value: "overdue", label: "Retrasados" },
+  { value: "today", label: "Hoy" },
+  { value: "tomorrow", label: "Mañana" },
+  { value: "week", label: "Próximos 10 días" },
+];
 
 export type DigestItem = {
   title: string;
@@ -18,7 +25,7 @@ export type DigestItem = {
   done: boolean;
 };
 type DigestGroup = { dayISO: string; label: string; items: DigestItem[] };
-export type Digest = { slot: DigestSlot; total: number; groups: DigestGroup[] };
+export type Digest = { total: number; groups: DigestGroup[] };
 
 /**
  * ¿Los valores de una fila referencian a `personId` en alguna de las propiedades
@@ -63,27 +70,27 @@ export function weekdayMon0OfISO(dayISO: string): number {
   return weekdayMon0(dayISO);
 }
 
-/** Configuración de una franja del digest (guardada por usuario). */
-export type SlotConfig = {
+/** Datos de un aviso necesarios para decidir el envío. */
+export type RuleSchedule = {
   enabled: boolean;
   /** "HH:MM" (pasos de 30 min). */
   time: string;
   /** Días en que aplica (lun=0 … dom=6). */
   days: number[];
   /** Último día enviado ("YYYY-MM-DD"), para no duplicar. */
-  sentDate: string | null;
+  lastSentDate: string | null;
 };
 
-/** ¿Toca enviar esta franja ahora? Se dispara en el primer tic a partir de la
- * hora configurada, una sola vez al día, y solo en los días marcados. */
-export function shouldSendSlot(
-  cfg: SlotConfig,
+/** ¿Toca disparar este aviso ahora? Se lanza en el primer tic a partir de la
+ * hora, una sola vez al día, y solo en los días marcados. */
+export function shouldSendRule(
+  cfg: RuleSchedule,
   nowHHMM: string,
   todayISO: string
 ): boolean {
   if (!cfg.enabled) return false;
   if (!cfg.days.includes(weekdayMon0(todayISO))) return false;
-  if (cfg.sentDate === todayISO) return false; // ya enviado hoy
+  if (cfg.lastSentDate === todayISO) return false; // ya enviado hoy
   return nowHHMM >= cfg.time;
 }
 
@@ -108,15 +115,14 @@ function weekdayMon0(s: string): number {
   return (parseISO(s).getDay() + 6) % 7;
 }
 
-/** Ventana [start, end] (días ISO inclusive) de cada franja, dado «hoy». */
-export function digestWindow(
-  slot: DigestSlot,
-  today: string
-): { start: string; end: string } {
-  if (slot === "morning") return { start: today, end: today };
-  // evening: mañana → próximo domingo (si hoy es domingo, el de la semana siguiente).
-  const toSunday = 6 - weekdayMon0(today) || 7;
-  return { start: addDays(today, 1), end: addDays(today, toSunday) };
+/** Tramo al que pertenece una fecha respecto a «hoy», o null si queda fuera
+ * («próximos 10 días» = hoy+2 … hoy+11). */
+export function bucketOfDay(dayISO: string, today: string): Bucket | null {
+  if (dayISO < today) return "overdue";
+  if (dayISO === today) return "today";
+  if (dayISO === addDays(today, 1)) return "tomorrow";
+  if (dayISO <= addDays(today, 11)) return "week";
+  return null;
 }
 
 /** Etiqueta de un día relativo a hoy: «Hoy», «Mañana» o «mié 25 jun». */
@@ -127,16 +133,19 @@ export function dayLabel(dayISO: string, today: string): string {
   return `${WEEKDAYS[weekdayMon0(dayISO)]} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
 }
 
-/** Filtra por ventana + no completadas y agrupa por día (orden cronológico). */
+/** Conserva los items cuya fecha cae en alguno de los tramos pedidos y los
+ * agrupa por día (orden cronológico). El filtrado por estado/prioridad ya viene
+ * aplicado por el runner. */
 export function buildDigest(
   items: DigestItem[],
-  slot: DigestSlot,
+  buckets: Bucket[],
   today: string
 ): Digest {
-  const { start, end } = digestWindow(slot, today);
-  const kept = items.filter(
-    (it) => !it.done && it.dayISO >= start && it.dayISO <= end
-  );
+  const want = new Set(buckets);
+  const kept = items.filter((it) => {
+    const b = bucketOfDay(it.dayISO, today);
+    return b !== null && want.has(b);
+  });
   const byDay = new Map<string, DigestItem[]>();
   for (const it of kept) {
     if (!byDay.has(it.dayISO)) byDay.set(it.dayISO, []);
@@ -151,17 +160,14 @@ export function buildDigest(
         .get(dayISO)!
         .sort((a, b) => a.title.localeCompare(b.title, "es")),
     }));
-  return { slot, total: kept.length, groups };
+  return { total: kept.length, groups };
 }
 
 /** Título + cuerpo (texto plano) del aviso para bandeja + Telegram. */
 export function renderDigest(digest: Digest): { title: string; body: string } {
   const n = digest.total;
   const plural = n === 1 ? "tarea" : "tareas";
-  const title =
-    digest.slot === "morning"
-      ? `☀️ Tu día: ${n} ${plural} para hoy`
-      : `🌙 Lo que viene: ${n} ${plural}`;
+  const title = `🔔 ${n} ${plural}`;
   const body = digest.groups
     .map((g) => {
       const lines = g.items.map((it) => {
