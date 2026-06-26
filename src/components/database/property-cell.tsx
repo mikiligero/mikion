@@ -1518,8 +1518,12 @@ function PersonCell({
     }
     if (onSetOptions) {
       const merged = new Map<string, SelectOption>();
-      for (const o of propOptions) merged.set(o.id, byId.get(o.id) ?? o);
+      // Excluimos las borradas en esta sesión para no volver a materializarlas
+      // (si no, cerrar la celda las reañadiría a options desde el estado viejo).
+      for (const o of propOptions)
+        if (!removed.has(o.id)) merged.set(o.id, byId.get(o.id) ?? o);
       for (const id of ids) {
+        if (removed.has(id)) continue;
         const c = byId.get(id);
         if (c) merged.set(id, c);
       }

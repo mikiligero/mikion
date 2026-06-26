@@ -2,7 +2,7 @@
 
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { docs, people } from "@/db/schema";
+import { databases, docs, people } from "@/db/schema";
 import { randomSelectColor } from "@/lib/types";
 import type { SelectOption } from "@/lib/types";
 import { assertDatabaseAccess } from "./helpers";
@@ -87,5 +87,35 @@ export async function deletePerson(
       )
     )
     .returning({ id: people.id });
-  return { ok: deleted.length > 0 };
+  if (deleted.length === 0) return { ok: false };
+
+  // Quita la persona de las `options` materializadas de las propiedades persona
+  // de TODAS las BD del workspace. Si no, al refrescar reaparece como candidata
+  // (la celda reconstruye el directorio desde options ∪ people).
+  const dbs = await db
+    .select({ id: databases.id, schema: databases.schema })
+    .from(databases)
+    .innerJoin(docs, eq(docs.id, databases.docId))
+    .where(eq(docs.workspaceId, doc.workspaceId));
+
+  for (const d of dbs) {
+    let changed = false;
+    const properties = d.schema.properties.map((p) => {
+      if (p.type !== "person" || !p.options) return p;
+      const options = p.options.filter((o) => o.id !== personId);
+      if (options.length !== p.options.length) {
+        changed = true;
+        return { ...p, options };
+      }
+      return p;
+    });
+    if (changed) {
+      await db
+        .update(databases)
+        .set({ schema: { ...d.schema, properties } })
+        .where(eq(databases.id, d.id));
+    }
+  }
+
+  return { ok: true };
 }
