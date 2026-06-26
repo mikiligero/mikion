@@ -316,7 +316,7 @@
    escala aparte en `.bn-default-styles` (BlockNote fija su propio font-size).
 --------------------------------------------------------------------------- */
 .content-scroll {
-  font-size: calc(15px * var(--text-scale, 1));
+  font-size: calc(17px * var(--text-scale, 1));
   font-family: var(--content-font, var(--font-sans));
 }
 
@@ -326,28 +326,28 @@
    --text-scale (rem × escala → sin «compounding» al anidar). La interfaz
    (barra lateral/superior) queda fuera de .content-scroll, así que no escala. */
 .content-scroll .text-xs {
-  font-size: calc(0.75rem * var(--text-scale, 1));
-  line-height: calc(1rem * var(--text-scale, 1));
-}
-.content-scroll .text-sm {
   font-size: calc(0.875rem * var(--text-scale, 1));
   line-height: calc(1.25rem * var(--text-scale, 1));
 }
-.content-scroll .text-base {
+.content-scroll .text-sm {
   font-size: calc(1rem * var(--text-scale, 1));
   line-height: calc(1.5rem * var(--text-scale, 1));
 }
-.content-scroll .text-lg {
+.content-scroll .text-base {
   font-size: calc(1.125rem * var(--text-scale, 1));
   line-height: calc(1.75rem * var(--text-scale, 1));
 }
-.content-scroll .text-xl {
+.content-scroll .text-lg {
   font-size: calc(1.25rem * var(--text-scale, 1));
-  line-height: calc(1.75rem * var(--text-scale, 1));
+  line-height: calc(2rem * var(--text-scale, 1));
+}
+.content-scroll .text-xl {
+  font-size: calc(1.375rem * var(--text-scale, 1));
+  line-height: calc(2rem * var(--text-scale, 1));
 }
 .content-scroll .text-2xl {
-  font-size: calc(1.5rem * var(--text-scale, 1));
-  line-height: calc(2rem * var(--text-scale, 1));
+  font-size: calc(1.625rem * var(--text-scale, 1));
+  line-height: calc(2.25rem * var(--text-scale, 1));
 }
 
 /* Ancho de página completo (preferencia global): anula el max-width de los
@@ -376,7 +376,7 @@ html.mikion-full-width .page-w {
    modo que no heredan ningún escalado. Lo escalamos aquí (encabezados y demás
    usan `em`, así que el escalado es uniforme). Sustituye al antiguo `zoom`. */
 .content-scroll .bn-default-styles {
-  font-size: calc(16px * var(--text-scale, 1));
+  font-size: calc(18px * var(--text-scale, 1));
 }
 
 /* Base de datos integrada (bloque inlineDatabase) --------------------------- */
