@@ -53,6 +53,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type Prefs = {
   theme: ThemePref;
@@ -559,6 +566,74 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
   );
 }
 
+function TelegramHelpDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button className="text-brand hover:underline text-xs">
+          ¿Cómo configurarlo?
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Conectar Telegram</DialogTitle>
+        </DialogHeader>
+        <ol className="text-ink-soft space-y-4 text-sm">
+          <li className="flex gap-3">
+            <span className="bg-brand text-paper flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+              1
+            </span>
+            <span>
+              Abre{" "}
+              <strong className="text-ink">@Mikion_bot</strong> en Telegram y
+              pulsa <strong className="text-ink">Start</strong>. Este paso es
+              obligatorio: el bot no puede escribirte si tú no le has escrito
+              primero.
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="bg-brand text-paper flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+              2
+            </span>
+            <span>
+              Abre{" "}
+              <a
+                href="https://t.me/UserInfoBot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand hover:underline"
+              >
+                @UserInfoBot
+              </a>{" "}
+              en Telegram y pulsa <strong className="text-ink">Start</strong>.
+              Te responderá con tu <strong className="text-ink">Id</strong> (un
+              número, p. ej.{" "}
+              <code className="bg-sidebar-hover rounded px-1 text-xs">
+                243615018
+              </code>
+              ).
+            </span>
+          </li>
+          <li className="flex gap-3">
+            <span className="bg-brand text-paper flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+              3
+            </span>
+            <span>
+              Pega ese número en el campo de abajo y pulsa{" "}
+              <strong className="text-ink">Probar</strong>. Si todo está bien
+              recibirás un mensaje de confirmación en Telegram.
+            </span>
+          </li>
+        </ol>
+        <p className="text-ink-faint mt-2 text-xs">
+          Cada usuario de Mikion configura su propio chat_id. Todos comparten el
+          mismo bot (@Mikion_bot).
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function NotificationsPanel({
   prefs,
   rules: initialRules,
@@ -596,10 +671,9 @@ function NotificationsPanel({
       <div className="border-line border-b py-3.5">
         <p className="text-ink text-sm font-medium">Notificaciones por Telegram</p>
         <p className="text-ink-faint text-xs">
-          Recibe tus notificaciones en Telegram. Pega tu <strong>chat_id</strong>{" "}
-          (escribe a{" "}
-          <span className="text-ink-soft">@userinfobot</span> en Telegram para
-          obtenerlo) y pulsa Probar.
+          Recibe tus notificaciones en Telegram. Introduce tu{" "}
+          <strong>chat_id</strong> y pulsa Probar.{" "}
+          <TelegramHelpDialog />
         </p>
         <div className="mt-2 flex items-center gap-2">
           <Input
