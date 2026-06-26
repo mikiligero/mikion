@@ -320,6 +320,36 @@
   font-family: var(--content-font, var(--font-sans));
 }
 
+/* Tamaño de texto del CONTENIDO: la mayoría del contenido (tablas de BD, inicio,
+   ajustes…) usa utilidades en `rem` (text-sm, text-xs…) que son relativas a la
+   raíz, no a .content-scroll, así que no escalaban. Las reescalamos por
+   --text-scale (rem × escala → sin «compounding» al anidar). La interfaz
+   (barra lateral/superior) queda fuera de .content-scroll, así que no escala. */
+.content-scroll .text-xs {
+  font-size: calc(0.75rem * var(--text-scale, 1));
+  line-height: calc(1rem * var(--text-scale, 1));
+}
+.content-scroll .text-sm {
+  font-size: calc(0.875rem * var(--text-scale, 1));
+  line-height: calc(1.25rem * var(--text-scale, 1));
+}
+.content-scroll .text-base {
+  font-size: calc(1rem * var(--text-scale, 1));
+  line-height: calc(1.5rem * var(--text-scale, 1));
+}
+.content-scroll .text-lg {
+  font-size: calc(1.125rem * var(--text-scale, 1));
+  line-height: calc(1.75rem * var(--text-scale, 1));
+}
+.content-scroll .text-xl {
+  font-size: calc(1.25rem * var(--text-scale, 1));
+  line-height: calc(1.75rem * var(--text-scale, 1));
+}
+.content-scroll .text-2xl {
+  font-size: calc(1.5rem * var(--text-scale, 1));
+  line-height: calc(2rem * var(--text-scale, 1));
+}
+
 /* Ancho de página completo (preferencia global): anula el max-width de los
    contenedores de contenido marcados con .page-w. */
 html.mikion-full-width .page-w {
