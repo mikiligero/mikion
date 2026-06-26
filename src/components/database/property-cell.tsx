@@ -33,7 +33,7 @@ import {
 } from "@/lib/actions/docs";
 import { getPaletteItems, type PaletteDoc } from "@/lib/actions/search";
 import {
-  STATUS_GROUPS,
+  groupsForType,
   DATE_FORMATS,
   isSystemProperty,
   randomSelectColor,
@@ -314,6 +314,7 @@ export function PropertyCell({
       );
     case "select":
     case "status":
+    case "priority":
       return (
         <SelectCell
           property={property}
@@ -1641,7 +1642,7 @@ function SelectCell({
   const [query, setQuery] = useState("");
   const options = property.options ?? [];
   const selected = options.find((o) => o.id === value) ?? null;
-  const isStatus = property.type === "status";
+  const groups = groupsForType(property.type); // status / priority → agrupado
 
   async function add() {
     if (!onAddOption || !query.trim()) return;
@@ -1703,9 +1704,11 @@ function SelectCell({
               <X className="size-3.5" /> Quitar
             </button>
           )}
-          {isStatus
-            ? STATUS_GROUPS.map((g) => {
-                const groupOpts = filtered.filter((o) => (o.group ?? "todo") === g.value);
+          {groups.length
+            ? groups.map((g) => {
+                const groupOpts = filtered.filter(
+                  (o) => (o.group ?? groups[0].value) === g.value
+                );
                 if (!groupOpts.length) return null;
                 return (
                   <div key={g.value} className="mb-1">

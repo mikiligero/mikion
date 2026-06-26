@@ -9,6 +9,12 @@ import type {
   SelectOption,
   ViewConfig,
 } from "@/lib/types";
+import { PRIORITY_GROUPS } from "@/lib/types";
+
+// Rango de cada nivel de prioridad para ordenar por severidad (no alfabético).
+const PRIORITY_RANK: Record<string, number> = Object.fromEntries(
+  PRIORITY_GROUPS.map((g, i) => [g.value, i])
+);
 
 /** Valor centinela en un filtro select/status para «sin valor» (vacío). */
 export const EMPTY_FILTER = "__empty__";
@@ -56,7 +62,8 @@ function matchesFilter(row: Row, schema: DatabaseSchema, f: Filter): boolean {
 
   switch (prop.type) {
     case "select":
-    case "status": {
+    case "status":
+    case "priority": {
       // value = array de ids de opción seleccionados (multi-check). Puede incluir
       // EMPTY_FILTER para «sin valor».
       const allowed = Array.isArray(f.value) ? f.value : [];
@@ -82,6 +89,11 @@ function sortValue(row: Row, schema: DatabaseSchema, s: Sort): string | number {
   if (!prop) return "";
   if (prop.type === "number") return typeof v === "number" ? v : -Infinity;
   if (prop.type === "checkbox") return v ? 1 : 0;
+  if (prop.type === "priority") {
+    // Ordena por severidad del nivel (baja→urgente); sin valor al final.
+    const g = findOption(prop, v)?.group;
+    return g && g in PRIORITY_RANK ? PRIORITY_RANK[g] : -Infinity;
+  }
   if (prop.type === "select" || prop.type === "status") {
     return findOption(prop, v)?.name ?? "";
   }

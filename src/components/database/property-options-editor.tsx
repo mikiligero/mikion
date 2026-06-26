@@ -3,10 +3,11 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Check, Flag, Plus, Trash2 } from "lucide-react";
-import type { PropertyDef, SelectOption, StatusGroup } from "@/lib/types";
+import type { PropertyDef, SelectOption } from "@/lib/types";
 import {
   SELECT_COLORS,
-  STATUS_GROUPS,
+  groupsForType,
+  hasOptionGroups,
   randomSelectColor,
 } from "@/lib/types";
 import { updateProperty } from "@/lib/actions/databases";
@@ -45,7 +46,8 @@ export function PropertyOptionsEditor({
 }) {
   const [, startTransition] = useTransition();
   const options = property.options ?? [];
-  const isStatus = property.type === "status";
+  const groups = groupsForType(property.type); // status / priority
+  const grouped = hasOptionGroups(property.type);
   const isPerson = property.type === "person";
 
   function patch(p: Partial<PropertyDef>) {
@@ -70,7 +72,7 @@ export function PropertyOptionsEditor({
         ? `Persona ${options.length + 1}`
         : `Opción ${options.length + 1}`,
       color: randomSelectColor(),
-      ...(isStatus ? { group: "todo" as StatusGroup } : {}),
+      ...(grouped ? { group: groups[0].value } : {}),
     };
     patch({ options: [...options, opt] });
   }
@@ -145,13 +147,13 @@ export function PropertyOptionsEditor({
                 );
               })()}
 
-            {isStatus && (
+            {grouped && (
               <>
                 <DropdownMenuSeparator />
                 <div className="text-ink-faint px-2 py-1 text-[11px] font-medium">
-                  Grupo
+                  {property.type === "priority" ? "Nivel" : "Grupo"}
                 </div>
-                {STATUS_GROUPS.map((g) => (
+                {groups.map((g) => (
                   <DropdownMenuItem
                     key={g.value}
                     onSelect={(e) => {
@@ -160,7 +162,7 @@ export function PropertyOptionsEditor({
                     }}
                   >
                     <span className="flex-1">{g.label}</span>
-                    {(o.group ?? "todo") === g.value && (
+                    {(o.group ?? groups[0].value) === g.value && (
                       <Check className="text-ink-faint size-3.5" />
                     )}
                   </DropdownMenuItem>

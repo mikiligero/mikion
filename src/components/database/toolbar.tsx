@@ -38,7 +38,7 @@ export function DatabaseToolbar({
   sections = ["filter", "sort", "group", "properties"],
 }: Props) {
   const filterableProps = schema.properties.filter(
-    (p) => p.type === "select" || p.type === "status"
+    (p) => p.type === "select" || p.type === "status" || p.type === "priority"
   );
   const groupableProps = filterableProps;
   const show = (s: Section) => sections.includes(s);

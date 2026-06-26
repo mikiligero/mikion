@@ -24,6 +24,7 @@ export type PropertyType =
   | "select"
   | "multiselect"
   | "status"
+  | "priority"
   | "person"
   | "date"
   | "checkbox"
@@ -60,6 +61,7 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "select", label: "Selección" },
   { value: "multiselect", label: "Selección múltiple" },
   { value: "status", label: "Estado" },
+  { value: "priority", label: "Prioridad" },
   { value: "person", label: "Persona" },
   { value: "date", label: "Fecha" },
   { value: "checkbox", label: "Casilla" },
@@ -96,11 +98,35 @@ export const STATUS_GROUPS: { value: StatusGroup; label: string }[] = [
   { value: "done", label: "Completado" },
 ];
 
+// Niveles de prioridad (estandarizados, para poder filtrar igual en toda BD).
+export type PriorityGroup = "low" | "medium" | "high" | "urgent";
+
+export const PRIORITY_GROUPS: { value: PriorityGroup; label: string }[] = [
+  { value: "low", label: "Baja" },
+  { value: "medium", label: "Media" },
+  { value: "high", label: "Alta" },
+  { value: "urgent", label: "Urgente" },
+];
+
+/** Grupos disponibles para una propiedad con grupos (status / priority). */
+export function groupsForType(
+  type: PropertyType
+): { value: StatusGroup | PriorityGroup; label: string }[] {
+  if (type === "priority") return PRIORITY_GROUPS;
+  if (type === "status") return STATUS_GROUPS;
+  return [];
+}
+
+/** ¿La propiedad clasifica sus opciones en grupos (status / priority)? */
+export function hasOptionGroups(type: PropertyType): boolean {
+  return type === "status" || type === "priority";
+}
+
 export type SelectOption = {
   id: string;
   name: string;
   color: string; // clave de SELECT_COLORS (ver abajo); legacy: teal
-  group?: StatusGroup; // solo status
+  group?: StatusGroup | PriorityGroup; // status: grupo de estado · priority: nivel
   isUser?: boolean; // solo persona: vinculada a una cuenta (no borrable a mano)
 };
 

@@ -45,6 +45,7 @@ const DEFAULT_NAMES: Record<PropertyType, string> = {
   select: "Selección",
   multiselect: "Multiselección",
   status: "Estado",
+  priority: "Prioridad",
   person: "Persona",
   date: "Fecha",
   checkbox: "Casilla",
@@ -71,6 +72,16 @@ export function newPropertyDef(type: PropertyType): PropertyDef {
   };
   if (type === "select" || type === "multiselect" || type === "status") {
     def.options = [];
+  }
+  // Prioridad: se siembra con la escala estándar para que sea útil al instante
+  // (cada opción ya mapea a su nivel, base del filtro de avisos).
+  if (type === "priority") {
+    def.options = [
+      opt("Baja", "blue", "low"),
+      opt("Media", "amber", "medium"),
+      opt("Alta", "orange", "high"),
+      opt("Urgente", "red", "urgent"),
+    ];
   }
   return def;
 }
