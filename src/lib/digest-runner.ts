@@ -175,7 +175,7 @@ export async function computeUserDigest(
   const today = madridToday(now);
 
   const dbRows = await collectDigestDatabases(userId);
-  if (dbRows.length === 0) return { total: 0, groups: [] };
+  if (dbRows.length === 0) return { total: 0, groups: [], oldest: [] };
 
   // En las BD compartidas solo cuentan las tareas asignadas al usuario; para eso
   // necesitamos su `people.id` en el ámbito/workspace dueño de cada BD.
@@ -185,7 +185,7 @@ export async function computeUserDigest(
   const withDate = dbRows
     .map((d) => ({ ...d, dateProp: firstDateProperty(d.schema) }))
     .filter((d): d is typeof d & { dateProp: PropertyDef } => !!d.dateProp);
-  if (withDate.length === 0) return { total: 0, groups: [] };
+  if (withDate.length === 0) return { total: 0, groups: [], oldest: [] };
 
   const allRows = await db
     .select()
@@ -250,12 +250,15 @@ export async function deliverRule(
 ): Promise<{ total: number }> {
   const digest = await computeUserDigest(rule.userId, rule, now);
   if (digest.total > 0) {
-    const { title, body } = renderDigest(digest, {
-      buckets: rule.buckets as Bucket[],
-      statusGroups: rule.statusGroups,
-      priorityGroups: rule.priorityGroups,
-      oldestCount: rule.oldestCount,
-    });
+    const { title, body } = renderDigest(
+      digest,
+      {
+        buckets: rule.buckets as Bucket[],
+        statusGroups: rule.statusGroups,
+        priorityGroups: rule.priorityGroups,
+      },
+      madridToday(now)
+    );
     await createNotification({
       userId: rule.userId,
       type: "reminder",

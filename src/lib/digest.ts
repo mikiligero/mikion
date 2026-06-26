@@ -26,7 +26,13 @@ export type DigestItem = {
   done: boolean;
 };
 type DigestGroup = { dayISO: string; label: string; items: DigestItem[] };
-export type Digest = { total: number; groups: DigestGroup[] };
+// groups: tareas de los tramos, agrupadas por día. oldest: las «más antiguas»
+// añadidas (que NO entran por tramo), en su propia sección.
+export type Digest = {
+  total: number;
+  groups: DigestGroup[];
+  oldest: DigestItem[];
+};
 
 /**
  * ¿Los valores de una fila referencian a `personId` en alguna de las propiedades
@@ -167,10 +173,26 @@ export function dayLabel(dayISO: string, today: string): string {
   return `${WEEKDAYS[weekdayMon0(dayISO)]} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
 }
 
-/** Conserva los items cuya fecha cae en alguno de los tramos pedidos y los
- * agrupa por día (orden cronológico). El filtrado por estado/prioridad ya viene
- * aplicado por el runner. `oldestCount` añade además las N tareas más antiguas
- * (por fecha), saltándose los tramos, sin duplicar. */
+const byDayAsc = (a: DigestItem, b: DigestItem) =>
+  a.dayISO < b.dayISO ? -1 : a.dayISO > b.dayISO ? 1 : 0;
+
+/** Agrupa items por día (orden cronológico, alfabético dentro del día). */
+function groupByDay(items: DigestItem[], today: string): DigestGroup[] {
+  const byDay = new Map<string, DigestItem[]>();
+  for (const it of items) {
+    if (!byDay.has(it.dayISO)) byDay.set(it.dayISO, []);
+    byDay.get(it.dayISO)!.push(it);
+  }
+  return [...byDay.keys()].sort().map((dayISO) => ({
+    dayISO,
+    label: dayLabel(dayISO, today),
+    items: byDay.get(dayISO)!.sort((a, b) => a.title.localeCompare(b.title, "es")),
+  }));
+}
+
+/** Tareas de los tramos pedidos (agrupadas por día) + las N «más antiguas» en
+ * sección aparte (las que NO entran ya por tramo, para no duplicar). El filtrado
+ * por estado/prioridad/ámbito ya viene aplicado por el runner. */
 export function buildDigest(
   items: DigestItem[],
   buckets: Bucket[],
@@ -178,37 +200,27 @@ export function buildDigest(
   oldestCount = 0
 ): Digest {
   const want = new Set(buckets);
-  const keep = new Set<DigestItem>();
-  for (const it of items) {
+  const bucketItems = items.filter((it) => {
     const b = bucketOfDay(it.dayISO, today);
-    if (b !== null && want.has(b)) keep.add(it);
-  }
-  // Las N más antiguas (fecha ascendente) se añaden aunque queden fuera de los
-  // tramos; ya vienen filtradas por estado/prioridad/ámbito.
+    return b !== null && want.has(b);
+  });
+  const inBucket = new Set(bucketItems);
+
+  // Las N más antiguas (fecha ascendente); las que ya salen por tramo no se
+  // repiten aquí (se muestran en su día).
+  let oldest: DigestItem[] = [];
   if (oldestCount > 0) {
-    const oldest = [...items]
-      .sort((a, b) =>
-        a.dayISO < b.dayISO ? -1 : a.dayISO > b.dayISO ? 1 : 0
-      )
-      .slice(0, oldestCount);
-    for (const it of oldest) keep.add(it);
+    oldest = [...items]
+      .sort(byDayAsc)
+      .slice(0, oldestCount)
+      .filter((it) => !inBucket.has(it));
   }
-  const kept = [...keep];
-  const byDay = new Map<string, DigestItem[]>();
-  for (const it of kept) {
-    if (!byDay.has(it.dayISO)) byDay.set(it.dayISO, []);
-    byDay.get(it.dayISO)!.push(it);
-  }
-  const groups: DigestGroup[] = [...byDay.keys()]
-    .sort()
-    .map((dayISO) => ({
-      dayISO,
-      label: dayLabel(dayISO, today),
-      items: byDay
-        .get(dayISO)!
-        .sort((a, b) => a.title.localeCompare(b.title, "es")),
-    }));
-  return { total: kept.length, groups };
+
+  return {
+    total: bucketItems.length + oldest.length,
+    groups: groupByDay(bucketItems, today),
+    oldest,
+  };
 }
 
 // Contexto del aviso para describir su contenido en el título.
@@ -216,7 +228,6 @@ export type DigestTitleOpts = {
   buckets: Bucket[];
   statusGroups: string[];
   priorityGroups: string[];
-  oldestCount?: number;
 };
 
 const STATUS_ADJ: Record<string, [string, string]> = {
@@ -283,36 +294,43 @@ export function digestTitle(n: number, opts: DigestTitleOpts): string {
     if (names.length) priorityPhrase = `de prioridad ${joinList(names)}`;
   }
 
-  const oldest = opts.oldestCount && opts.oldestCount > 0 ? " + las más antiguas" : "";
   const prefix = [count, statusAdj, priorityPhrase].filter(Boolean).join(" ");
   const time = timePhrase(opts.buckets);
-  if (!time) return `🔔 ${prefix}${oldest}`;
+  if (!time) return `🔔 ${prefix}`;
   // Coma para separar «…Alta» de «atrasadas» y que no se lean pegadas.
   const sep =
     time.startsWith("atrasadas") && (statusAdj || priorityPhrase) ? ", " : " ";
-  return `🔔 ${prefix}${sep}${time}${oldest}`;
+  return `🔔 ${prefix}${sep}${time}`;
 }
 
-/** Título + cuerpo (texto plano) del aviso para bandeja + Telegram. */
+/** Línea de una tarea: «• Título (BD · Ámbito - X · Estado)». */
+function itemLine(it: DigestItem): string {
+  const meta = [
+    it.dbTitle,
+    it.ambito ? `Ámbito - ${it.ambito}` : null,
+    it.statusName,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return `• ${it.title}${meta ? ` (${meta})` : ""}`;
+}
+
+/** Título + cuerpo (texto plano) del aviso para bandeja + Telegram. Las «más
+ * antiguas» van en su propia sección al final, cada una con su fecha. */
 export function renderDigest(
   digest: Digest,
-  opts: DigestTitleOpts
+  opts: DigestTitleOpts,
+  today: string
 ): { title: string; body: string } {
   const title = digestTitle(digest.total, opts);
-  const body = digest.groups
-    .map((g) => {
-      const lines = g.items.map((it) => {
-        const meta = [
-          it.dbTitle,
-          it.ambito ? `Ámbito - ${it.ambito}` : null,
-          it.statusName,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        return `• ${it.title}${meta ? ` (${meta})` : ""}`;
-      });
-      return `${g.label}\n${lines.join("\n")}`;
-    })
-    .join("\n\n");
-  return { title, body };
+  const sections = digest.groups.map(
+    (g) => `${g.label}\n${g.items.map(itemLine).join("\n")}`
+  );
+  if (digest.oldest.length) {
+    const lines = digest.oldest.map(
+      (it) => `${itemLine(it)} — ${dayLabel(it.dayISO, today)}`
+    );
+    sections.push(`Tareas antiguas:\n${lines.join("\n")}`);
+  }
+  return { title, body: sections.join("\n\n") };
 }

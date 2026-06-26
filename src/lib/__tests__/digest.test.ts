@@ -68,7 +68,7 @@ describe("buildDigest", () => {
     expect(d.groups[0].items[0].title).toBe("Hoy A");
   });
 
-  it("oldestCount añade las N más antiguas aunque queden fuera de los tramos", () => {
+  it("las N más antiguas van en oldest (sección aparte), no en los días", () => {
     const d = buildDigest(
       [
         item({ title: "Hoy", dayISO: "2026-06-25" }),
@@ -80,16 +80,14 @@ describe("buildDigest", () => {
       TODAY,
       2 // + las 2 más antiguas
     );
-    // Hoy + las 2 fechas más antiguas (01-may y 10-may), sin la del 01-jun.
     expect(d.total).toBe(3);
-    const titles = d.groups.flatMap((g) => g.items.map((i) => i.title));
-    expect(titles).toContain("Hoy");
-    expect(titles).toContain("Vieja 1");
-    expect(titles).toContain("Vieja 2");
-    expect(titles).not.toContain("Vieja 3");
+    // Los tramos solo llevan «Hoy».
+    expect(d.groups.flatMap((g) => g.items.map((i) => i.title))).toEqual(["Hoy"]);
+    // Las 2 más antiguas (01-may, 10-may), sin la del 01-jun, en oldest.
+    expect(d.oldest.map((i) => i.title)).toEqual(["Vieja 1", "Vieja 2"]);
   });
 
-  it("no duplica si una más antigua ya está en un tramo", () => {
+  it("no duplica: una más antigua que ya sale por tramo no se repite en oldest", () => {
     const d = buildDigest(
       [
         item({ title: "Ayer", dayISO: "2026-06-24" }),
@@ -99,7 +97,9 @@ describe("buildDigest", () => {
       TODAY,
       5
     );
-    expect(d.total).toBe(2); // Ayer (overdue) + Hoy (añadida), sin duplicar Ayer
+    expect(d.total).toBe(2);
+    expect(d.groups.flatMap((g) => g.items.map((i) => i.title))).toEqual(["Ayer"]);
+    expect(d.oldest.map((i) => i.title)).toEqual(["Hoy"]); // Ayer no se repite
   });
 
   it("varios tramos: retrasados + próximos 10 días, orden cronológico", () => {
@@ -137,10 +137,28 @@ describe("renderDigest", () => {
       ["today"],
       TODAY
     );
-    const { title, body } = renderDigest(d, opts());
+    const { title, body } = renderDigest(d, opts(), TODAY);
     expect(title).toBe("🔔 1 tarea para hoy");
     expect(body).toContain("Hoy");
     expect(body).toContain("• Llamar (TAREAS · En curso)");
+  });
+
+  it("las más antiguas en su propia sección «Tareas antiguas:» con fecha", () => {
+    const d = buildDigest(
+      [
+        item({ title: "Vieja", dbTitle: "Proyectos", dayISO: "2026-05-01" }),
+      ],
+      ["today"], // sin tareas de hoy
+      TODAY,
+      3
+    );
+    const { body } = renderDigest(
+      d,
+      { buckets: ["today"], statusGroups: ["todo"], priorityGroups: [] },
+      TODAY
+    );
+    expect(body).toContain("Tareas antiguas:");
+    expect(body).toContain("• Vieja (Proyectos) — vie 1 may");
   });
 });
 
@@ -179,11 +197,6 @@ describe("digestTitle (estilo frase natural)", () => {
   it("solo retrasados", () => {
     expect(digestTitle(4, o({ buckets: ["overdue"] }))).toBe(
       "🔔 4 tareas atrasadas"
-    );
-  });
-  it("con más antiguas añade el sufijo", () => {
-    expect(digestTitle(5, o({ buckets: ["today"], oldestCount: 5 }))).toBe(
-      "🔔 5 tareas para hoy + las más antiguas"
     );
   });
 });
@@ -265,11 +278,15 @@ describe("renderDigest cuerpo con ámbito", () => {
       ["today"],
       TODAY
     );
-    const { body } = renderDigest(d, {
-      buckets: ["today"],
-      statusGroups: ["todo", "inProgress"],
-      priorityGroups: [],
-    });
+    const { body } = renderDigest(
+      d,
+      {
+        buckets: ["today"],
+        statusGroups: ["todo", "inProgress"],
+        priorityGroups: [],
+      },
+      TODAY
+    );
     expect(body).toContain(
       "• Panel de métricas (Proyectos · Ámbito - Crítica · En curso)"
     );
