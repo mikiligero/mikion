@@ -9,7 +9,7 @@ import { databases, docs, preferences, rows, workspaces } from "@/db/schema";
 import { dateEnd, dateStart } from "@/lib/calendar-utils";
 import { getRowTitle } from "@/lib/database-utils";
 import type { DatabaseSchema, PropertyDef } from "@/lib/types";
-import { createNotification } from "@/lib/actions/helpers";
+import { createNotification, getSharedTreeForUser } from "@/lib/actions/helpers";
 import {
   buildDigest,
   madridTime,
@@ -31,7 +31,62 @@ function statusProperty(schema: DatabaseSchema): PropertyDef | null {
   return schema.properties.find((p) => p.type === "status") ?? null;
 }
 
-/** Reúne las tareas con fecha del workspace del usuario y construye su digest. */
+type DigestDb = { id: string; schema: DatabaseSchema; title: string };
+
+/**
+ * BD que entran en el digest de un usuario: las de su propio workspace + las que
+ * le han compartido (la propia BD, o una página ancestro que la contiene). Así
+ * un recordatorio de tareas llega también a quien tiene la BD compartida.
+ */
+async function collectDigestDatabases(userId: string): Promise<DigestDb[]> {
+  const out = new Map<string, DigestDb>();
+
+  // 1) BD propias (del workspace del usuario).
+  const ws = await db.query.workspaces.findFirst({
+    where: eq(workspaces.ownerId, userId),
+  });
+  if (ws) {
+    const owned = await db
+      .select({ id: databases.id, schema: databases.schema, title: docs.title })
+      .from(databases)
+      .innerJoin(docs, eq(databases.docId, docs.id))
+      .where(and(eq(docs.workspaceId, ws.id), isNull(docs.deletedAt)));
+    for (const d of owned) out.set(d.id, d);
+  }
+
+  // 2) BD compartidas: docs kind=database dentro del árbol compartido (la BD en
+  //    sí o cualquier descendiente de una página compartida).
+  const sharedTree = await getSharedTreeForUser(userId);
+  const sharedDbDocs = sharedTree.docs.filter((d) => d.kind === "database");
+  if (sharedDbDocs.length) {
+    const titleByDocId = new Map(sharedDbDocs.map((d) => [d.id, d.title]));
+    const shared = await db
+      .select({
+        id: databases.id,
+        schema: databases.schema,
+        docId: databases.docId,
+      })
+      .from(databases)
+      .where(
+        inArray(
+          databases.docId,
+          sharedDbDocs.map((d) => d.id)
+        )
+      );
+    for (const d of shared) {
+      if (!out.has(d.id))
+        out.set(d.id, {
+          id: d.id,
+          schema: d.schema,
+          title: titleByDocId.get(d.docId) || "Sin título",
+        });
+    }
+  }
+
+  return Array.from(out.values());
+}
+
+/** Reúne las tareas con fecha (de BD propias y compartidas) y construye el digest. */
 export async function computeUserDigest(
   userId: string,
   slot: DigestSlot,
@@ -39,16 +94,7 @@ export async function computeUserDigest(
 ): Promise<Digest> {
   const today = madridToday(now);
 
-  const ws = await db.query.workspaces.findFirst({
-    where: eq(workspaces.ownerId, userId),
-  });
-  if (!ws) return { slot, total: 0, groups: [] };
-
-  const dbRows = await db
-    .select({ id: databases.id, schema: databases.schema, title: docs.title })
-    .from(databases)
-    .innerJoin(docs, eq(databases.docId, docs.id))
-    .where(and(eq(docs.workspaceId, ws.id), isNull(docs.deletedAt)));
+  const dbRows = await collectDigestDatabases(userId);
   if (dbRows.length === 0) return { slot, total: 0, groups: [] };
 
   // Solo las BD que tienen propiedad de fecha.
