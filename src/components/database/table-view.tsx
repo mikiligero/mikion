@@ -186,6 +186,15 @@ export function TableView({
     return opt.id;
   }
 
+  function deleteOption(prop: PropertyDef, id: string) {
+    startTransition(() =>
+      updateProperty(databaseId, prop.id, {
+        options: (prop.options ?? []).filter((o) => o.id !== id),
+        ...(prop.defaultOptionId === id ? { defaultOptionId: undefined } : {}),
+      })
+    );
+  }
+
   // Agrupación: ordena las filas por grupo y marca la primera de cada grupo.
   const { data, groupHeaders } = useMemo(() => {
     if (!config.groupBy) return { data: rows, groupHeaders: new Map<string, RowGroup>() };
@@ -245,6 +254,11 @@ export function TableView({
                 onDeletePerson={
                   prop.type === "person"
                     ? (id) => void deletePerson(databaseId, id)
+                    : undefined
+                }
+                onDeleteOption={
+                  prop.type === "select" || prop.type === "ambito"
+                    ? (id) => deleteOption(prop, id)
                     : undefined
                 }
               />

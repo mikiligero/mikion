@@ -169,6 +169,16 @@ export function RowPage({
     startTransition(() => updateProperty(databaseId, propertyId, patch));
   }
 
+  function deleteOption(propertyId: string, id: string) {
+    const prop = schema.properties.find((p) => p.id === propertyId);
+    startTransition(() =>
+      updateProperty(databaseId, propertyId, {
+        options: (prop?.options ?? []).filter((o) => o.id !== id),
+        ...(prop?.defaultOptionId === id ? { defaultOptionId: undefined } : {}),
+      })
+    );
+  }
+
   return (
     <div className="pb-32">
       {!hideCover && (
@@ -279,6 +289,11 @@ export function RowPage({
                   onDeletePerson={
                     prop.type === "person"
                       ? (id) => void deletePerson(databaseId, id)
+                      : undefined
+                  }
+                  onDeleteOption={
+                    prop.type === "select" || prop.type === "ambito"
+                      ? (id) => deleteOption(prop.id, id)
                       : undefined
                   }
                 />

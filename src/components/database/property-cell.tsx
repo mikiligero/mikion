@@ -243,6 +243,8 @@ type CellProps = {
   onAddPerson?: (name: string) => Promise<SelectOption | null>;
   /** Borra una persona manual (no vinculada) del directorio del ámbito. */
   onDeletePerson?: (id: string) => Promise<void> | void;
+  /** Borra una opción de la propiedad (select/ámbito). */
+  onDeleteOption?: (id: string) => void;
 };
 
 export function PropertyCell({
@@ -255,6 +257,7 @@ export function PropertyCell({
   people,
   onAddPerson,
   onDeletePerson,
+  onDeleteOption,
 }: CellProps) {
   // Campos de sistema: solo lectura (el valor llega ya calculado).
   if (isSystemProperty(property.type)) {
@@ -322,6 +325,7 @@ export function PropertyCell({
           value={value}
           onChange={onChange}
           onAddOption={onAddOption}
+          onDeleteOption={onDeleteOption}
         />
       );
     default:
@@ -1633,14 +1637,19 @@ function SelectCell({
   value,
   onChange,
   onAddOption,
+  onDeleteOption,
 }: {
   property: PropertyDef;
   value: PropertyValue;
   onChange: (v: PropertyValue) => void;
   onAddOption?: (name: string) => Promise<string> | string;
+  /** Borra una opción del directorio de la propiedad (select/ámbito). */
+  onDeleteOption?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // Opciones borradas en esta sesión (el servidor revalida; las ocultamos ya).
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
   const options = property.options ?? [];
   const selected = options.find((o) => o.id === value) ?? null;
   const groups = groupsForType(property.type); // status / priority → agrupado
@@ -1653,23 +1662,47 @@ function SelectCell({
     setOpen(false);
   }
 
-  const filtered = options.filter((o) =>
-    o.name.toLowerCase().includes(query.toLowerCase())
+  function del(id: string) {
+    setRemoved((r) => new Set(r).add(id));
+    if (value === id) onChange(null);
+    onDeleteOption?.(id);
+  }
+
+  const filtered = options.filter(
+    (o) =>
+      !removed.has(o.id) &&
+      o.name.toLowerCase().includes(query.toLowerCase())
   );
 
   function optionButton(o: SelectOption) {
     return (
-      <button
+      <div
         key={o.id}
-        onClick={() => {
-          onChange(o.id);
-          setOpen(false);
-        }}
-        className="hover:bg-sidebar-hover flex w-full items-center justify-between rounded-sm px-2 py-1"
+        className="group/opt hover:bg-sidebar-hover flex w-full items-center rounded-sm"
       >
-        <Tag option={o} />
-        {value === o.id && <Check className="text-ink-faint size-3.5" />}
-      </button>
+        <button
+          onClick={() => {
+            onChange(o.id);
+            setOpen(false);
+          }}
+          className="flex min-w-0 flex-1 items-center justify-between px-2 py-1 text-left"
+        >
+          <Tag option={o} />
+          {value === o.id && (
+            <Check className="text-ink-faint size-3.5 shrink-0" />
+          )}
+        </button>
+        {onDeleteOption && (
+          <button
+            onClick={() => del(o.id)}
+            aria-label="Eliminar opción"
+            title="Eliminar opción"
+            className="text-ink-faint shrink-0 px-1.5 opacity-0 group-hover/opt:opacity-100 hover:text-red-600"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        )}
+      </div>
     );
   }
 

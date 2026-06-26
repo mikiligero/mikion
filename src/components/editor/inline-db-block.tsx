@@ -144,6 +144,14 @@ function InlineDatabaseView({
     await updateProperty(databaseId, propertyId, { options });
     refresh();
   }
+  async function deleteOption(propertyId: string, id: string) {
+    const prop = data!.schema.properties.find((p) => p.id === propertyId);
+    await updateProperty(databaseId, propertyId, {
+      options: (prop?.options ?? []).filter((o) => o.id !== id),
+      ...(prop?.defaultOptionId === id ? { defaultOptionId: undefined } : {}),
+    });
+    refresh();
+  }
 
   return (
     <div className="border-line overflow-hidden rounded-md border">
@@ -221,6 +229,11 @@ function InlineDatabaseView({
                       onSetOptions={
                         p.type === "multiselect" || p.type === "person"
                           ? (options) => void setOptions(p.id, options)
+                          : undefined
+                      }
+                      onDeleteOption={
+                        p.type === "select" || p.type === "ambito"
+                          ? (id) => void deleteOption(p.id, id)
                           : undefined
                       }
                     />
