@@ -201,25 +201,22 @@ export function Topbar({ docs }: { docs: TreeDoc[] }) {
       <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
+          // En una página de fila (/p/[docId]/[rowId]) la BD es el último crumb
+          // pero NO es la página actual (lo es la fila), así que debe ser clicable.
+          const asLink = !!c.href && (!last || !!rowId);
+          const cls = cn(
+            "truncate rounded-sm px-1.5 py-0.5",
+            last ? "text-ink font-medium" : "text-ink-soft"
+          );
           return (
             <Fragment key={i}>
               {i > 0 && <ChevronRight className="text-ink-ghost size-3.5 shrink-0" />}
-              {c.href && !last ? (
-                <Link
-                  href={c.href}
-                  className="text-ink-soft hover:bg-sidebar-hover truncate rounded-sm px-1.5 py-0.5"
-                >
+              {asLink ? (
+                <Link href={c.href!} className={cn(cls, "hover:bg-sidebar-hover")}>
                   {c.label}
                 </Link>
               ) : (
-                <span
-                  className={cn(
-                    "truncate px-1.5 py-0.5",
-                    last ? "text-ink font-medium" : "text-ink-soft"
-                  )}
-                >
-                  {c.label}
-                </span>
+                <span className={cls}>{c.label}</span>
               )}
             </Fragment>
           );
