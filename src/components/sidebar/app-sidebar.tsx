@@ -53,6 +53,8 @@ type Props = {
   docs: TreeDoc[];
   shared?: TreeDoc[];
   sharedRoots?: { id: string; role: "viewer" | "editor" }[];
+  /** Ids de MIS docs compartidos con alguien (icono indicador). */
+  sharedOutIds?: string[];
   unread: number;
 };
 
@@ -62,6 +64,7 @@ export function AppSidebar({
   docs,
   shared = [],
   sharedRoots = [],
+  sharedOutIds = [],
   unread,
 }: Props) {
   const pathname = usePathname();
@@ -83,6 +86,7 @@ export function AppSidebar({
     () => new Map(sharedRoots.map((r) => [r.id, r.role] as const)),
     [sharedRoots]
   );
+  const sharedOutSet = useMemo(() => new Set(sharedOutIds), [sharedOutIds]);
 
   function toggleNode(id: string) {
     setExpanded((prev) => {
@@ -224,6 +228,7 @@ export function AppSidebar({
     onCreateChild: (parentId: string) => create("team", parentId),
     onTrash: trash,
     dropHint,
+    sharedOutIds: sharedOutSet,
   };
 
   return (

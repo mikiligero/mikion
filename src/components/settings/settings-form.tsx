@@ -11,9 +11,19 @@ import {
   sendDigestNow,
 } from "@/lib/actions/preferences";
 import { TIME_OPTIONS, type DigestSlot } from "@/lib/digest";
+import {
+  setShareRole,
+  unshareDoc,
+  leaveShare,
+  type SharedByMe,
+  type SharedWithMe,
+} from "@/lib/actions/shares";
 import { toast } from "sonner";
 import { signOut, deleteUser } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { docIcon } from "@/components/sidebar/doc-icon";
+import { LogOut, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -67,11 +77,15 @@ const SCALES = [
 export function SettingsForm({
   user,
   prefs,
+  shares,
 }: {
   user: { name: string; email: string };
   prefs: Prefs;
+  shares: { byMe: SharedByMe[]; withMe: SharedWithMe[] };
 }) {
-  const [section, setSection] = useState<"account" | "prefs">("account");
+  const [section, setSection] = useState<"account" | "prefs" | "shares">(
+    "account"
+  );
 
   return (
     <div className="mx-auto flex max-w-4xl gap-8 px-8 py-12">
@@ -92,17 +106,203 @@ export function SettingsForm({
         <RailItem active={section === "prefs"} onClick={() => setSection("prefs")}>
           Preferencias
         </RailItem>
+        <RailItem
+          active={section === "shares"}
+          onClick={() => setSection("shares")}
+        >
+          Compartido
+        </RailItem>
       </nav>
 
       {/* Panel */}
       <div className="min-w-0 flex-1">
         {section === "account" ? (
           <AccountPanel user={user} />
-        ) : (
+        ) : section === "prefs" ? (
           <PreferencesPanel prefs={prefs} />
+        ) : (
+          <SharesPanel shares={shares} />
         )}
       </div>
     </div>
+  );
+}
+
+function SharesPanel({
+  shares,
+}: {
+  shares: { byMe: SharedByMe[]; withMe: SharedWithMe[] };
+}) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [byMe, setByMe] = useState(shares.byMe);
+  const [withMe, setWithMe] = useState(shares.withMe);
+
+  function changeRole(
+    docId: string,
+    userId: string,
+    role: "viewer" | "editor"
+  ) {
+    setByMe((cur) =>
+      cur.map((d) =>
+        d.docId === docId
+          ? {
+              ...d,
+              collaborators: d.collaborators.map((c) =>
+                c.userId === userId ? { ...c, role } : c
+              ),
+            }
+          : d
+      )
+    );
+    startTransition(async () => {
+      await setShareRole(docId, userId, role);
+    });
+  }
+
+  function revoke(docId: string, userId: string) {
+    setByMe((cur) =>
+      cur
+        .map((d) =>
+          d.docId === docId
+            ? {
+                ...d,
+                collaborators: d.collaborators.filter(
+                  (c) => c.userId !== userId
+                ),
+              }
+            : d
+        )
+        .filter((d) => d.collaborators.length > 0)
+    );
+    startTransition(async () => {
+      await unshareDoc(docId, userId);
+      router.refresh();
+    });
+  }
+
+  function leave(docId: string) {
+    setWithMe((cur) => cur.filter((d) => d.docId !== docId));
+    startTransition(async () => {
+      await leaveShare(docId);
+      router.refresh();
+    });
+  }
+
+  return (
+    <section className="space-y-8">
+      <div>
+        <h2 className="font-serif text-ink text-[20px] font-[560]">
+          Compartido por mí
+        </h2>
+        <p className="text-ink-faint mt-1 text-sm">
+          Páginas y bases de datos que has compartido con otras personas.
+        </p>
+        {byMe.length === 0 ? (
+          <p className="text-ink-faint mt-4 text-sm">
+            No has compartido nada todavía.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {byMe.map((d) => (
+              <div key={d.docId} className="border-line rounded-lg border p-3">
+                <Link
+                  href={`/p/${d.docId}`}
+                  className="text-ink hover:text-brand flex items-center gap-2 text-sm font-medium"
+                >
+                  <span className="flex size-[18px] items-center justify-center text-[15px]">
+                    {docIcon(d.kind, d.emoji)}
+                  </span>
+                  <span className="truncate">{d.title || "Sin título"}</span>
+                </Link>
+                <div className="mt-3 space-y-2">
+                  {d.collaborators.map((c) => (
+                    <div
+                      key={c.userId}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <div className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-ink truncate">{c.name}</p>
+                        <p className="text-ink-faint truncate text-xs">
+                          {c.email}
+                        </p>
+                      </div>
+                      <Select
+                        value={c.role}
+                        onValueChange={(v) =>
+                          changeRole(d.docId, c.userId, v as "viewer" | "editor")
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viewer">Lector</SelectItem>
+                          <SelectItem value="editor">Editor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <button
+                        onClick={() => revoke(d.docId, c.userId)}
+                        aria-label="Quitar acceso"
+                        title="Quitar acceso"
+                        className="text-ink-faint hover:bg-sidebar-hover flex size-8 shrink-0 items-center justify-center rounded-md hover:text-red-600"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="border-line border-t pt-6">
+        <h2 className="font-serif text-ink text-[20px] font-[560]">
+          Compartido conmigo
+        </h2>
+        <p className="text-ink-faint mt-1 text-sm">
+          Lo que otras personas han compartido contigo.
+        </p>
+        {withMe.length === 0 ? (
+          <p className="text-ink-faint mt-4 text-sm">
+            Nadie ha compartido nada contigo.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {withMe.map((d) => (
+              <div
+                key={d.docId}
+                className="border-line flex items-center gap-2 rounded-lg border p-3 text-sm"
+              >
+                <Link
+                  href={`/p/${d.docId}`}
+                  className="text-ink hover:text-brand flex min-w-0 flex-1 items-center gap-2 font-medium"
+                >
+                  <span className="flex size-[18px] items-center justify-center text-[15px]">
+                    {docIcon(d.kind, d.emoji)}
+                  </span>
+                  <span className="truncate">{d.title || "Sin título"}</span>
+                </Link>
+                <span className="text-ink-faint shrink-0 text-xs">
+                  {d.ownerName} · {d.role === "editor" ? "Editor" : "Lector"}
+                </span>
+                <button
+                  onClick={() => leave(d.docId)}
+                  className="text-ink-faint hover:bg-sidebar-hover flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs hover:text-red-600"
+                >
+                  <LogOut className="size-3.5" /> Salir
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

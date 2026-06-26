@@ -1,14 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, ne, notInArray } from "drizzle-orm";
+import { and, eq, isNull, ne, notInArray } from "drizzle-orm";
 import { db } from "@/db";
-import { docShares, users } from "@/db/schema";
+import { docs, docShares, users, workspaces } from "@/db/schema";
 import {
   requireUserId,
   resolveDocAccess,
   createNotification,
 } from "./helpers";
+
+type DocKind = "page" | "database" | "calendar";
 
 export type Collaborator = {
   userId: string;
@@ -18,6 +20,25 @@ export type Collaborator = {
 };
 
 export type ShareableUser = { id: string; name: string; email: string };
+
+/** Doc que YO comparto, con sus colaboradores (para administrar). */
+export type SharedByMe = {
+  docId: string;
+  title: string;
+  emoji: string | null;
+  kind: DocKind;
+  collaborators: Collaborator[];
+};
+
+/** Doc que OTRO comparte conmigo (solo puedo salirme). */
+export type SharedWithMe = {
+  docId: string;
+  title: string;
+  emoji: string | null;
+  kind: DocKind;
+  role: "viewer" | "editor";
+  ownerName: string;
+};
 
 /** Resuelve el doc y exige que el usuario actual sea su dueño. */
 async function requireOwner(docId: string) {
@@ -146,4 +167,73 @@ export async function listShares(docId: string): Promise<{
     myRole: access.role,
     collaborators: rows,
   };
+}
+
+/**
+ * Todo lo compartido relativo al usuario: lo que él comparte (con colaboradores,
+ * administrable) y lo que le comparten (solo puede salirse). Para Ajustes.
+ */
+export async function listMyShares(): Promise<{
+  byMe: SharedByMe[];
+  withMe: SharedWithMe[];
+}> {
+  const userId = await requireUserId();
+
+  // Docs cuyo workspace es mío y tienen al menos un colaborador.
+  const byMeRows = await db
+    .select({
+      docId: docShares.docId,
+      title: docs.title,
+      emoji: docs.emoji,
+      kind: docs.kind,
+      collabId: docShares.userId,
+      name: users.name,
+      email: users.email,
+      role: docShares.role,
+    })
+    .from(docShares)
+    .innerJoin(docs, eq(docs.id, docShares.docId))
+    .innerJoin(workspaces, eq(workspaces.id, docs.workspaceId))
+    .innerJoin(users, eq(users.id, docShares.userId))
+    .where(and(eq(workspaces.ownerId, userId), isNull(docs.deletedAt)))
+    .orderBy(docs.title, users.name);
+
+  const byMeMap = new Map<string, SharedByMe>();
+  for (const r of byMeRows) {
+    let g = byMeMap.get(r.docId);
+    if (!g) {
+      g = { docId: r.docId, title: r.title, emoji: r.emoji, kind: r.kind, collaborators: [] };
+      byMeMap.set(r.docId, g);
+    }
+    g.collaborators.push({ userId: r.collabId, name: r.name, email: r.email, role: r.role });
+  }
+
+  // Docs que me comparten (el dueño es el dueño del workspace del doc).
+  const withMe = await db
+    .select({
+      docId: docShares.docId,
+      title: docs.title,
+      emoji: docs.emoji,
+      kind: docs.kind,
+      role: docShares.role,
+      ownerName: users.name,
+    })
+    .from(docShares)
+    .innerJoin(docs, eq(docs.id, docShares.docId))
+    .innerJoin(workspaces, eq(workspaces.id, docs.workspaceId))
+    .innerJoin(users, eq(users.id, workspaces.ownerId))
+    .where(and(eq(docShares.userId, userId), isNull(docs.deletedAt)))
+    .orderBy(docs.title);
+
+  return { byMe: [...byMeMap.values()], withMe };
+}
+
+/** Salir de un doc que me comparten (borra mi propia invitación). */
+export async function leaveShare(docId: string) {
+  const userId = await requireUserId();
+  await db
+    .delete(docShares)
+    .where(and(eq(docShares.docId, docId), eq(docShares.userId, userId)));
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

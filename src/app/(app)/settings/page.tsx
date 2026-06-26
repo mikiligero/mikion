@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { preferences } from "@/db/schema";
 import { requireSession } from "@/lib/session";
+import { listMyShares } from "@/lib/actions/shares";
 import { SettingsForm } from "@/components/settings/settings-form";
 
 export default async function SettingsPage() {
@@ -9,10 +10,12 @@ export default async function SettingsPage() {
   const prefs = await db.query.preferences.findFirst({
     where: eq(preferences.userId, session.user.id),
   });
+  const shares = await listMyShares();
 
   return (
     <SettingsForm
       user={{ name: session.user.name, email: session.user.email }}
+      shares={shares}
       prefs={{
         theme: prefs?.theme ?? "light",
         textScale: prefs?.textScale ?? 1,

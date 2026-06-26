@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Plus, MoreHorizontal, Trash2 } from "lucide-react";
+import { ChevronRight, Plus, MoreHorizontal, Trash2, Users } from "lucide-react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { TreeNode } from "@/lib/tree";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,8 @@ type Props = {
   readOnly?: boolean;
   /** Rol a mostrar como etiqueta en las raíces compartidas (depth 0). */
   roleByRoot?: Map<string, "viewer" | "editor">;
+  /** Ids de docs que YO he compartido con alguien (icono indicador). */
+  sharedOutIds?: Set<string>;
   /** Indicador de soltado durante el arrastre: fila objetivo + intención. */
   dropHint?: { id: string; zone: "before" | "into" } | null;
 };
@@ -50,6 +52,7 @@ function TreeRow({
   onTrash,
   readOnly,
   roleByRoot,
+  sharedOutIds,
   dropHint,
 }: { node: TreeNode } & Props) {
   const hasChildren = node.children.length > 0;
@@ -108,6 +111,16 @@ function TreeRow({
           <span className="truncate">{node.title || "Sin título"}</span>
         </Link>
 
+        {sharedOutIds?.has(node.id) && (
+          <span
+            title="Compartida con otros"
+            aria-label="Compartida con otros"
+            className="text-ink-faint shrink-0 group-hover/row:hidden"
+          >
+            <Users className="size-3.5" />
+          </span>
+        )}
+
         {rootRole && (
           <span className="text-ink-faint border-line shrink-0 rounded-full border px-1.5 text-[10px] leading-[16px]">
             {rootRole === "editor" ? "Editor" : "Lector"}
@@ -156,6 +169,7 @@ function TreeRow({
           onTrash={onTrash}
           readOnly={readOnly}
           roleByRoot={roleByRoot}
+          sharedOutIds={sharedOutIds}
           dropHint={dropHint}
         />
       )}

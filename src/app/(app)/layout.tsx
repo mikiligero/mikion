@@ -1,6 +1,6 @@
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { docs, notifications } from "@/db/schema";
+import { docs, docShares, notifications } from "@/db/schema";
 import { requireWorkspace } from "@/lib/session";
 import { getSharedTreeForUser } from "@/lib/actions/helpers";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
@@ -48,6 +48,13 @@ export default async function AppLayout({
   // El breadcrumb/paleta resuelven rutas desde la lista combinada.
   const allDocs = [...tree, ...shared.docs];
 
+  // Ids de MIS docs que he compartido con alguien → icono en la barra lateral.
+  const sharedOut = await db
+    .selectDistinct({ docId: docShares.docId })
+    .from(docShares)
+    .innerJoin(docs, eq(docs.id, docShares.docId))
+    .where(eq(docs.workspaceId, workspace.id));
+
   return (
     <SidebarProvider>
       <div className="bg-paper flex h-screen overflow-hidden">
@@ -57,6 +64,7 @@ export default async function AppLayout({
           docs={tree}
           shared={shared.docs}
           sharedRoots={shared.roots}
+          sharedOutIds={sharedOut.map((s) => s.docId)}
           unread={unread?.value ?? 0}
         />
         <main className="bg-surface flex min-w-0 flex-1 flex-col">
