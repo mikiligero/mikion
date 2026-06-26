@@ -45,6 +45,29 @@ export function rowAssignedTo(
   return false;
 }
 
+/** Filtro de ESTADO (lenient): vacío = sin filtro; una tarea sin grupo de estado
+ * (sin propiedad o sin valor) NO se descarta, para no perder tareas con el estado
+ * sin fijar. */
+export function passesStatusFilter(
+  group: string | undefined,
+  allowed: string[]
+): boolean {
+  if (allowed.length === 0) return true;
+  if (group === undefined) return true;
+  return allowed.includes(group);
+}
+
+/** Filtro de PRIORIDAD (estricto): vacío = sin filtro; si se piden niveles, solo
+ * pasan las tareas con una prioridad de esos niveles. Sin prioridad (sin propiedad
+ * o sin valor) NO es «importante» → se descarta. */
+export function passesPriorityFilter(
+  group: string | undefined,
+  allowed: string[]
+): boolean {
+  if (allowed.length === 0) return true;
+  return group !== undefined && allowed.includes(group);
+}
+
 /** Fecha de hoy en Europe/Madrid como "YYYY-MM-DD". */
 export function madridToday(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {

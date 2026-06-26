@@ -15,6 +15,8 @@ import {
   buildDigest,
   madridTime,
   madridToday,
+  passesPriorityFilter,
+  passesStatusFilter,
   renderDigest,
   rowAssignedTo,
   shouldSendRule,
@@ -37,14 +39,6 @@ function groupedOption(
   if (!prop) return undefined;
   const optId = values?.[prop.id];
   return prop.options?.find((o) => o.id === optId);
-}
-
-/** ¿Pasa el filtro por grupo? Vacío = sin filtro. Sin grupo (sin propiedad o sin
- * valor) NO se descarta, para no perder tareas. */
-function passesGroupFilter(group: string | undefined, allowed: string[]): boolean {
-  if (allowed.length === 0) return true;
-  if (group === undefined) return true;
-  return allowed.includes(group);
 }
 
 type DigestDb = {
@@ -195,11 +189,11 @@ export async function computeUserDigest(
     const due = dateEnd(dateVal) ?? dateStart(dateVal);
     if (!due) continue;
 
-    // Filtros del aviso: por grupo de estado y de prioridad.
+    // Filtros del aviso: estado (lenient) y prioridad (estricto).
     const stOpt = groupedOption(meta.schema, "status", row.values);
-    if (!passesGroupFilter(stOpt?.group, rule.statusGroups)) continue;
+    if (!passesStatusFilter(stOpt?.group, rule.statusGroups)) continue;
     const prOpt = groupedOption(meta.schema, "priority", row.values);
-    if (!passesGroupFilter(prOpt?.group, rule.priorityGroups)) continue;
+    if (!passesPriorityFilter(prOpt?.group, rule.priorityGroups)) continue;
 
     items.push({
       title: getRowTitle(row.values, meta.schema),

@@ -3,6 +3,8 @@ import {
   buildDigest,
   bucketOfDay,
   dayLabel,
+  passesPriorityFilter,
+  passesStatusFilter,
   renderDigest,
   rowAssignedTo,
   shouldSendRule,
@@ -142,6 +144,32 @@ describe("TIME_OPTIONS", () => {
     expect(TIME_OPTIONS[0]).toBe("00:00");
     expect(TIME_OPTIONS[1]).toBe("00:30");
     expect(TIME_OPTIONS.at(-1)).toBe("23:30");
+  });
+});
+
+describe("passesStatusFilter (lenient)", () => {
+  it("vacío = pasa todo", () => {
+    expect(passesStatusFilter("done", [])).toBe(true);
+  });
+  it("sin grupo (sin propiedad/valor) no se descarta", () => {
+    expect(passesStatusFilter(undefined, ["todo", "inProgress"])).toBe(true);
+  });
+  it("con grupo, solo los permitidos", () => {
+    expect(passesStatusFilter("inProgress", ["todo", "inProgress"])).toBe(true);
+    expect(passesStatusFilter("done", ["todo", "inProgress"])).toBe(false);
+  });
+});
+
+describe("passesPriorityFilter (estricto)", () => {
+  it("vacío = pasa todo", () => {
+    expect(passesPriorityFilter(undefined, [])).toBe(true);
+  });
+  it("sin prioridad se descarta si hay filtro", () => {
+    expect(passesPriorityFilter(undefined, ["high", "urgent"])).toBe(false);
+  });
+  it("con prioridad, solo los niveles pedidos", () => {
+    expect(passesPriorityFilter("high", ["high", "urgent"])).toBe(true);
+    expect(passesPriorityFilter("low", ["high", "urgent"])).toBe(false);
   });
 });
 
