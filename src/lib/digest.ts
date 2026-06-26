@@ -186,11 +186,92 @@ export function buildDigest(
   return { total: kept.length, groups };
 }
 
+// Contexto del aviso para describir su contenido en el título.
+export type DigestTitleOpts = {
+  buckets: Bucket[];
+  statusGroups: string[];
+  priorityGroups: string[];
+};
+
+const STATUS_ADJ: Record<string, [string, string]> = {
+  todo: ["pendiente", "pendientes"],
+  inProgress: ["en curso", "en curso"],
+  done: ["completada", "completadas"],
+};
+const PRIORITY_NAME: Record<string, string> = {
+  low: "Baja",
+  medium: "Media",
+  high: "Alta",
+  urgent: "Urgente",
+};
+const PRIORITY_ORDER = ["low", "medium", "high", "urgent"];
+
+/** Une una lista en español: [a] → "a"; [a,b] → "a y b"; [a,b,c] → "a, b y c". */
+function joinList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
+/** Parte temporal futura del título (hoy/mañana/próximos días, combinables). */
+function futurePhrase(set: Set<Bucket>): string {
+  const t = set.has("today");
+  const m = set.has("tomorrow");
+  const w = set.has("week");
+  if (t && m && w) return "para los próximos días";
+  if (t && m) return "para hoy y mañana";
+  if (t && w) return "para hoy y los próximos días";
+  if (m && w) return "para mañana y los próximos días";
+  if (t) return "para hoy";
+  if (m) return "para mañana";
+  if (w) return "en los próximos días";
+  return "";
+}
+
+/** Frase de tramos: «atrasadas», «para mañana», «atrasadas y para hoy»… */
+function timePhrase(buckets: Bucket[]): string {
+  const set = new Set(buckets);
+  const future = futurePhrase(set);
+  if (set.has("overdue")) return future ? `atrasadas y ${future}` : "atrasadas";
+  return future;
+}
+
+/** Título dinámico del aviso (estilo frase natural): cantidad + estado/prioridad
+ * (solo si se filtra) + tramo. P. ej. «🔔 3 tareas de prioridad Alta, atrasadas
+ * y para hoy». */
+export function digestTitle(n: number, opts: DigestTitleOpts): string {
+  const count = `${n} ${n === 1 ? "tarea" : "tareas"}`;
+
+  // Estado: solo cuando se filtra a un único grupo (el resto no aporta).
+  let statusAdj = "";
+  if (opts.statusGroups.length === 1) {
+    const adj = STATUS_ADJ[opts.statusGroups[0]];
+    if (adj) statusAdj = n === 1 ? adj[0] : adj[1];
+  }
+
+  // Prioridad: solo cuando se filtra (vacío = todas → no se menciona).
+  let priorityPhrase = "";
+  if (opts.priorityGroups.length) {
+    const names = PRIORITY_ORDER.filter((g) =>
+      opts.priorityGroups.includes(g)
+    ).map((g) => PRIORITY_NAME[g]);
+    if (names.length) priorityPhrase = `de prioridad ${joinList(names)}`;
+  }
+
+  const prefix = [count, statusAdj, priorityPhrase].filter(Boolean).join(" ");
+  const time = timePhrase(opts.buckets);
+  if (!time) return `🔔 ${prefix}`;
+  // Coma para separar «…Alta» de «atrasadas» y que no se lean pegadas.
+  const sep =
+    time.startsWith("atrasadas") && (statusAdj || priorityPhrase) ? ", " : " ";
+  return `🔔 ${prefix}${sep}${time}`;
+}
+
 /** Título + cuerpo (texto plano) del aviso para bandeja + Telegram. */
-export function renderDigest(digest: Digest): { title: string; body: string } {
-  const n = digest.total;
-  const plural = n === 1 ? "tarea" : "tareas";
-  const title = `🔔 ${n} ${plural}`;
+export function renderDigest(
+  digest: Digest,
+  opts: DigestTitleOpts
+): { title: string; body: string } {
+  const title = digestTitle(digest.total, opts);
   const body = digest.groups
     .map((g) => {
       const lines = g.items.map((it) => {

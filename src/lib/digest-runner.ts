@@ -215,7 +215,11 @@ export async function deliverRule(
 ): Promise<{ total: number }> {
   const digest = await computeUserDigest(rule.userId, rule, now);
   if (digest.total > 0) {
-    const { title, body } = renderDigest(digest);
+    const { title, body } = renderDigest(digest, {
+      buckets: rule.buckets as Bucket[],
+      statusGroups: rule.statusGroups,
+      priorityGroups: rule.priorityGroups,
+    });
     await createNotification({
       userId: rule.userId,
       type: "reminder",

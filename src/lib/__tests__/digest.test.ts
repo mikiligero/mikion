@@ -3,6 +3,7 @@ import {
   buildDigest,
   bucketOfDay,
   dayLabel,
+  digestTitle,
   passesPriorityFilter,
   passesStatusFilter,
   renderDigest,
@@ -10,6 +11,7 @@ import {
   shouldSendRule,
   TIME_OPTIONS,
   type DigestItem,
+  type DigestTitleOpts,
   type RuleSchedule,
 } from "@/lib/digest";
 
@@ -86,28 +88,62 @@ describe("buildDigest", () => {
 });
 
 describe("renderDigest", () => {
-  it("título con conteo y cuerpo con bullets y meta", () => {
+  const opts = (over?: Partial<DigestTitleOpts>): DigestTitleOpts => ({
+    buckets: ["today"],
+    statusGroups: ["todo", "inProgress"],
+    priorityGroups: [],
+    ...over,
+  });
+
+  it("título dinámico y cuerpo con bullets y meta", () => {
     const d = buildDigest(
       [item({ title: "Llamar", dbTitle: "TAREAS", statusName: "En curso", dayISO: "2026-06-25" })],
       ["today"],
       TODAY
     );
-    const { title, body } = renderDigest(d);
-    expect(title).toBe("🔔 1 tarea");
+    const { title, body } = renderDigest(d, opts());
+    expect(title).toBe("🔔 1 tarea para hoy");
     expect(body).toContain("Hoy");
     expect(body).toContain("• Llamar (TAREAS · En curso)");
   });
+});
 
-  it("plural en el título", () => {
-    const d = buildDigest(
-      [
-        item({ title: "A", dayISO: "2026-06-26" }),
-        item({ title: "B", dayISO: "2026-06-27" }),
-      ],
-      ["tomorrow", "week"],
-      TODAY
+describe("digestTitle (estilo frase natural)", () => {
+  const o = (over: Partial<DigestTitleOpts>): DigestTitleOpts => ({
+    buckets: [],
+    statusGroups: ["todo", "inProgress"],
+    priorityGroups: [],
+    ...over,
+  });
+
+  it("solo tramo (estado por defecto, sin prioridad)", () => {
+    expect(digestTitle(1, o({ buckets: ["tomorrow"] }))).toBe(
+      "🔔 1 tarea para mañana"
     );
-    expect(renderDigest(d).title).toBe("🔔 2 tareas");
+  });
+  it("retrasados + hoy con prioridad Alta", () => {
+    expect(
+      digestTitle(3, o({ buckets: ["overdue", "today"], priorityGroups: ["high"] }))
+    ).toBe("🔔 3 tareas de prioridad Alta, atrasadas y para hoy");
+  });
+  it("próximos días, estado solo Pendiente", () => {
+    expect(
+      digestTitle(2, o({ buckets: ["week"], statusGroups: ["todo"] }))
+    ).toBe("🔔 2 tareas pendientes en los próximos días");
+  });
+  it("hoy+mañana+próximos con prioridad Alta y Urgente", () => {
+    expect(
+      digestTitle(5, {
+        buckets: ["today", "tomorrow", "week"],
+        statusGroups: ["todo", "inProgress"],
+        priorityGroups: ["high", "urgent"],
+      })
+    ).toBe("🔔 5 tareas de prioridad Alta y Urgente para los próximos días");
+  });
+  it("solo retrasados", () => {
+    expect(digestTitle(4, o({ buckets: ["overdue"] }))).toBe(
+      "🔔 4 tareas atrasadas"
+    );
   });
 });
 
