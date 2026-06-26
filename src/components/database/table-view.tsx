@@ -64,7 +64,7 @@ import {
   deleteTemplate,
   setDefaultTemplate,
 } from "@/lib/actions/databases";
-import { addPerson } from "@/lib/actions/people";
+import { addPerson, deletePerson } from "@/lib/actions/people";
 import { PropertyCell, Tag, systemFieldValue } from "./property-cell";
 import { propertyIcon } from "./property-icon";
 import { PropertyOptionsEditor } from "./property-options-editor";
@@ -207,6 +207,11 @@ export function TableView({
                 onAddPerson={
                   prop.type === "person"
                     ? (name) => addPerson(databaseId, name)
+                    : undefined
+                }
+                onDeletePerson={
+                  prop.type === "person"
+                    ? (id) => void deletePerson(databaseId, id)
                     : undefined
                 }
               />

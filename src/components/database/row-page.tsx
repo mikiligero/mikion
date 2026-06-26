@@ -21,7 +21,7 @@ import {
   setRowCover,
   setRowCoverAdjust,
 } from "@/lib/actions/databases";
-import { addPerson } from "@/lib/actions/people";
+import { addPerson, deletePerson } from "@/lib/actions/people";
 import { randomSelectColor, isSystemProperty } from "@/lib/types";
 import type { PropertyDef } from "@/lib/types";
 import { PropertyCell, systemFieldValue, formatDateValue } from "./property-cell";
@@ -272,6 +272,11 @@ export function RowPage({
                   onAddPerson={
                     prop.type === "person"
                       ? (name) => addPerson(databaseId, name)
+                      : undefined
+                  }
+                  onDeletePerson={
+                    prop.type === "person"
+                      ? (id) => void deletePerson(databaseId, id)
                       : undefined
                   }
                 />

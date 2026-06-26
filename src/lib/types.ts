@@ -101,6 +101,7 @@ export type SelectOption = {
   name: string;
   color: string; // clave de SELECT_COLORS (ver abajo); legacy: teal
   group?: StatusGroup; // solo status
+  isUser?: boolean; // solo persona: vinculada a una cuenta (no borrable a mano)
 };
 
 // Formato de presentación de una propiedad de fecha.

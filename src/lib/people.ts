@@ -54,9 +54,15 @@ export async function listPeople(
 ): Promise<SelectOption[]> {
   await ensureUserPeople(workspaceId, scope);
   const rows = await db
-    .select({ id: people.id, name: people.name, color: people.color })
+    .select({
+      id: people.id,
+      name: people.name,
+      color: people.color,
+      userId: people.userId,
+    })
     .from(people)
     .where(and(eq(people.workspaceId, workspaceId), eq(people.scope, scope)))
     .orderBy(asc(people.name));
-  return rows;
+  // isUser: vinculada a una cuenta → no se puede borrar a mano (se resembraría).
+  return rows.map(({ userId, ...o }) => ({ ...o, isUser: userId != null }));
 }

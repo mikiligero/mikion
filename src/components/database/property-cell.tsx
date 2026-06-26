@@ -241,6 +241,8 @@ type CellProps = {
   people?: SelectOption[];
   /** Crea una persona en el directorio del ámbito y la devuelve. */
   onAddPerson?: (name: string) => Promise<SelectOption | null>;
+  /** Borra una persona manual (no vinculada) del directorio del ámbito. */
+  onDeletePerson?: (id: string) => Promise<void> | void;
 };
 
 export function PropertyCell({
@@ -252,6 +254,7 @@ export function PropertyCell({
   onPropertyPatch,
   people,
   onAddPerson,
+  onDeletePerson,
 }: CellProps) {
   // Campos de sistema: solo lectura (el valor llega ya calculado).
   if (isSystemProperty(property.type)) {
@@ -306,6 +309,7 @@ export function PropertyCell({
           onChange={onChange}
           onSetOptions={onSetOptions}
           onAddPerson={onAddPerson}
+          onDeletePerson={onDeletePerson}
         />
       );
     case "select":
@@ -1426,6 +1430,7 @@ function PersonCell({
   onChange,
   onSetOptions,
   onAddPerson,
+  onDeletePerson,
 }: {
   property: PropertyDef;
   value: PropertyValue;
@@ -1436,6 +1441,8 @@ function PersonCell({
   onSetOptions?: (options: SelectOption[]) => void;
   /** Crea una persona en el directorio y la devuelve. */
   onAddPerson?: (name: string) => Promise<SelectOption | null>;
+  /** Borra una persona manual (no vinculada) del directorio. */
+  onDeletePerson?: (id: string) => Promise<void> | void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -1446,6 +1453,9 @@ function PersonCell({
   // Personas creadas en esta sesión que aún no están en el `people` que llega
   // por props (hasta que el servidor revalide).
   const [extra, setExtra] = useState<SelectOption[]>([]);
+  // Borradas del directorio en esta sesión (el servidor no revalida; las ocultamos
+  // en local hasta la próxima carga).
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
 
   const idsKey = extIds.join(",");
   const [lastIdsKey, setLastIdsKey] = useState(idsKey);
@@ -1460,7 +1470,7 @@ function PersonCell({
   for (const o of propOptions) byId.set(o.id, o);
   for (const o of extra) byId.set(o.id, o);
   for (const o of people) byId.set(o.id, o);
-  const candidates = [...byId.values()];
+  const candidates = [...byId.values()].filter((o) => !removed.has(o.id));
 
   const selected = ids
     .map((id) => byId.get(id))
@@ -1471,6 +1481,12 @@ function PersonCell({
   }
   function remove(id: string) {
     setIds(ids.filter((x) => x !== id));
+  }
+  async function del(id: string) {
+    setRemoved((r) => new Set(r).add(id));
+    setIds((cur) => cur.filter((x) => x !== id));
+    setExtra((e) => e.filter((o) => o.id !== id));
+    await onDeletePerson?.(id);
   }
   async function add() {
     const name = query.trim();
@@ -1563,16 +1579,30 @@ function PersonCell({
           {candidates
             .filter((o) => o.name.toLowerCase().includes(query.toLowerCase()))
             .map((o) => (
-              <button
+              <div
                 key={o.id}
-                onClick={() => toggle(o.id)}
-                className="hover:bg-sidebar-hover flex w-full items-center justify-between rounded-sm px-2 py-1"
+                className="group/p hover:bg-sidebar-hover flex w-full items-center rounded-sm"
               >
-                <PersonChip option={o} />
-                {ids.includes(o.id) && (
-                  <Check className="text-ink-faint size-3.5" />
+                <button
+                  onClick={() => toggle(o.id)}
+                  className="flex min-w-0 flex-1 items-center justify-between px-2 py-1 text-left"
+                >
+                  <PersonChip option={o} />
+                  {ids.includes(o.id) && (
+                    <Check className="text-ink-faint size-3.5 shrink-0" />
+                  )}
+                </button>
+                {onDeletePerson && !o.isUser && (
+                  <button
+                    onClick={() => del(o.id)}
+                    aria-label="Eliminar del directorio"
+                    title="Eliminar del directorio"
+                    className="text-ink-faint shrink-0 px-1.5 opacity-0 group-hover/p:opacity-100 hover:text-red-600"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
                 )}
-              </button>
+              </div>
             ))}
           {onAddPerson &&
             query.trim() &&

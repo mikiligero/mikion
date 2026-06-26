@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { docs, people } from "@/db/schema";
 import { randomSelectColor } from "@/lib/types";
@@ -57,4 +57,35 @@ export async function addPerson(
   // local y la materializa en options al cerrar (eso sí persiste y revalida);
   // otras BBDD del ámbito la ven en su próxima carga vía listPeople.
   return created;
+}
+
+/**
+ * Borra una persona MANUAL del directorio del ámbito de la BD. Solo elimina las
+ * que no están vinculadas a una cuenta (userId IS NULL): las de usuario se
+ * resembrarían solas. No revalida (la celda la oculta en local; otras BBDD la
+ * dejan de ver en su próxima carga). Las celdas que la tuvieran asignada
+ * simplemente dejan de pintarla.
+ */
+export async function deletePerson(
+  databaseId: string,
+  personId: string
+): Promise<{ ok: boolean }> {
+  const { docId } = await assertDatabaseAccess(databaseId);
+  const [doc] = await db
+    .select({ workspaceId: docs.workspaceId })
+    .from(docs)
+    .where(eq(docs.id, docId));
+  if (!doc) return { ok: false };
+
+  const deleted = await db
+    .delete(people)
+    .where(
+      and(
+        eq(people.id, personId),
+        eq(people.workspaceId, doc.workspaceId),
+        isNull(people.userId)
+      )
+    )
+    .returning({ id: people.id });
+  return { ok: deleted.length > 0 };
 }
