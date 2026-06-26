@@ -63,7 +63,8 @@ function matchesFilter(row: Row, schema: DatabaseSchema, f: Filter): boolean {
   switch (prop.type) {
     case "select":
     case "status":
-    case "priority": {
+    case "priority":
+    case "ambito": {
       // value = array de ids de opción seleccionados (multi-check). Puede incluir
       // EMPTY_FILTER para «sin valor».
       const allowed = Array.isArray(f.value) ? f.value : [];
@@ -94,7 +95,7 @@ function sortValue(row: Row, schema: DatabaseSchema, s: Sort): string | number {
     const g = findOption(prop, v)?.group;
     return g && g in PRIORITY_RANK ? PRIORITY_RANK[g] : -Infinity;
   }
-  if (prop.type === "select" || prop.type === "status") {
+  if (prop.type === "select" || prop.type === "status" || prop.type === "ambito") {
     return findOption(prop, v)?.name ?? "";
   }
   return typeof v === "string" ? v.toLowerCase() : "";

@@ -38,7 +38,11 @@ export function DatabaseToolbar({
   sections = ["filter", "sort", "group", "properties"],
 }: Props) {
   const filterableProps = schema.properties.filter(
-    (p) => p.type === "select" || p.type === "status" || p.type === "priority"
+    (p) =>
+      p.type === "select" ||
+      p.type === "status" ||
+      p.type === "priority" ||
+      p.type === "ambito"
   );
   const groupableProps = filterableProps;
   const show = (s: Section) => sections.includes(s);

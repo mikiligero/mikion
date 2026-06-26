@@ -212,7 +212,9 @@ function InlineDatabaseView({
                       value={row.values?.[p.id] ?? null}
                       onChange={(v) => setCell(row.id, p.id, v)}
                       onAddOption={
-                        p.type === "select" || p.type === "status"
+                        p.type === "select" ||
+                        p.type === "status" ||
+                        p.type === "ambito"
                           ? (name) => addOption(p.id, name)
                           : undefined
                       }

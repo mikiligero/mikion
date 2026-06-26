@@ -21,6 +21,7 @@ import {
   MapPin,
   Link2,
   Flag,
+  Boxes,
 } from "lucide-react";
 import type { PropertyType } from "@/lib/types";
 
@@ -32,6 +33,7 @@ const ICONS: Record<PropertyType, React.ComponentType<{ className?: string }>> =
   multiselect: List,
   status: CircleDot,
   priority: Flag,
+  ambito: Boxes,
   person: User,
   date: Calendar,
   checkbox: CheckSquare,

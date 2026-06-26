@@ -315,6 +315,7 @@ export function PropertyCell({
     case "select":
     case "status":
     case "priority":
+    case "ambito":
       return (
         <SelectCell
           property={property}

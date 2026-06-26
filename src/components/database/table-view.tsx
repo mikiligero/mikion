@@ -217,7 +217,9 @@ export function TableView({
                 value={cellValue}
                 onChange={(v) => setCell(ctx.row.original.id, prop.id, v)}
                 onAddOption={
-                  prop.type === "select" || prop.type === "status"
+                  prop.type === "select" ||
+                  prop.type === "status" ||
+                  prop.type === "ambito"
                     ? (name) => addOption(prop, name)
                     : undefined
                 }
@@ -712,7 +714,10 @@ function ColumnHeaderMenu({
           <Rows3 className="size-4" />
           {isGrouped ? "Quitar agrupación" : "Agrupar"}
         </DropdownMenuItem>
-        {(prop.type === "select" || prop.type === "status") && (
+        {(prop.type === "select" ||
+          prop.type === "status" ||
+          prop.type === "priority" ||
+          prop.type === "ambito") && (
           <DropdownMenuItem
             onClick={() =>
               onConfigChange?.({ colorBy: isColored ? undefined : prop.id })
@@ -749,7 +754,9 @@ function ColumnHeaderMenu({
 
         {(prop.type === "select" ||
           prop.type === "multiselect" ||
-          prop.type === "status") && (
+          prop.type === "status" ||
+          prop.type === "priority" ||
+          prop.type === "ambito") && (
           <PropertyOptionsEditor databaseId={databaseId} property={prop} />
         )}
 

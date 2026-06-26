@@ -25,6 +25,7 @@ export type PropertyType =
   | "multiselect"
   | "status"
   | "priority"
+  | "ambito"
   | "person"
   | "date"
   | "checkbox"
@@ -62,6 +63,7 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "multiselect", label: "Selección múltiple" },
   { value: "status", label: "Estado" },
   { value: "priority", label: "Prioridad" },
+  { value: "ambito", label: "Ámbito" },
   { value: "person", label: "Persona" },
   { value: "date", label: "Fecha" },
   { value: "checkbox", label: "Casilla" },

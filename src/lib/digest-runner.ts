@@ -51,10 +51,14 @@ export function normalizeName(s: string): string {
     .trim();
 }
 
-/** Propiedad de selección llamada «Ámbito» (por convención de nombre). */
+/** Propiedad de Ámbito: por tipo «ambito», o (compat) una selección llamada
+ * «Ámbito». */
 export function ambitoProperty(schema: DatabaseSchema): PropertyDef | undefined {
-  return schema.properties.find(
-    (p) => p.type === "select" && normalizeName(p.name) === "ambito"
+  return (
+    schema.properties.find((p) => p.type === "ambito") ??
+    schema.properties.find(
+      (p) => p.type === "select" && normalizeName(p.name) === "ambito"
+    )
   );
 }
 

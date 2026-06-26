@@ -251,7 +251,9 @@ export function RowPage({
                   }
                   onChange={(v) => setCell(prop.id, v)}
                   onAddOption={
-                    prop.type === "select" || prop.type === "status"
+                    prop.type === "select" ||
+                    prop.type === "status" ||
+                    prop.type === "ambito"
                       ? (name) => addOption(prop.id, name)
                       : undefined
                   }
