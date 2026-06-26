@@ -54,10 +54,28 @@ export async function createNotification(input: {
   });
   if (pref?.telegramChatId) {
     const text = input.body
-      ? `<b>${input.title}</b>\n${input.body}`
-      : `<b>${input.title}</b>`;
+      ? `<b>${telegramHtml(input.title)}</b>\n${telegramHtml(input.body)}`
+      : `<b>${telegramHtml(input.title)}</b>`;
     await sendTelegramMessage(pref.telegramChatId, text).catch(() => {});
   }
+}
+
+/** Escapa HTML y convierte enlaces markdown «[texto](ruta)» en <a> con URL
+ * absoluta, para el modo HTML de Telegram. */
+function telegramHtml(s: string): string {
+  const base = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.BETTER_AUTH_URL ||
+    ""
+  ).replace(/\/$/, "");
+  const esc = s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return esc.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
+    const href = url.startsWith("/") ? `${base}${url}` : url;
+    return `<a href="${href}">${label}</a>`;
+  });
 }
 
 // Historial de versiones: máx. por doc/fila y throttle entre snapshots.

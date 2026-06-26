@@ -26,6 +26,7 @@ function item(p: Partial<DigestItem> & { dayISO: string }): DigestItem {
     dayISO: p.dayISO,
     statusName: p.statusName,
     ambito: p.ambito,
+    href: p.href,
     done: p.done ?? false,
   };
 }
@@ -141,6 +142,27 @@ describe("renderDigest", () => {
     expect(title).toBe("🔔 1 tarea para hoy");
     expect(body).toContain("Hoy");
     expect(body).toContain("• Llamar (TAREAS · En curso)");
+  });
+
+  it("la tarea con href sale como enlace markdown", () => {
+    const d = buildDigest(
+      [
+        item({
+          title: "Panel",
+          dbTitle: "Proyectos",
+          href: "/p/demo/r3",
+          dayISO: "2026-06-25",
+        }),
+      ],
+      ["today"],
+      TODAY
+    );
+    const { body } = renderDigest(
+      d,
+      { buckets: ["today"], statusGroups: ["todo"], priorityGroups: [] },
+      TODAY
+    );
+    expect(body).toContain("• [Panel](/p/demo/r3) (Proyectos)");
   });
 
   it("las más antiguas en su propia sección «Tareas antiguas:» con fecha", () => {

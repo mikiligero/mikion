@@ -12,6 +12,33 @@ function icon(type: string) {
   return <Bell className="size-4" />;
 }
 
+/** Renderiza el cuerpo de un resumen convirtiendo los enlaces markdown
+ * «[texto](ruta)» en <Link> (cada tarea es un enlace a su fila). Conserva los
+ * saltos de línea en los segmentos de texto (el <p> usa whitespace-pre-line). */
+function renderBody(body: string, onLinkClick: () => void): React.ReactNode[] {
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let k = 0;
+  while ((m = re.exec(body))) {
+    if (m.index > last) out.push(body.slice(last, m.index));
+    out.push(
+      <Link
+        key={k++}
+        href={m[2]}
+        onClick={onLinkClick}
+        className="text-brand hover:underline"
+      >
+        {m[1]}
+      </Link>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < body.length) out.push(body.slice(last));
+  return out;
+}
+
 function relTime(iso: string): string {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (m < 1) return "ahora";
@@ -48,6 +75,9 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
           </p>
         )}
         {items.map((n) => {
+          const onClick = () => {
+            if (!n.read) startTransition(() => markRead(n.id));
+          };
           const inner = (
             <div
               className={cn(
@@ -69,7 +99,7 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
                         : "line-clamp-2"
                     )}
                   >
-                    {n.body}
+                    {n.type === "reminder" ? renderBody(n.body, onClick) : n.body}
                   </p>
                 )}
                 <p className="text-ink-faint mt-0.5 text-xs">{relTime(n.createdAt)}</p>
@@ -77,9 +107,16 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
               {!n.read && <span className="bg-brand mt-1.5 size-2 shrink-0 rounded-full" />}
             </div>
           );
-          const onClick = () => {
-            if (!n.read) startTransition(() => markRead(n.id));
-          };
+          // Resúmenes: cada tarea es un enlace dentro del cuerpo → no podemos
+          // envolver la tarjeta en <button>/<Link> (anidaría interactivos). Usamos
+          // un <div> que marca como leído al interactuar.
+          if (n.type === "reminder") {
+            return (
+              <div key={n.id} onClick={onClick}>
+                {inner}
+              </div>
+            );
+          }
           return n.docId ? (
             <Link
               key={n.id}

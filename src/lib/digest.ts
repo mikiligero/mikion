@@ -23,6 +23,7 @@ export type DigestItem = {
   dayISO: string;
   statusName?: string;
   ambito?: string; // nombre de la opción de la columna «Ámbito», si existe
+  href?: string; // ruta a la fila (/p/{docId}/{rowId}) → tarea como enlace
   done: boolean;
 };
 type DigestGroup = { dayISO: string; label: string; items: DigestItem[] };
@@ -303,7 +304,9 @@ export function digestTitle(n: number, opts: DigestTitleOpts): string {
   return `🔔 ${prefix}${sep}${time}`;
 }
 
-/** Línea de una tarea: «• Título (BD · Ámbito - X · Estado)». */
+/** Línea de una tarea: «• Título (BD · Ámbito - X · Estado)». El título va como
+ * enlace markdown «[Título](ruta)» si la tarea tiene `href` (lo renderizan la
+ * bandeja con <Link> y Telegram con <a>). */
 function itemLine(it: DigestItem): string {
   const meta = [
     it.dbTitle,
@@ -312,7 +315,8 @@ function itemLine(it: DigestItem): string {
   ]
     .filter(Boolean)
     .join(" · ");
-  return `• ${it.title}${meta ? ` (${meta})` : ""}`;
+  const title = it.href ? `[${it.title}](${it.href})` : it.title;
+  return `• ${title}${meta ? ` (${meta})` : ""}`;
 }
 
 /** Título + cuerpo (texto plano) del aviso para bandeja + Telegram. Las «más

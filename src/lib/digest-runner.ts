@@ -75,6 +75,7 @@ function ambitoName(
 
 type DigestDb = {
   id: string;
+  docId: string;
   schema: DatabaseSchema;
   title: string;
   workspaceId: string;
@@ -93,6 +94,7 @@ async function collectDigestDatabases(userId: string): Promise<DigestDb[]> {
   const out = new Map<string, DigestDb>();
   const cols = {
     id: databases.id,
+    docId: databases.docId,
     schema: databases.schema,
     title: docs.title,
     workspaceId: docs.workspaceId,
@@ -235,6 +237,7 @@ export async function computeUserDigest(
       dayISO: due.slice(0, 10),
       statusName: stOpt?.name,
       ambito,
+      href: `/p/${meta.docId}/${row.id}`,
       done: stOpt?.group === "done",
     });
   }
