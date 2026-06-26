@@ -83,9 +83,9 @@ export function SettingsForm({
   prefs: Prefs;
   shares: { byMe: SharedByMe[]; withMe: SharedWithMe[] };
 }) {
-  const [section, setSection] = useState<"account" | "prefs" | "shares">(
-    "account"
-  );
+  const [section, setSection] = useState<
+    "account" | "prefs" | "notifications" | "shares"
+  >("account");
 
   return (
     <div className="mx-auto flex max-w-4xl gap-8 px-8 py-12">
@@ -107,6 +107,12 @@ export function SettingsForm({
           Preferencias
         </RailItem>
         <RailItem
+          active={section === "notifications"}
+          onClick={() => setSection("notifications")}
+        >
+          Notificaciones
+        </RailItem>
+        <RailItem
           active={section === "shares"}
           onClick={() => setSection("shares")}
         >
@@ -120,6 +126,8 @@ export function SettingsForm({
           <AccountPanel user={user} />
         ) : section === "prefs" ? (
           <PreferencesPanel prefs={prefs} />
+        ) : section === "notifications" ? (
+          <NotificationsPanel prefs={prefs} />
         ) : (
           <SharesPanel shares={shares} />
         )}
@@ -418,18 +426,6 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
   const [scale, setScale] = useState(prefs.textScale);
   const [language, setLanguage] = useState(prefs.language);
   const [startupView, setStartupView] = useState(prefs.startupView);
-  const [telegram, setTelegram] = useState(prefs.telegramChatId);
-  const [testing, setTesting] = useState(false);
-  const [morning, setMorning] = useState<SlotState>({
-    enabled: prefs.digestMorningEnabled,
-    time: prefs.digestMorningTime,
-    days: prefs.digestMorningDays,
-  });
-  const [evening, setEvening] = useState<SlotState>({
-    enabled: prefs.digestEveningEnabled,
-    time: prefs.digestEveningTime,
-    days: prefs.digestEveningDays,
-  });
   // Guard de hidratación para next-themes (resolvedTheme fiable tras montar).
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
@@ -552,6 +548,29 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
           ]}
         />
       </Row>
+    </section>
+  );
+}
+
+function NotificationsPanel({ prefs }: { prefs: Prefs }) {
+  const [telegram, setTelegram] = useState(prefs.telegramChatId);
+  const [testing, setTesting] = useState(false);
+  const [morning, setMorning] = useState<SlotState>({
+    enabled: prefs.digestMorningEnabled,
+    time: prefs.digestMorningTime,
+    days: prefs.digestMorningDays,
+  });
+  const [evening, setEvening] = useState<SlotState>({
+    enabled: prefs.digestEveningEnabled,
+    time: prefs.digestEveningTime,
+    days: prefs.digestEveningDays,
+  });
+
+  return (
+    <section className="space-y-1">
+      <h2 className="font-serif text-ink mb-4 text-[20px] font-[560]">
+        Notificaciones
+      </h2>
 
       <div className="border-line border-b py-3.5">
         <p className="text-ink text-sm font-medium">Notificaciones por Telegram</p>
