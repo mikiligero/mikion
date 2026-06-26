@@ -169,17 +169,31 @@ export function dayLabel(dayISO: string, today: string): string {
 
 /** Conserva los items cuya fecha cae en alguno de los tramos pedidos y los
  * agrupa por día (orden cronológico). El filtrado por estado/prioridad ya viene
- * aplicado por el runner. */
+ * aplicado por el runner. `oldestCount` añade además las N tareas más antiguas
+ * (por fecha), saltándose los tramos, sin duplicar. */
 export function buildDigest(
   items: DigestItem[],
   buckets: Bucket[],
-  today: string
+  today: string,
+  oldestCount = 0
 ): Digest {
   const want = new Set(buckets);
-  const kept = items.filter((it) => {
+  const keep = new Set<DigestItem>();
+  for (const it of items) {
     const b = bucketOfDay(it.dayISO, today);
-    return b !== null && want.has(b);
-  });
+    if (b !== null && want.has(b)) keep.add(it);
+  }
+  // Las N más antiguas (fecha ascendente) se añaden aunque queden fuera de los
+  // tramos; ya vienen filtradas por estado/prioridad/ámbito.
+  if (oldestCount > 0) {
+    const oldest = [...items]
+      .sort((a, b) =>
+        a.dayISO < b.dayISO ? -1 : a.dayISO > b.dayISO ? 1 : 0
+      )
+      .slice(0, oldestCount);
+    for (const it of oldest) keep.add(it);
+  }
+  const kept = [...keep];
   const byDay = new Map<string, DigestItem[]>();
   for (const it of kept) {
     if (!byDay.has(it.dayISO)) byDay.set(it.dayISO, []);
@@ -202,6 +216,7 @@ export type DigestTitleOpts = {
   buckets: Bucket[];
   statusGroups: string[];
   priorityGroups: string[];
+  oldestCount?: number;
 };
 
 const STATUS_ADJ: Record<string, [string, string]> = {
@@ -268,13 +283,14 @@ export function digestTitle(n: number, opts: DigestTitleOpts): string {
     if (names.length) priorityPhrase = `de prioridad ${joinList(names)}`;
   }
 
+  const oldest = opts.oldestCount && opts.oldestCount > 0 ? " + las más antiguas" : "";
   const prefix = [count, statusAdj, priorityPhrase].filter(Boolean).join(" ");
   const time = timePhrase(opts.buckets);
-  if (!time) return `🔔 ${prefix}`;
+  if (!time) return `🔔 ${prefix}${oldest}`;
   // Coma para separar «…Alta» de «atrasadas» y que no se lean pegadas.
   const sep =
     time.startsWith("atrasadas") && (statusAdj || priorityPhrase) ? ", " : " ";
-  return `🔔 ${prefix}${sep}${time}`;
+  return `🔔 ${prefix}${sep}${time}${oldest}`;
 }
 
 /** Título + cuerpo (texto plano) del aviso para bandeja + Telegram. */

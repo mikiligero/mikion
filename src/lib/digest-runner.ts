@@ -235,7 +235,7 @@ export async function computeUserDigest(
     });
   }
 
-  return buildDigest(items, rule.buckets as Bucket[], today);
+  return buildDigest(items, rule.buckets as Bucket[], today, rule.oldestCount);
 }
 
 /** Calcula y, si hay tareas, entrega el aviso (bandeja + Telegram). No marca
@@ -250,6 +250,7 @@ export async function deliverRule(
       buckets: rule.buckets as Bucket[],
       statusGroups: rule.statusGroups,
       priorityGroups: rule.priorityGroups,
+      oldestCount: rule.oldestCount,
     });
     await createNotification({
       userId: rule.userId,

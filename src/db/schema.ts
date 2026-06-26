@@ -417,6 +417,9 @@ export const digestRules = pgTable(
     priorityGroups: jsonb("priority_groups").$type<string[]>().notNull().default([]),
     // ambitos: nombres de opción de una columna «Ámbito» (select) a incluir.
     ambitos: jsonb("ambitos").$type<string[]>().notNull().default([]),
+    // oldestCount: nº de tareas más antiguas a añadir (0 = no). Saltan los tramos
+    // pero respetan los demás filtros.
+    oldestCount: integer("oldest_count").notNull().default(0),
     enabled: boolean("enabled").notNull().default(true),
     lastSentDate: text("last_sent_date"),
     orderKey: text("order_key").notNull().default("a0"),

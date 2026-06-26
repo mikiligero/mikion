@@ -838,6 +838,43 @@ function RuleCard({
           </div>
         )}
 
+        <div>
+          <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
+            Más antiguas
+          </p>
+          <div className="flex items-center gap-2 text-sm">
+            <Switch
+              checked={rule.oldestCount > 0}
+              onCheckedChange={(on) => onChange({ oldestCount: on ? 5 : 0 })}
+            />
+            {rule.oldestCount > 0 ? (
+              <span className="text-ink-soft flex items-center gap-1.5">
+                Añadir las
+                <Select
+                  value={String(rule.oldestCount)}
+                  onValueChange={(v) => onChange({ oldestCount: Number(v) })}
+                >
+                  <SelectTrigger className="h-7 w-16">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 3, 5, 10, 15].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                tareas más antiguas
+              </span>
+            ) : (
+              <span className="text-ink-faint">
+                Añadir las tareas más antiguas (aunque queden fuera de los tramos)
+              </span>
+            )}
+          </div>
+        </div>
+
         <Button
           variant="outline"
           size="sm"

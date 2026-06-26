@@ -17,6 +17,7 @@ export type DigestRuleDTO = {
   statusGroups: string[];
   priorityGroups: string[];
   ambitos: string[];
+  oldestCount: number;
   enabled: boolean;
 };
 
@@ -29,6 +30,7 @@ function toDTO(r: DigestRule): DigestRuleDTO {
     statusGroups: r.statusGroups,
     priorityGroups: r.priorityGroups,
     ambitos: r.ambitos,
+    oldestCount: r.oldestCount,
     enabled: r.enabled,
   };
 }
@@ -100,6 +102,7 @@ export async function updateDigestRule(
     statusGroups: string[];
     priorityGroups: string[];
     ambitos: string[];
+    oldestCount: number;
     enabled: boolean;
   }>
 ): Promise<{ ok: boolean }> {

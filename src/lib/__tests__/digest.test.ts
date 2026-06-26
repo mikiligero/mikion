@@ -68,6 +68,40 @@ describe("buildDigest", () => {
     expect(d.groups[0].items[0].title).toBe("Hoy A");
   });
 
+  it("oldestCount añade las N más antiguas aunque queden fuera de los tramos", () => {
+    const d = buildDigest(
+      [
+        item({ title: "Hoy", dayISO: "2026-06-25" }),
+        item({ title: "Vieja 1", dayISO: "2026-05-01" }),
+        item({ title: "Vieja 2", dayISO: "2026-05-10" }),
+        item({ title: "Vieja 3", dayISO: "2026-06-01" }),
+      ],
+      ["today"], // solo hoy
+      TODAY,
+      2 // + las 2 más antiguas
+    );
+    // Hoy + las 2 fechas más antiguas (01-may y 10-may), sin la del 01-jun.
+    expect(d.total).toBe(3);
+    const titles = d.groups.flatMap((g) => g.items.map((i) => i.title));
+    expect(titles).toContain("Hoy");
+    expect(titles).toContain("Vieja 1");
+    expect(titles).toContain("Vieja 2");
+    expect(titles).not.toContain("Vieja 3");
+  });
+
+  it("no duplica si una más antigua ya está en un tramo", () => {
+    const d = buildDigest(
+      [
+        item({ title: "Ayer", dayISO: "2026-06-24" }),
+        item({ title: "Hoy", dayISO: "2026-06-25" }),
+      ],
+      ["overdue"],
+      TODAY,
+      5
+    );
+    expect(d.total).toBe(2); // Ayer (overdue) + Hoy (añadida), sin duplicar Ayer
+  });
+
   it("varios tramos: retrasados + próximos 10 días, orden cronológico", () => {
     const d = buildDigest(
       [
@@ -145,6 +179,11 @@ describe("digestTitle (estilo frase natural)", () => {
   it("solo retrasados", () => {
     expect(digestTitle(4, o({ buckets: ["overdue"] }))).toBe(
       "🔔 4 tareas atrasadas"
+    );
+  });
+  it("con más antiguas añade el sufijo", () => {
+    expect(digestTitle(5, o({ buckets: ["today"], oldestCount: 5 }))).toBe(
+      "🔔 5 tareas para hoy + las más antiguas"
     );
   });
 });

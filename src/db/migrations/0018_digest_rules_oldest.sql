@@ -1,0 +1,1 @@
+ALTER TABLE "digest_rules" ADD COLUMN "oldest_count" integer DEFAULT 0 NOT NULL;

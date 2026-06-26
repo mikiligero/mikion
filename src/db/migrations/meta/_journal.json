@@ -127,6 +127,13 @@
       "when": 1782487145817,
       "tag": "0017_digest_rules_ambitos",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782487866664,
+      "tag": "0018_digest_rules_oldest",
+      "breakpoints": true
     }
   ]
 }
