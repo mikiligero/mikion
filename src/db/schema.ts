@@ -415,6 +415,8 @@ export const digestRules = pgTable(
       .notNull()
       .default(["todo", "inProgress"]),
     priorityGroups: jsonb("priority_groups").$type<string[]>().notNull().default([]),
+    // ambitos: nombres de opción de una columna «Ámbito» (select) a incluir.
+    ambitos: jsonb("ambitos").$type<string[]>().notNull().default([]),
     enabled: boolean("enabled").notNull().default(true),
     lastSentDate: text("last_sent_date"),
     orderKey: text("order_key").notNull().default("a0"),

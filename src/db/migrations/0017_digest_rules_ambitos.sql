@@ -1,0 +1,1 @@
+ALTER TABLE "digest_rules" ADD COLUMN "ambitos" jsonb DEFAULT '[]'::jsonb NOT NULL;

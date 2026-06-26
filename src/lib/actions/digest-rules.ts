@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { digestRules } from "@/db/schema";
+import { databases, digestRules, docs, workspaces } from "@/db/schema";
 import type { DigestRule } from "@/db/schema";
 import { generateKeyBetween } from "fractional-indexing";
-import { deliverRule } from "@/lib/digest-runner";
+import { deliverRule, ambitoProperty } from "@/lib/digest-runner";
 import { requireUserId } from "./helpers";
 
 export type DigestRuleDTO = {
@@ -16,6 +16,7 @@ export type DigestRuleDTO = {
   buckets: string[];
   statusGroups: string[];
   priorityGroups: string[];
+  ambitos: string[];
   enabled: boolean;
 };
 
@@ -27,8 +28,27 @@ function toDTO(r: DigestRule): DigestRuleDTO {
     buckets: r.buckets,
     statusGroups: r.statusGroups,
     priorityGroups: r.priorityGroups,
+    ambitos: r.ambitos,
     enabled: r.enabled,
   };
+}
+
+/** Opciones de «Ámbito» (nombres) de las BD del usuario, para el filtro de los
+ * avisos. Reúne las opciones de toda columna de selección llamada «Ámbito». */
+export async function listAmbitoOptions(): Promise<string[]> {
+  const userId = await requireUserId();
+  const rows = await db
+    .select({ schema: databases.schema })
+    .from(databases)
+    .innerJoin(docs, eq(docs.id, databases.docId))
+    .innerJoin(workspaces, eq(workspaces.id, docs.workspaceId))
+    .where(and(eq(workspaces.ownerId, userId), isNull(docs.deletedAt)));
+  const names = new Set<string>();
+  for (const { schema } of rows) {
+    const prop = ambitoProperty(schema);
+    for (const o of prop?.options ?? []) names.add(o.name);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, "es"));
 }
 
 /** Avisos del usuario actual, ordenados. */
@@ -62,6 +82,7 @@ export async function createDigestRule(): Promise<DigestRuleDTO> {
       buckets: ["today"],
       statusGroups: ["todo", "inProgress"],
       priorityGroups: [],
+      ambitos: [],
       enabled: true,
       orderKey,
     })
@@ -78,6 +99,7 @@ export async function updateDigestRule(
     buckets: string[];
     statusGroups: string[];
     priorityGroups: string[];
+    ambitos: string[];
     enabled: boolean;
   }>
 ): Promise<{ ok: boolean }> {

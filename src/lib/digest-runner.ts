@@ -19,6 +19,7 @@ import {
   passesStatusFilter,
   renderDigest,
   rowAssignedTo,
+  passesAmbitoFilter,
   shouldSendRule,
   type Bucket,
   type Digest,
@@ -39,6 +40,33 @@ function groupedOption(
   if (!prop) return undefined;
   const optId = values?.[prop.id];
   return prop.options?.find((o) => o.id === optId);
+}
+
+/** Normaliza un nombre (sin acentos, minúsculas) para casar «Ámbito»/«ambito». */
+export function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/** Propiedad de selección llamada «Ámbito» (por convención de nombre). */
+export function ambitoProperty(schema: DatabaseSchema): PropertyDef | undefined {
+  return schema.properties.find(
+    (p) => p.type === "select" && normalizeName(p.name) === "ambito"
+  );
+}
+
+/** Nombre de la opción de «Ámbito» seleccionada en una fila, si la hay. */
+function ambitoName(
+  schema: DatabaseSchema,
+  values: Record<string, unknown> | null
+): string | undefined {
+  const prop = ambitoProperty(schema);
+  if (!prop) return undefined;
+  const optId = values?.[prop.id];
+  return prop.options?.find((o) => o.id === optId)?.name;
 }
 
 type DigestDb = {
@@ -189,17 +217,20 @@ export async function computeUserDigest(
     const due = dateEnd(dateVal) ?? dateStart(dateVal);
     if (!due) continue;
 
-    // Filtros del aviso: estado (lenient) y prioridad (estricto).
+    // Filtros del aviso: estado (lenient), prioridad y ámbito (estrictos).
     const stOpt = groupedOption(meta.schema, "status", row.values);
     if (!passesStatusFilter(stOpt?.group, rule.statusGroups)) continue;
     const prOpt = groupedOption(meta.schema, "priority", row.values);
     if (!passesPriorityFilter(prOpt?.group, rule.priorityGroups)) continue;
+    const ambito = ambitoName(meta.schema, row.values);
+    if (!passesAmbitoFilter(ambito, rule.ambitos)) continue;
 
     items.push({
       title: getRowTitle(row.values, meta.schema),
       dbTitle: meta.title || "Sin título",
       dayISO: due.slice(0, 10),
       statusName: stOpt?.name,
+      ambito,
       done: stOpt?.group === "done",
     });
   }

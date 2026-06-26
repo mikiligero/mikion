@@ -78,11 +78,13 @@ export function SettingsForm({
   prefs,
   shares,
   rules,
+  ambitoOptions,
 }: {
   user: { name: string; email: string };
   prefs: Prefs;
   shares: { byMe: SharedByMe[]; withMe: SharedWithMe[] };
   rules: DigestRuleDTO[];
+  ambitoOptions: string[];
 }) {
   const [section, setSection] = useState<
     "account" | "prefs" | "notifications" | "shares"
@@ -128,7 +130,11 @@ export function SettingsForm({
         ) : section === "prefs" ? (
           <PreferencesPanel prefs={prefs} />
         ) : section === "notifications" ? (
-          <NotificationsPanel prefs={prefs} rules={rules} />
+          <NotificationsPanel
+            prefs={prefs}
+            rules={rules}
+            ambitoOptions={ambitoOptions}
+          />
         ) : (
           <SharesPanel shares={shares} />
         )}
@@ -556,9 +562,11 @@ function PreferencesPanel({ prefs }: { prefs: Prefs }) {
 function NotificationsPanel({
   prefs,
   rules: initialRules,
+  ambitoOptions,
 }: {
   prefs: Prefs;
   rules: DigestRuleDTO[];
+  ambitoOptions: string[];
 }) {
   const [telegram, setTelegram] = useState(prefs.telegramChatId);
   const [testing, setTesting] = useState(false);
@@ -636,6 +644,7 @@ function NotificationsPanel({
               <RuleCard
                 key={r.id}
                 rule={r}
+                ambitoOptions={ambitoOptions}
                 onChange={(patch) => patchRule(r.id, patch)}
                 onDelete={() => removeRule(r.id)}
               />
@@ -683,10 +692,12 @@ function ChipToggle({
 
 function RuleCard({
   rule,
+  ambitoOptions,
   onChange,
   onDelete,
 }: {
   rule: DigestRuleDTO;
+  ambitoOptions: string[];
   onChange: (patch: Partial<DigestRuleDTO>) => void;
   onDelete: () => void;
 }) {
@@ -694,11 +705,11 @@ function RuleCard({
 
   function toggleIn(key: "days", value: number): void;
   function toggleIn(
-    key: "buckets" | "statusGroups" | "priorityGroups",
+    key: "buckets" | "statusGroups" | "priorityGroups" | "ambitos",
     value: string
   ): void;
   function toggleIn(
-    key: "days" | "buckets" | "statusGroups" | "priorityGroups",
+    key: "days" | "buckets" | "statusGroups" | "priorityGroups" | "ambitos",
     value: number | string
   ) {
     const list = rule[key] as (number | string)[];
@@ -807,6 +818,25 @@ function RuleCard({
             ))}
           </div>
         </div>
+
+        {ambitoOptions.length > 0 && (
+          <div>
+            <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
+              Ámbito <span className="lowercase">(vacío = todos)</span>
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {ambitoOptions.map((name) => (
+                <ChipToggle
+                  key={name}
+                  on={rule.ambitos.includes(name)}
+                  onClick={() => toggleIn("ambitos", name)}
+                >
+                  {name}
+                </ChipToggle>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Button
           variant="outline"

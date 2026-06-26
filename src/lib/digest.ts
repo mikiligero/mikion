@@ -22,6 +22,7 @@ export type DigestItem = {
   dbTitle: string;
   dayISO: string;
   statusName?: string;
+  ambito?: string; // nombre de la opción de la columna «Ámbito», si existe
   done: boolean;
 };
 type DigestGroup = { dayISO: string; label: string; items: DigestItem[] };
@@ -66,6 +67,16 @@ export function passesPriorityFilter(
 ): boolean {
   if (allowed.length === 0) return true;
   return group !== undefined && allowed.includes(group);
+}
+
+/** Filtro de ÁMBITO (estricto, por nombre de opción): vacío = sin filtro; si se
+ * piden ámbitos, solo pasan las tareas con esa opción. Sin ámbito → fuera. */
+export function passesAmbitoFilter(
+  name: string | undefined,
+  allowed: string[]
+): boolean {
+  if (allowed.length === 0) return true;
+  return name !== undefined && allowed.includes(name);
 }
 
 /** Fecha de hoy en Europe/Madrid como "YYYY-MM-DD". */
@@ -275,7 +286,13 @@ export function renderDigest(
   const body = digest.groups
     .map((g) => {
       const lines = g.items.map((it) => {
-        const meta = [it.dbTitle, it.statusName].filter(Boolean).join(" · ");
+        const meta = [
+          it.dbTitle,
+          it.ambito ? `Ámbito - ${it.ambito}` : null,
+          it.statusName,
+        ]
+          .filter(Boolean)
+          .join(" · ");
         return `• ${it.title}${meta ? ` (${meta})` : ""}`;
       });
       return `${g.label}\n${lines.join("\n")}`;

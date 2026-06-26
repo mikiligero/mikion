@@ -4,6 +4,7 @@ import {
   bucketOfDay,
   dayLabel,
   digestTitle,
+  passesAmbitoFilter,
   passesPriorityFilter,
   passesStatusFilter,
   renderDigest,
@@ -24,6 +25,7 @@ function item(p: Partial<DigestItem> & { dayISO: string }): DigestItem {
     dbTitle: p.dbTitle ?? "TAREAS",
     dayISO: p.dayISO,
     statusName: p.statusName,
+    ambito: p.ambito,
     done: p.done ?? false,
   };
 }
@@ -193,6 +195,45 @@ describe("passesStatusFilter (lenient)", () => {
   it("con grupo, solo los permitidos", () => {
     expect(passesStatusFilter("inProgress", ["todo", "inProgress"])).toBe(true);
     expect(passesStatusFilter("done", ["todo", "inProgress"])).toBe(false);
+  });
+});
+
+describe("passesAmbitoFilter (estricto por nombre)", () => {
+  it("vacío = pasa todo", () => {
+    expect(passesAmbitoFilter(undefined, [])).toBe(true);
+  });
+  it("sin ámbito se descarta si hay filtro", () => {
+    expect(passesAmbitoFilter(undefined, ["Crítica"])).toBe(false);
+  });
+  it("solo los ámbitos pedidos (por nombre)", () => {
+    expect(passesAmbitoFilter("Crítica", ["Crítica", "Personal"])).toBe(true);
+    expect(passesAmbitoFilter("Trabajo", ["Crítica"])).toBe(false);
+  });
+});
+
+describe("renderDigest cuerpo con ámbito", () => {
+  it("incluye «Ámbito - X» en la línea de la tarea", () => {
+    const d = buildDigest(
+      [
+        item({
+          title: "Panel de métricas",
+          dbTitle: "Proyectos",
+          statusName: "En curso",
+          ambito: "Crítica",
+          dayISO: "2026-06-25",
+        }),
+      ],
+      ["today"],
+      TODAY
+    );
+    const { body } = renderDigest(d, {
+      buckets: ["today"],
+      statusGroups: ["todo", "inProgress"],
+      priorityGroups: [],
+    });
+    expect(body).toContain(
+      "• Panel de métricas (Proyectos · Ámbito - Crítica · En curso)"
+    );
   });
 });
 

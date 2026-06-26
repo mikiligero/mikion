@@ -3,7 +3,10 @@ import { db } from "@/db";
 import { preferences } from "@/db/schema";
 import { requireSession } from "@/lib/session";
 import { listMyShares } from "@/lib/actions/shares";
-import { listDigestRules } from "@/lib/actions/digest-rules";
+import {
+  listDigestRules,
+  listAmbitoOptions,
+} from "@/lib/actions/digest-rules";
 import { SettingsForm } from "@/components/settings/settings-form";
 
 export default async function SettingsPage() {
@@ -13,12 +16,14 @@ export default async function SettingsPage() {
   });
   const shares = await listMyShares();
   const rules = await listDigestRules();
+  const ambitoOptions = await listAmbitoOptions();
 
   return (
     <SettingsForm
       user={{ name: session.user.name, email: session.user.email }}
       shares={shares}
       rules={rules}
+      ambitoOptions={ambitoOptions}
       prefs={{
         theme: prefs?.theme ?? "light",
         textScale: prefs?.textScale ?? 1,
