@@ -26,7 +26,23 @@ import {
   LayoutTemplate,
   Bookmark,
   Star,
+  GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import type { Row } from "@/db/schema";
 import type {
@@ -128,6 +144,21 @@ export function TableView({
 }) {
   const [, startTransition] = useTransition();
   const props = useMemo(() => visibleProperties(schema, config), [schema, config]);
+
+  // Reordenar columnas arrastrando: persiste el orden por vista (propertyOrder).
+  const canReorderColumns = !readOnly && !!onConfigChange;
+  const colSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+  function onColumnDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = props.map((p) => p.id);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    onConfigChange?.({ propertyOrder: arrayMove(ids, from, to) });
+  }
   // Guardamos solo el id; la fila se deriva del estado más reciente para que
   // el panel refleje los cambios de celdas hechos en la tabla.
   const [peekId, setPeekId] = useState<string | null>(null);
@@ -285,45 +316,57 @@ export function TableView({
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
-        <thead>
-          {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="border-line border-b">
-              <th className="w-8" />
-              {hg.headers.map((header) => {
-                const prop = props.find((p) => p.id === header.id);
-                return (
-                  <th
-                    key={header.id}
-                    className="border-line min-w-[160px] border-r p-0 text-left"
-                  >
-                    {prop ? (
-                      <ColumnHeaderMenu
-                        prop={prop}
-                        databaseId={databaseId}
-                        config={config}
-                        onConfigChange={onConfigChange}
-                      />
-                    ) : (
-                      flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )
-                    )}
-                  </th>
-                );
-              })}
-              <th className="w-10 px-1">
-                <AddPropertyButton
-                  onAdd={(type) =>
-                    startTransition(() => {
-                      void addProperty(databaseId, type);
-                    })
-                  }
-                />
-              </th>
-            </tr>
-          ))}
-        </thead>
+        <DndContext
+          sensors={colSensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onColumnDragEnd}
+        >
+          <thead>
+            {table.getHeaderGroups().map((hg) => (
+              <tr key={hg.id} className="border-line border-b">
+                <th className="w-8" />
+                <SortableContext
+                  items={props.map((p) => p.id)}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  {hg.headers.map((header) => {
+                    const prop = props.find((p) => p.id === header.id);
+                    return (
+                      <SortableHeader
+                        key={header.id}
+                        id={header.id}
+                        disabled={!canReorderColumns || !prop}
+                      >
+                        {prop ? (
+                          <ColumnHeaderMenu
+                            prop={prop}
+                            databaseId={databaseId}
+                            config={config}
+                            onConfigChange={onConfigChange}
+                          />
+                        ) : (
+                          flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )
+                        )}
+                      </SortableHeader>
+                    );
+                  })}
+                </SortableContext>
+                <th className="w-10 px-1">
+                  <AddPropertyButton
+                    onAdd={(type) =>
+                      startTransition(() => {
+                        void addProperty(databaseId, type);
+                      })
+                    }
+                  />
+                </th>
+              </tr>
+            ))}
+          </thead>
+        </DndContext>
         <tbody>
           {table.getRowModel().rows.map((row) => {
             const header = groupHeaders.get(row.original.id);
@@ -544,6 +587,49 @@ function CalcFooterCell({
 }
 
 // --- Menú de cabecera de columna ------------------------------------------
+/** Celda de cabecera reordenable: tirador (grip) que aparece al pasar el ratón
+ * y arrastra la columna a izquierda/derecha. */
+function SortableHeader({
+  id,
+  disabled,
+  children,
+}: {
+  id: string;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
+    useSortable({ id, disabled });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group/col border-line min-w-[160px] border-r p-0 text-left",
+        isDragging && "bg-sidebar z-10 opacity-70"
+      )}
+    >
+      <div className="flex items-center">
+        {!disabled && (
+          <button
+            {...attributes}
+            {...listeners}
+            aria-label="Arrastrar columna"
+            className="text-ink-faint hover:text-ink flex cursor-grab touch-none items-center self-stretch px-0.5 opacity-0 group-hover/col:opacity-100 active:cursor-grabbing"
+          >
+            <GripVertical className="size-3.5" />
+          </button>
+        )}
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+    </th>
+  );
+}
+
 function ColumnHeaderMenu({
   prop,
   databaseId,
