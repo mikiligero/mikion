@@ -58,18 +58,27 @@ import {
 export function Tag({
   option,
   onRemove,
+  dot,
 }: {
   option: SelectOption;
   onRemove?: () => void;
+  /** Muestra una «bola» de color antes del texto (impacto / esfuerzo). */
+  dot?: boolean;
 }) {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12.5px] font-medium"
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12.5px] font-medium"
       style={{
         background: `var(--tint-${option.color}-bg)`,
         color: `var(--tint-${option.color})`,
       }}
     >
+      {dot && (
+        <span
+          className="size-[7px] shrink-0 rounded-full"
+          style={{ background: `var(--tint-${option.color})` }}
+        />
+      )}
       {option.name}
       {onRemove && (
         <span
@@ -1654,6 +1663,8 @@ function SelectCell({
   const options = property.options ?? [];
   const selected = options.find((o) => o.id === value) ?? null;
   const groups = groupsForType(property.type); // status / impact / effort → agrupado
+  // Impacto y esfuerzo muestran una «bola» de color para leer el nivel de un vistazo.
+  const dot = property.type === "impact" || property.type === "effort";
 
   async function add() {
     if (!onAddOption || !query.trim()) return;
@@ -1688,7 +1699,7 @@ function SelectCell({
           }}
           className="flex min-w-0 flex-1 items-center justify-between px-2 py-1 text-left"
         >
-          <Tag option={o} />
+          <Tag option={o} dot={dot} />
           {value === o.id && (
             <Check className="text-ink-faint size-3.5 shrink-0" />
           )}
@@ -1712,7 +1723,7 @@ function SelectCell({
       <PopoverTrigger asChild>
         <button className="hover:bg-sidebar-hover flex min-h-7 w-full items-center px-2 py-1">
           {selected ? (
-            <Tag option={selected} />
+            <Tag option={selected} dot={dot} />
           ) : (
             <span className="text-ink-ghost text-sm">Vacío</span>
           )}

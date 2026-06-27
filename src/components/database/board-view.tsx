@@ -61,6 +61,9 @@ export function BoardView({
   const chipProps = visibleProps.filter(
     (p) => p.type !== "title" && p.id !== groupProp
   );
+  // Si se agrupa por impacto/esfuerzo, la cabecera de columna lleva «bola».
+  const groupType = schema.properties.find((p) => p.id === groupProp)?.type;
+  const groupDot = groupType === "impact" || groupType === "effort";
 
   function onDragStart(e: DragStartEvent) {
     setDragging(rows.find((r) => r.id === e.active.id) ?? null);
@@ -126,6 +129,7 @@ export function BoardView({
             schema={schema}
             chipProps={chipProps}
             docId={docId}
+            dot={groupDot}
             onAdd={() => createRow(databaseId, { [groupProp]: group.id })}
           />
         ))}
@@ -144,12 +148,14 @@ function Column({
   schema,
   chipProps,
   docId,
+  dot,
   onAdd,
 }: {
   group: RowGroup;
   schema: DatabaseSchema;
   chipProps: PropertyDef[];
   docId: string;
+  dot?: boolean;
   onAdd: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${group.id ?? "none"}` });
@@ -157,7 +163,7 @@ function Column({
     <div className="w-[286px] shrink-0">
       <div className="mb-2 flex items-center gap-2 px-1">
         {group.option ? (
-          <Tag option={group.option} />
+          <Tag option={group.option} dot={dot} />
         ) : (
           <span className="text-ink-faint text-sm font-medium">
             {group.label}
@@ -255,7 +261,13 @@ function Card({
         <div className="mt-2 flex flex-wrap gap-1">
           {chipProps.map((p) => {
             const opt = findOption(p, row.values?.[p.id]);
-            return opt ? <Tag key={p.id} option={opt} /> : null;
+            return opt ? (
+              <Tag
+                key={p.id}
+                option={opt}
+                dot={p.type === "impact" || p.type === "effort"}
+              />
+            ) : null;
           })}
         </div>
       </div>

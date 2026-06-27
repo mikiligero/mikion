@@ -196,6 +196,11 @@ export function TableView({
   }
 
   // Agrupación: ordena las filas por grupo y marca la primera de cada grupo.
+  // Si se agrupa por impacto/esfuerzo, la cabecera de grupo lleva «bola».
+  const groupByType = config.groupBy
+    ? schema.properties.find((p) => p.id === config.groupBy)?.type
+    : undefined;
+  const groupDot = groupByType === "impact" || groupByType === "effort";
   const { data, groupHeaders } = useMemo(() => {
     if (!config.groupBy) return { data: rows, groupHeaders: new Map<string, RowGroup>() };
     const groups = groupRows(rows, schema, config.groupBy).filter(
@@ -393,6 +398,7 @@ export function TableView({
                 key={row.id}
                 header={header}
                 colCount={colCount}
+                dot={groupDot}
               >
                 <tr
                   className="border-line group/row border-b"
@@ -968,10 +974,12 @@ function RowActionsMenu({
 function FragmentRow({
   header,
   colCount,
+  dot,
   children,
 }: {
   header?: RowGroup;
   colCount: number;
+  dot?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -981,7 +989,7 @@ function FragmentRow({
           <td colSpan={colCount} className="px-3 py-1.5">
             <span className="inline-flex items-center gap-2">
               {header.option ? (
-                <Tag option={header.option} />
+                <Tag option={header.option} dot={dot} />
               ) : (
                 <span className="text-ink-faint text-[13px] font-medium">
                   {header.label}
