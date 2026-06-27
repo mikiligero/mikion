@@ -87,11 +87,11 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
             >
               <span className="text-ink-faint mt-0.5">{icon(n.type)}</span>
               <div className="min-w-0 flex-1">
-                <p className="text-ink text-sm font-medium">{n.title}</p>
+                <p className="text-ink text-[16px] font-medium">{n.title}</p>
                 {n.body && (
                   <p
                     className={cn(
-                      "text-ink-soft mt-0.5 text-[13px]",
+                      "text-ink-soft mt-1 text-[15px] leading-relaxed",
                       // Los resúmenes (digest) conservan los saltos de línea y se
                       // muestran enteros, agrupados por día; el resto se recorta.
                       n.type === "reminder"
@@ -102,7 +102,7 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
                     {n.type === "reminder" ? renderBody(n.body, onClick) : n.body}
                   </p>
                 )}
-                <p className="text-ink-faint mt-0.5 text-xs">{relTime(n.createdAt)}</p>
+                <p className="text-ink-faint mt-1 text-[13px]">{relTime(n.createdAt)}</p>
               </div>
               {!n.read && <span className="bg-brand mt-1.5 size-2 shrink-0 rounded-full" />}
             </div>
