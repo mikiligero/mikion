@@ -15,7 +15,8 @@ export type DigestRuleDTO = {
   days: number[];
   buckets: string[];
   statusGroups: string[];
-  priorityGroups: string[];
+  impactGroups: string[];
+  effortGroups: string[];
   ambitos: string[];
   oldestCount: number;
   enabled: boolean;
@@ -28,7 +29,8 @@ function toDTO(r: DigestRule): DigestRuleDTO {
     days: r.days,
     buckets: r.buckets,
     statusGroups: r.statusGroups,
-    priorityGroups: r.priorityGroups,
+    impactGroups: r.impactGroups,
+    effortGroups: r.effortGroups,
     ambitos: r.ambitos,
     oldestCount: r.oldestCount,
     enabled: r.enabled,
@@ -83,7 +85,8 @@ export async function createDigestRule(): Promise<DigestRuleDTO> {
       days: [0, 1, 2, 3, 4, 5, 6],
       buckets: ["today"],
       statusGroups: ["todo", "inProgress"],
-      priorityGroups: [],
+      impactGroups: [],
+      effortGroups: [],
       ambitos: [],
       enabled: true,
       orderKey,
@@ -100,7 +103,8 @@ export async function updateDigestRule(
     days: number[];
     buckets: string[];
     statusGroups: string[];
-    priorityGroups: string[];
+    impactGroups: string[];
+    effortGroups: string[];
     ambitos: string[];
     oldestCount: number;
     enabled: boolean;

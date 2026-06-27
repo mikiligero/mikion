@@ -9,11 +9,14 @@ import type {
   SelectOption,
   ViewConfig,
 } from "@/lib/types";
-import { PRIORITY_GROUPS } from "@/lib/types";
+import { IMPACT_GROUPS, EFFORT_GROUPS } from "@/lib/types";
 
-// Rango de cada nivel de prioridad para ordenar por severidad (no alfabético).
-const PRIORITY_RANK: Record<string, number> = Object.fromEntries(
-  PRIORITY_GROUPS.map((g, i) => [g.value, i])
+// Rango de cada nivel para ordenar por severidad/coste (no alfabético).
+const IMPACT_RANK: Record<string, number> = Object.fromEntries(
+  IMPACT_GROUPS.map((g, i) => [g.value, i])
+);
+const EFFORT_RANK: Record<string, number> = Object.fromEntries(
+  EFFORT_GROUPS.map((g, i) => [g.value, i])
 );
 
 /** Valor centinela en un filtro select/status para «sin valor» (vacío). */
@@ -63,7 +66,8 @@ function matchesFilter(row: Row, schema: DatabaseSchema, f: Filter): boolean {
   switch (prop.type) {
     case "select":
     case "status":
-    case "priority":
+    case "impact":
+    case "effort":
     case "ambito": {
       // value = array de ids de opción seleccionados (multi-check). Puede incluir
       // EMPTY_FILTER para «sin valor».
@@ -90,10 +94,15 @@ function sortValue(row: Row, schema: DatabaseSchema, s: Sort): string | number {
   if (!prop) return "";
   if (prop.type === "number") return typeof v === "number" ? v : -Infinity;
   if (prop.type === "checkbox") return v ? 1 : 0;
-  if (prop.type === "priority") {
-    // Ordena por severidad del nivel (baja→urgente); sin valor al final.
+  if (prop.type === "impact") {
+    // Ordena por severidad del nivel (bajo→muy alto); sin valor al final.
     const g = findOption(prop, v)?.group;
-    return g && g in PRIORITY_RANK ? PRIORITY_RANK[g] : -Infinity;
+    return g && g in IMPACT_RANK ? IMPACT_RANK[g] : -Infinity;
+  }
+  if (prop.type === "effort") {
+    // Ordena por coste ascendente (5 min→varios días); sin valor al final.
+    const g = findOption(prop, v)?.group;
+    return g && g in EFFORT_RANK ? EFFORT_RANK[g] : -Infinity;
   }
   if (prop.type === "select" || prop.type === "status" || prop.type === "ambito") {
     return findOption(prop, v)?.name ?? "";

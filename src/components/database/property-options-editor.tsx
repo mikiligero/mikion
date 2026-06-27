@@ -46,7 +46,7 @@ export function PropertyOptionsEditor({
 }) {
   const [, startTransition] = useTransition();
   const options = property.options ?? [];
-  const groups = groupsForType(property.type); // status / priority
+  const groups = groupsForType(property.type); // status / impact / effort
   const grouped = hasOptionGroups(property.type);
   const isPerson = property.type === "person";
 
@@ -151,7 +151,9 @@ export function PropertyOptionsEditor({
               <>
                 <DropdownMenuSeparator />
                 <div className="text-ink-faint px-2 py-1 text-[11px] font-medium">
-                  {property.type === "priority" ? "Nivel" : "Grupo"}
+                  {property.type === "impact" || property.type === "effort"
+                    ? "Nivel"
+                    : "Grupo"}
                 </div>
                 {groups.map((g) => (
                   <DropdownMenuItem

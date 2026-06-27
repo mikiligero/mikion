@@ -24,7 +24,8 @@ export type PropertyType =
   | "select"
   | "multiselect"
   | "status"
-  | "priority"
+  | "impact"
+  | "effort"
   | "ambito"
   | "person"
   | "date"
@@ -62,7 +63,8 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "select", label: "Selección" },
   { value: "multiselect", label: "Selección múltiple" },
   { value: "status", label: "Estado" },
-  { value: "priority", label: "Prioridad" },
+  { value: "impact", label: "Impacto" },
+  { value: "effort", label: "Esfuerzo" },
   { value: "ambito", label: "Ámbito" },
   { value: "person", label: "Persona" },
   { value: "date", label: "Fecha" },
@@ -81,7 +83,7 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
   { value: "lastEditedBy", label: "Última edición por" },
 ];
 
-export type FormulaKind = "daysLeft" | "overdue" | "priorityScore" | "done";
+export type FormulaKind = "daysLeft" | "overdue" | "impactScore" | "done";
 
 // Valor de una propiedad de tipo "place" (se guarda como JSON en el valor).
 export type PlaceValue = {
@@ -100,35 +102,52 @@ export const STATUS_GROUPS: { value: StatusGroup; label: string }[] = [
   { value: "done", label: "Completado" },
 ];
 
-// Niveles de prioridad (estandarizados, para poder filtrar igual en toda BD).
-export type PriorityGroup = "low" | "medium" | "high" | "urgent";
+// Niveles de impacto (estandarizados, para poder filtrar igual en toda BD).
+// Nota: las claves internas se conservan de la antigua «prioridad»
+// (low/medium/high/urgent) para no migrar valores guardados; «urgent» es el
+// nivel superior (etiqueta «Muy alto»). El usuario nunca ve estas claves.
+export type ImpactGroup = "low" | "medium" | "high" | "urgent";
 
-export const PRIORITY_GROUPS: { value: PriorityGroup; label: string }[] = [
-  { value: "low", label: "Baja" },
-  { value: "medium", label: "Media" },
-  { value: "high", label: "Alta" },
-  { value: "urgent", label: "Urgente" },
+export const IMPACT_GROUPS: { value: ImpactGroup; label: string }[] = [
+  { value: "low", label: "Bajo" },
+  { value: "medium", label: "Medio" },
+  { value: "high", label: "Alto" },
+  { value: "urgent", label: "Muy alto" },
 ];
 
-/** Grupos disponibles para una propiedad con grupos (status / priority). */
+// Niveles de esfuerzo (ascendente: 5 min → varios días). Permite priorizar
+// «quick wins» (impacto alto + esfuerzo bajo) y filtrarlos en los avisos.
+export type EffortGroup = "xs" | "s" | "m" | "l";
+
+export const EFFORT_GROUPS: { value: EffortGroup; label: string }[] = [
+  { value: "xs", label: "5 min" },
+  { value: "s", label: "30 min" },
+  { value: "m", label: "2 h" },
+  { value: "l", label: "Varios días" },
+];
+
+export type OptionGroup = StatusGroup | ImpactGroup | EffortGroup;
+
+/** Grupos disponibles para una propiedad con grupos (status / impact / effort). */
 export function groupsForType(
   type: PropertyType
-): { value: StatusGroup | PriorityGroup; label: string }[] {
-  if (type === "priority") return PRIORITY_GROUPS;
+): { value: OptionGroup; label: string }[] {
+  if (type === "impact") return IMPACT_GROUPS;
+  if (type === "effort") return EFFORT_GROUPS;
   if (type === "status") return STATUS_GROUPS;
   return [];
 }
 
-/** ¿La propiedad clasifica sus opciones en grupos (status / priority)? */
+/** ¿La propiedad clasifica sus opciones en grupos (status / impact / effort)? */
 export function hasOptionGroups(type: PropertyType): boolean {
-  return type === "status" || type === "priority";
+  return type === "status" || type === "impact" || type === "effort";
 }
 
 export type SelectOption = {
   id: string;
   name: string;
   color: string; // clave de SELECT_COLORS (ver abajo); legacy: teal
-  group?: StatusGroup | PriorityGroup; // status: grupo de estado · priority: nivel
+  group?: OptionGroup; // status: grupo · impact/effort: nivel
   isUser?: boolean; // solo persona: vinculada a una cuenta (no borrable a mano)
 };
 
@@ -242,7 +261,7 @@ export type AutomationTrigger =
   | "status_done"
   | "item_added"
   | "due_2days"
-  | "priority_changed"
+  | "impact_changed"
   | "assignee_set"
   | "due_passed";
 
@@ -265,7 +284,7 @@ export const AUTOMATION_TRIGGERS: { value: AutomationTrigger; label: string }[] 
   { value: "status_done", label: "El estado cambia a «Hecho»" },
   { value: "item_added", label: "Se añade un elemento" },
   { value: "due_2days", label: "La entrega es en 2 días" },
-  { value: "priority_changed", label: "Cambia la prioridad" },
+  { value: "impact_changed", label: "Cambia el impacto" },
   { value: "assignee_set", label: "Se asigna un responsable" },
   { value: "due_passed", label: "Pasa la fecha de entrega" },
 ];

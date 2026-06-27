@@ -10,7 +10,7 @@ import {
   testTelegram,
 } from "@/lib/actions/preferences";
 import { TIME_OPTIONS, BUCKETS } from "@/lib/digest";
-import { STATUS_GROUPS, PRIORITY_GROUPS } from "@/lib/types";
+import { STATUS_GROUPS, IMPACT_GROUPS, EFFORT_GROUPS } from "@/lib/types";
 import {
   createDigestRule,
   updateDigestRule,
@@ -779,11 +779,22 @@ function RuleCard({
 
   function toggleIn(key: "days", value: number): void;
   function toggleIn(
-    key: "buckets" | "statusGroups" | "priorityGroups" | "ambitos",
+    key:
+      | "buckets"
+      | "statusGroups"
+      | "impactGroups"
+      | "effortGroups"
+      | "ambitos",
     value: string
   ): void;
   function toggleIn(
-    key: "days" | "buckets" | "statusGroups" | "priorityGroups" | "ambitos",
+    key:
+      | "days"
+      | "buckets"
+      | "statusGroups"
+      | "impactGroups"
+      | "effortGroups"
+      | "ambitos",
     value: number | string
   ) {
     const list = rule[key] as (number | string)[];
@@ -878,14 +889,31 @@ function RuleCard({
 
         <div>
           <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
-            Prioridad <span className="lowercase">(vacío = todas)</span>
+            Impacto <span className="lowercase">(vacío = todos)</span>
           </p>
           <div className="flex flex-wrap gap-1">
-            {PRIORITY_GROUPS.map((g) => (
+            {IMPACT_GROUPS.map((g) => (
               <ChipToggle
                 key={g.value}
-                on={rule.priorityGroups.includes(g.value)}
-                onClick={() => toggleIn("priorityGroups", g.value)}
+                on={rule.impactGroups.includes(g.value)}
+                onClick={() => toggleIn("impactGroups", g.value)}
+              >
+                {g.label}
+              </ChipToggle>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-ink-faint mb-1 text-[11px] font-medium uppercase tracking-[0.04em]">
+            Esfuerzo <span className="lowercase">(vacío = todos)</span>
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {EFFORT_GROUPS.map((g) => (
+              <ChipToggle
+                key={g.value}
+                on={rule.effortGroups.includes(g.value)}
+                onClick={() => toggleIn("effortGroups", g.value)}
               >
                 {g.label}
               </ChipToggle>

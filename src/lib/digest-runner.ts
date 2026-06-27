@@ -12,10 +12,13 @@ import { getRowTitle } from "@/lib/database-utils";
 import type { DatabaseSchema, PropertyDef, SelectOption } from "@/lib/types";
 import { createNotification, getSharedTreeForUser } from "@/lib/actions/helpers";
 import {
+  ambitoProperty,
   buildDigest,
   madridTime,
   madridToday,
-  passesPriorityFilter,
+  normalizeName,
+  passesImpactFilter,
+  passesEffortFilter,
   passesStatusFilter,
   renderDigest,
   rowAssignedTo,
@@ -26,6 +29,10 @@ import {
   type DigestItem,
 } from "@/lib/digest";
 
+// Reexportadas desde el módulo puro (antes vivían aquí; se movieron para poder
+// testearlas sin el chain de `server-only`/BD).
+export { ambitoProperty, normalizeName };
+
 function firstDateProperty(schema: DatabaseSchema): PropertyDef | null {
   return schema.properties.find((p) => p.type === "date") ?? null;
 }
@@ -33,33 +40,13 @@ function firstDateProperty(schema: DatabaseSchema): PropertyDef | null {
 /** Opción seleccionada de la primera propiedad de un tipo con grupos. */
 function groupedOption(
   schema: DatabaseSchema,
-  type: "status" | "priority",
+  type: "status" | "impact" | "effort",
   values: Record<string, unknown> | null
 ): SelectOption | undefined {
   const prop = schema.properties.find((p) => p.type === type);
   if (!prop) return undefined;
   const optId = values?.[prop.id];
   return prop.options?.find((o) => o.id === optId);
-}
-
-/** Normaliza un nombre (sin acentos, minúsculas) para casar «Ámbito»/«ambito». */
-export function normalizeName(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-/** Propiedad de Ámbito: por tipo «ambito», o (compat) una selección llamada
- * «Ámbito». */
-export function ambitoProperty(schema: DatabaseSchema): PropertyDef | undefined {
-  return (
-    schema.properties.find((p) => p.type === "ambito") ??
-    schema.properties.find(
-      (p) => p.type === "select" && normalizeName(p.name) === "ambito"
-    )
-  );
 }
 
 /** Nombre de la opción de «Ámbito» seleccionada en una fila, si la hay. */
@@ -223,11 +210,13 @@ export async function computeUserDigest(
     const due = dateEnd(dateVal) ?? dateStart(dateVal);
     if (!due) continue;
 
-    // Filtros del aviso: estado (lenient), prioridad y ámbito (estrictos).
+    // Filtros del aviso: estado (lenient), impacto/esfuerzo y ámbito (estrictos).
     const stOpt = groupedOption(meta.schema, "status", row.values);
     if (!passesStatusFilter(stOpt?.group, rule.statusGroups)) continue;
-    const prOpt = groupedOption(meta.schema, "priority", row.values);
-    if (!passesPriorityFilter(prOpt?.group, rule.priorityGroups)) continue;
+    const imOpt = groupedOption(meta.schema, "impact", row.values);
+    if (!passesImpactFilter(imOpt?.group, rule.impactGroups)) continue;
+    const efOpt = groupedOption(meta.schema, "effort", row.values);
+    if (!passesEffortFilter(efOpt?.group, rule.effortGroups)) continue;
     const ambito = ambitoName(meta.schema, row.values);
     if (!passesAmbitoFilter(ambito, rule.ambitos)) continue;
 
@@ -258,7 +247,7 @@ export async function deliverRule(
       {
         buckets: rule.buckets as Bucket[],
         statusGroups: rule.statusGroups,
-        priorityGroups: rule.priorityGroups,
+        impactGroups: rule.impactGroups,
       },
       madridToday(now)
     );

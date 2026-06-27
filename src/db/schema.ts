@@ -414,7 +414,8 @@ export const digestRules = pgTable(
       .$type<string[]>()
       .notNull()
       .default(["todo", "inProgress"]),
-    priorityGroups: jsonb("priority_groups").$type<string[]>().notNull().default([]),
+    impactGroups: jsonb("impact_groups").$type<string[]>().notNull().default([]),
+    effortGroups: jsonb("effort_groups").$type<string[]>().notNull().default([]),
     // ambitos: nombres de opción de una columna «Ámbito» (select) a incluir.
     ambitos: jsonb("ambitos").$type<string[]>().notNull().default([]),
     // oldestCount: nº de tareas más antiguas a añadir (0 = no). Saltan los tramos

@@ -45,7 +45,8 @@ const DEFAULT_NAMES: Record<PropertyType, string> = {
   select: "Selección",
   multiselect: "Multiselección",
   status: "Estado",
-  priority: "Prioridad",
+  impact: "Impacto",
+  effort: "Esfuerzo",
   ambito: "Ámbito",
   person: "Persona",
   date: "Fecha",
@@ -79,14 +80,23 @@ export function newPropertyDef(type: PropertyType): PropertyDef {
   ) {
     def.options = [];
   }
-  // Prioridad: se siembra con la escala estándar para que sea útil al instante
+  // Impacto: se siembra con la escala estándar para que sea útil al instante
   // (cada opción ya mapea a su nivel, base del filtro de avisos).
-  if (type === "priority") {
+  if (type === "impact") {
     def.options = [
-      opt("Baja", "blue", "low"),
-      opt("Media", "amber", "medium"),
-      opt("Alta", "orange", "high"),
-      opt("Urgente", "red", "urgent"),
+      opt("Bajo", "blue", "low"),
+      opt("Medio", "amber", "medium"),
+      opt("Alto", "orange", "high"),
+      opt("Muy alto", "red", "urgent"),
+    ];
+  }
+  // Esfuerzo: escala de coste temporal (ascendente).
+  if (type === "effort") {
+    def.options = [
+      opt("5 min", "green", "xs"),
+      opt("30 min", "teal", "s"),
+      opt("2 h", "amber", "m"),
+      opt("Varios días", "red", "l"),
     ];
   }
   return def;

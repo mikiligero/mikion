@@ -6,6 +6,7 @@
 // Zona horaria de referencia: Europe/Madrid.
 
 import { isoDay, MONTHS, WEEKDAYS } from "@/lib/calendar-utils";
+import type { DatabaseSchema, PropertyDef } from "@/lib/types";
 
 // Tramos seleccionables en un aviso.
 export type Bucket = "overdue" | "today" | "tomorrow" | "week";
@@ -65,10 +66,20 @@ export function passesStatusFilter(
   return allowed.includes(group);
 }
 
-/** Filtro de PRIORIDAD (estricto): vacío = sin filtro; si se piden niveles, solo
- * pasan las tareas con una prioridad de esos niveles. Sin prioridad (sin propiedad
+/** Filtro de IMPACTO (estricto): vacío = sin filtro; si se piden niveles, solo
+ * pasan las tareas con un impacto de esos niveles. Sin impacto (sin propiedad
  * o sin valor) NO es «importante» → se descarta. */
-export function passesPriorityFilter(
+export function passesImpactFilter(
+  group: string | undefined,
+  allowed: string[]
+): boolean {
+  if (allowed.length === 0) return true;
+  return group !== undefined && allowed.includes(group);
+}
+
+/** Filtro de ESFUERZO (estricto): vacío = sin filtro; si se piden niveles, solo
+ * pasan las tareas con un esfuerzo de esos niveles. Sin esfuerzo → fuera. */
+export function passesEffortFilter(
   group: string | undefined,
   allowed: string[]
 ): boolean {
@@ -84,6 +95,28 @@ export function passesAmbitoFilter(
 ): boolean {
   if (allowed.length === 0) return true;
   return name !== undefined && allowed.includes(name);
+}
+
+/** Normaliza un nombre (sin acentos, minúsculas) para casar «Ámbito»/«ambito». */
+export function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/** Propiedad de Ámbito de un esquema: por tipo «ambito», o (compat) una
+ * selección llamada «Ámbito». Devuelve undefined si no hay ninguna. */
+export function ambitoProperty(
+  schema: DatabaseSchema
+): PropertyDef | undefined {
+  return (
+    schema.properties.find((p) => p.type === "ambito") ??
+    schema.properties.find(
+      (p) => p.type === "select" && normalizeName(p.name) === "ambito"
+    )
+  );
 }
 
 /** Fecha de hoy en Europe/Madrid como "YYYY-MM-DD". */
@@ -228,7 +261,7 @@ export function buildDigest(
 export type DigestTitleOpts = {
   buckets: Bucket[];
   statusGroups: string[];
-  priorityGroups: string[];
+  impactGroups: string[];
 };
 
 const STATUS_ADJ: Record<string, [string, string]> = {
@@ -236,13 +269,13 @@ const STATUS_ADJ: Record<string, [string, string]> = {
   inProgress: ["en curso", "en curso"],
   done: ["completada", "completadas"],
 };
-const PRIORITY_NAME: Record<string, string> = {
-  low: "Baja",
-  medium: "Media",
-  high: "Alta",
-  urgent: "Urgente",
+const IMPACT_NAME: Record<string, string> = {
+  low: "Bajo",
+  medium: "Medio",
+  high: "Alto",
+  urgent: "Muy alto",
 };
-const PRIORITY_ORDER = ["low", "medium", "high", "urgent"];
+const IMPACT_ORDER = ["low", "medium", "high", "urgent"];
 
 /** Une una lista en español: [a] → "a"; [a,b] → "a y b"; [a,b,c] → "a, b y c". */
 function joinList(items: string[]): string {
@@ -273,8 +306,8 @@ function timePhrase(buckets: Bucket[]): string {
   return future;
 }
 
-/** Título dinámico del aviso (estilo frase natural): cantidad + estado/prioridad
- * (solo si se filtra) + tramo. P. ej. «🔔 3 tareas de prioridad Alta, atrasadas
+/** Título dinámico del aviso (estilo frase natural): cantidad + estado/impacto
+ * (solo si se filtra) + tramo. P. ej. «🔔 3 tareas de impacto Alto, atrasadas
  * y para hoy». */
 export function digestTitle(n: number, opts: DigestTitleOpts): string {
   const count = `${n} ${n === 1 ? "tarea" : "tareas"}`;
@@ -286,21 +319,21 @@ export function digestTitle(n: number, opts: DigestTitleOpts): string {
     if (adj) statusAdj = n === 1 ? adj[0] : adj[1];
   }
 
-  // Prioridad: solo cuando se filtra (vacío = todas → no se menciona).
-  let priorityPhrase = "";
-  if (opts.priorityGroups.length) {
-    const names = PRIORITY_ORDER.filter((g) =>
-      opts.priorityGroups.includes(g)
-    ).map((g) => PRIORITY_NAME[g]);
-    if (names.length) priorityPhrase = `de prioridad ${joinList(names)}`;
+  // Impacto: solo cuando se filtra (vacío = todos → no se menciona).
+  let impactPhrase = "";
+  if (opts.impactGroups.length) {
+    const names = IMPACT_ORDER.filter((g) =>
+      opts.impactGroups.includes(g)
+    ).map((g) => IMPACT_NAME[g]);
+    if (names.length) impactPhrase = `de impacto ${joinList(names)}`;
   }
 
-  const prefix = [count, statusAdj, priorityPhrase].filter(Boolean).join(" ");
+  const prefix = [count, statusAdj, impactPhrase].filter(Boolean).join(" ");
   const time = timePhrase(opts.buckets);
   if (!time) return `🔔 ${prefix}`;
-  // Coma para separar «…Alta» de «atrasadas» y que no se lean pegadas.
+  // Coma para separar «…Alto» de «atrasadas» y que no se lean pegadas.
   const sep =
-    time.startsWith("atrasadas") && (statusAdj || priorityPhrase) ? ", " : " ";
+    time.startsWith("atrasadas") && (statusAdj || impactPhrase) ? ", " : " ";
   return `🔔 ${prefix}${sep}${time}`;
 }
 

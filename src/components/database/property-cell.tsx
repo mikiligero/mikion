@@ -317,7 +317,8 @@ export function PropertyCell({
       );
     case "select":
     case "status":
-    case "priority":
+    case "impact":
+    case "effort":
     case "ambito":
       return (
         <SelectCell
@@ -1652,7 +1653,7 @@ function SelectCell({
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const options = property.options ?? [];
   const selected = options.find((o) => o.id === value) ?? null;
-  const groups = groupsForType(property.type); // status / priority → agrupado
+  const groups = groupsForType(property.type); // status / impact / effort → agrupado
 
   async function add() {
     if (!onAddOption || !query.trim()) return;

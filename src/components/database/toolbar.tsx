@@ -41,7 +41,8 @@ export function DatabaseToolbar({
     (p) =>
       p.type === "select" ||
       p.type === "status" ||
-      p.type === "priority" ||
+      p.type === "impact" ||
+      p.type === "effort" ||
       p.type === "ambito"
   );
   const groupableProps = filterableProps;

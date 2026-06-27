@@ -730,7 +730,8 @@ function ColumnHeaderMenu({
         </DropdownMenuItem>
         {(prop.type === "select" ||
           prop.type === "status" ||
-          prop.type === "priority" ||
+          prop.type === "impact" ||
+          prop.type === "effort" ||
           prop.type === "ambito") && (
           <DropdownMenuItem
             onClick={() =>
@@ -769,7 +770,8 @@ function ColumnHeaderMenu({
         {(prop.type === "select" ||
           prop.type === "multiselect" ||
           prop.type === "status" ||
-          prop.type === "priority" ||
+          prop.type === "impact" ||
+          prop.type === "effort" ||
           prop.type === "ambito") && (
           <PropertyOptionsEditor databaseId={databaseId} property={prop} />
         )}

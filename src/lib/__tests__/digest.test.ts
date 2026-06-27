@@ -5,7 +5,7 @@ import {
   dayLabel,
   digestTitle,
   passesAmbitoFilter,
-  passesPriorityFilter,
+  passesImpactFilter,
   passesStatusFilter,
   renderDigest,
   rowAssignedTo,
@@ -128,7 +128,7 @@ describe("renderDigest", () => {
   const opts = (over?: Partial<DigestTitleOpts>): DigestTitleOpts => ({
     buckets: ["today"],
     statusGroups: ["todo", "inProgress"],
-    priorityGroups: [],
+    impactGroups: [],
     ...over,
   });
 
@@ -159,7 +159,7 @@ describe("renderDigest", () => {
     );
     const { body } = renderDigest(
       d,
-      { buckets: ["today"], statusGroups: ["todo"], priorityGroups: [] },
+      { buckets: ["today"], statusGroups: ["todo"], impactGroups: [] },
       TODAY
     );
     expect(body).toContain("• [Panel](/p/demo/r3) (Proyectos)");
@@ -176,7 +176,7 @@ describe("renderDigest", () => {
     );
     const { body } = renderDigest(
       d,
-      { buckets: ["today"], statusGroups: ["todo"], priorityGroups: [] },
+      { buckets: ["today"], statusGroups: ["todo"], impactGroups: [] },
       TODAY
     );
     expect(body).toContain("Tareas antiguas:");
@@ -188,7 +188,7 @@ describe("digestTitle (estilo frase natural)", () => {
   const o = (over: Partial<DigestTitleOpts>): DigestTitleOpts => ({
     buckets: [],
     statusGroups: ["todo", "inProgress"],
-    priorityGroups: [],
+    impactGroups: [],
     ...over,
   });
 
@@ -197,24 +197,24 @@ describe("digestTitle (estilo frase natural)", () => {
       "🔔 1 tarea para mañana"
     );
   });
-  it("retrasados + hoy con prioridad Alta", () => {
+  it("retrasados + hoy con impacto Alto", () => {
     expect(
-      digestTitle(3, o({ buckets: ["overdue", "today"], priorityGroups: ["high"] }))
-    ).toBe("🔔 3 tareas de prioridad Alta, atrasadas y para hoy");
+      digestTitle(3, o({ buckets: ["overdue", "today"], impactGroups: ["high"] }))
+    ).toBe("🔔 3 tareas de impacto Alto, atrasadas y para hoy");
   });
   it("próximos días, estado solo Pendiente", () => {
     expect(
       digestTitle(2, o({ buckets: ["week"], statusGroups: ["todo"] }))
     ).toBe("🔔 2 tareas pendientes en los próximos días");
   });
-  it("hoy+mañana+próximos con prioridad Alta y Urgente", () => {
+  it("hoy+mañana+próximos con impacto Alto y Muy alto", () => {
     expect(
       digestTitle(5, {
         buckets: ["today", "tomorrow", "week"],
         statusGroups: ["todo", "inProgress"],
-        priorityGroups: ["high", "urgent"],
+        impactGroups: ["high", "urgent"],
       })
-    ).toBe("🔔 5 tareas de prioridad Alta y Urgente para los próximos días");
+    ).toBe("🔔 5 tareas de impacto Alto y Muy alto para los próximos días");
   });
   it("solo retrasados", () => {
     expect(digestTitle(4, o({ buckets: ["overdue"] }))).toBe(
@@ -305,7 +305,7 @@ describe("renderDigest cuerpo con ámbito", () => {
       {
         buckets: ["today"],
         statusGroups: ["todo", "inProgress"],
-        priorityGroups: [],
+        impactGroups: [],
       },
       TODAY
     );
@@ -315,16 +315,16 @@ describe("renderDigest cuerpo con ámbito", () => {
   });
 });
 
-describe("passesPriorityFilter (estricto)", () => {
+describe("passesImpactFilter (estricto)", () => {
   it("vacío = pasa todo", () => {
-    expect(passesPriorityFilter(undefined, [])).toBe(true);
+    expect(passesImpactFilter(undefined, [])).toBe(true);
   });
   it("sin prioridad se descarta si hay filtro", () => {
-    expect(passesPriorityFilter(undefined, ["high", "urgent"])).toBe(false);
+    expect(passesImpactFilter(undefined, ["high", "urgent"])).toBe(false);
   });
   it("con prioridad, solo los niveles pedidos", () => {
-    expect(passesPriorityFilter("high", ["high", "urgent"])).toBe(true);
-    expect(passesPriorityFilter("low", ["high", "urgent"])).toBe(false);
+    expect(passesImpactFilter("high", ["high", "urgent"])).toBe(true);
+    expect(passesImpactFilter("low", ["high", "urgent"])).toBe(false);
   });
 });
 

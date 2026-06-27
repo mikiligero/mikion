@@ -20,7 +20,8 @@ import {
   UserCog,
   MapPin,
   Link2,
-  Flag,
+  Flame,
+  Timer,
   Boxes,
 } from "lucide-react";
 import type { PropertyType } from "@/lib/types";
@@ -32,7 +33,8 @@ const ICONS: Record<PropertyType, React.ComponentType<{ className?: string }>> =
   select: ChevronDownCircle,
   multiselect: List,
   status: CircleDot,
-  priority: Flag,
+  impact: Flame,
+  effort: Timer,
   ambito: Boxes,
   person: User,
   date: Calendar,
