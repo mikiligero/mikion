@@ -3,8 +3,25 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AtSign, MessageSquare, Bell, CheckCheck } from "lucide-react";
-import { markRead, markAllRead, type NotificationItem } from "@/lib/actions/notifications";
+import { markAllRead, type NotificationItem } from "@/lib/actions/notifications";
 import { cn } from "@/lib/utils";
+
+// Marca como leída vía route handler (fetch), no server action: un server action
+// pasa por el router de Next y cancela la navegación del <Link> al pulsar la
+// notificación. `keepalive` asegura que la petición se complete aunque la página
+// navegue de inmediato. El Set evita un POST duplicado cuando un mismo clic
+// dispara el onClick del enlace y el del contenedor (digests).
+const marking = new Set<string>();
+function markReadFetch(id: string) {
+  if (marking.has(id)) return;
+  marking.add(id);
+  void fetch("/api/notifications/read", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+    keepalive: true,
+  }).catch(() => {});
+}
 
 function icon(type: string) {
   if (type === "mention") return <AtSign className="size-4" />;
@@ -50,8 +67,8 @@ function relTime(iso: string): string {
 
 export function InboxList({ items }: { items: NotificationItem[] }) {
   const [, startTransition] = useTransition();
-  // Leídos de forma optimista en esta sesión (markRead ya no revalida la ruta,
-  // para no cancelar la navegación al pulsar un enlace de la notificación).
+  // Leídos de forma optimista en esta sesión: el marcado va por fetch (ver
+  // markReadFetch) para no interferir con la navegación al pulsar la notificación.
   const [localRead, setLocalRead] = useState<Set<string>>(new Set());
   const hasUnread = items.some((n) => !n.read && !localRead.has(n.id));
 
@@ -82,7 +99,7 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
           const onClick = () => {
             if (!read) {
               setLocalRead((prev) => new Set(prev).add(n.id));
-              startTransition(() => markRead(n.id));
+              markReadFetch(n.id);
             }
           };
           const inner = (

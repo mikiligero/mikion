@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { requireUserId } from "./helpers";
@@ -37,17 +37,9 @@ export async function getNotifications(): Promise<NotificationItem[]> {
   }));
 }
 
-export async function markRead(id: string) {
-  const userId = await requireUserId();
-  await db
-    .update(notifications)
-    .set({ read: true })
-    .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
-  // Sin revalidatePath: al marcar leído desde un clic en un enlace, revalidar la
-  // ruta re-renderiza la bandeja y cancela la navegación del <Link>. El estado de
-  // leído se refleja de forma optimista en cliente; el layout se refresca solo al
-  // navegar.
-}
+// El marcado individual al pulsar una notificación vive en el route handler
+// `POST /api/notifications/read` (fetch), no aquí: un server action interfiere con
+// la navegación del <Link> de la notificación. Ver src/app/api/notifications/read.
 
 export async function markAllRead() {
   const userId = await requireUserId();
