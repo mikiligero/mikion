@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AtSign, MessageSquare, Bell, CheckCheck } from "lucide-react";
 import { markRead, markAllRead, type NotificationItem } from "@/lib/actions/notifications";
@@ -50,7 +50,10 @@ function relTime(iso: string): string {
 
 export function InboxList({ items }: { items: NotificationItem[] }) {
   const [, startTransition] = useTransition();
-  const hasUnread = items.some((n) => !n.read);
+  // Leídos de forma optimista en esta sesión (markRead ya no revalida la ruta,
+  // para no cancelar la navegación al pulsar un enlace de la notificación).
+  const [localRead, setLocalRead] = useState<Set<string>>(new Set());
+  const hasUnread = items.some((n) => !n.read && !localRead.has(n.id));
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-12">
@@ -75,14 +78,18 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
           </p>
         )}
         {items.map((n) => {
+          const read = n.read || localRead.has(n.id);
           const onClick = () => {
-            if (!n.read) startTransition(() => markRead(n.id));
+            if (!read) {
+              setLocalRead((prev) => new Set(prev).add(n.id));
+              startTransition(() => markRead(n.id));
+            }
           };
           const inner = (
             <div
               className={cn(
                 "border-line flex items-start gap-3 rounded-md border p-3",
-                !n.read && "bg-brand-tint/40"
+                !read && "bg-brand-tint/40"
               )}
             >
               <span className="text-ink-faint mt-0.5">{icon(n.type)}</span>
@@ -104,7 +111,7 @@ export function InboxList({ items }: { items: NotificationItem[] }) {
                 )}
                 <p className="text-ink-faint mt-1 text-[15px]">{relTime(n.createdAt)}</p>
               </div>
-              {!n.read && <span className="bg-brand mt-1.5 size-2 shrink-0 rounded-full" />}
+              {!read && <span className="bg-brand mt-1.5 size-2 shrink-0 rounded-full" />}
             </div>
           );
           // Resúmenes: cada tarea es un enlace dentro del cuerpo → no podemos

@@ -43,7 +43,10 @@ export async function markRead(id: string) {
     .update(notifications)
     .set({ read: true })
     .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
-  revalidatePath("/", "layout");
+  // Sin revalidatePath: al marcar leído desde un clic en un enlace, revalidar la
+  // ruta re-renderiza la bandeja y cancela la navegación del <Link>. El estado de
+  // leído se refleja de forma optimista en cliente; el layout se refresca solo al
+  // navegar.
 }
 
 export async function markAllRead() {
