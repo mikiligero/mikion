@@ -17,6 +17,7 @@ import type {
   Block,
   DatabaseSchema,
   DbTemplate,
+  HabitSchedule,
   PropertyValues,
   ViewConfig,
 } from "@/lib/types";
@@ -447,6 +448,11 @@ export const habits = pgTable(
     name: text("name").notNull().default(""),
     emoji: text("emoji"),
     color: text("color").notNull().default("green"), // clave de SELECT_COLORS
+    // Horario: { type:"daily" } | { type:"weekly", days:[0..6] } | { type:"times", perWeek:N }
+    schedule: jsonb("schedule")
+      .$type<HabitSchedule>()
+      .notNull()
+      .default({ type: "daily" }),
     orderKey: text("order_key").notNull().default("a0"),
     archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

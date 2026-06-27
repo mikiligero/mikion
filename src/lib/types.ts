@@ -85,6 +85,15 @@ export const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
 
 export type FormulaKind = "daysLeft" | "overdue" | "impactScore" | "done";
 
+// Horario de un hábito (página de tipo "habit").
+// - daily: todos los días.
+// - weekly: solo ciertos días de la semana (lun=0 … dom=6).
+// - times: objetivo de N veces por semana (sin día fijo).
+export type HabitSchedule =
+  | { type: "daily" }
+  | { type: "weekly"; days: number[] }
+  | { type: "times"; perWeek: number };
+
 // Valor de una propiedad de tipo "place" (se guarda como JSON en el valor).
 export type PlaceValue = {
   name: string;

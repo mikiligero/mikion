@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { habits, habitLogs } from "@/db/schema";
 import { assertDocAccess } from "./helpers";
 import type { HabitDTO } from "@/lib/habits";
+import type { HabitSchedule } from "@/lib/types";
 
 /** Hábitos (no archivados) + registros de un doc de hábitos. */
 export async function listHabitData(docId: string): Promise<{
@@ -33,6 +34,7 @@ export async function listHabitData(docId: string): Promise<{
       name: h.name,
       emoji: h.emoji,
       color: h.color,
+      schedule: h.schedule,
       orderKey: h.orderKey,
     })),
     logs: logs.filter((l) => idSet.has(l.habitId)),
@@ -67,6 +69,7 @@ export async function createHabit(
     name: created.name,
     emoji: created.emoji,
     color: created.color,
+    schedule: created.schedule,
     orderKey: created.orderKey,
   };
 }
@@ -74,7 +77,12 @@ export async function createHabit(
 /** Actualiza nombre/emoji/color de un hábito (valida acceso vía su doc). */
 export async function updateHabit(
   habitId: string,
-  patch: { name?: string; emoji?: string | null; color?: string }
+  patch: {
+    name?: string;
+    emoji?: string | null;
+    color?: string;
+    schedule?: HabitSchedule;
+  }
 ): Promise<{ ok: boolean }> {
   const h = await db.query.habits.findFirst({ where: eq(habits.id, habitId) });
   if (!h) throw new Error("Hábito no encontrado");
@@ -85,6 +93,7 @@ export async function updateHabit(
       ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
       ...(patch.emoji !== undefined ? { emoji: patch.emoji } : {}),
       ...(patch.color !== undefined ? { color: patch.color } : {}),
+      ...(patch.schedule !== undefined ? { schedule: patch.schedule } : {}),
     })
     .where(eq(habits.id, habitId));
   return { ok: true };

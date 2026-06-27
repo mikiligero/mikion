@@ -12,12 +12,15 @@ import {
 } from "@/lib/actions/habits";
 import {
   buildDoneMap,
+  countsOnDay,
   dayMessage,
   dayPercent,
   lastDays,
   streak,
+  timesThisWeek,
   type HabitDTO,
 } from "@/lib/habits";
+import type { HabitSchedule } from "@/lib/types";
 import {
   HabitTrendChart,
   HabitAnalytics,
@@ -59,9 +62,11 @@ export function HabitContainer({
     document.title = `${title.trim() || "Hábitos"} · Mikion`;
   }, [title]);
 
-  const habitIds = useMemo(() => habits.map((h) => h.id), [habits]);
   const days = useMemo(() => lastDays(today, 7), [today]);
   const days30 = useMemo(() => lastDays(today, 30), [today]);
+  // Hábitos que «tocan» hoy (para el bloque Hoy) y objetivos semanales (times).
+  const dueToday = habits.filter((h) => countsOnDay(h.schedule, today));
+  const weeklyGoals = habits.filter((h) => h.schedule.type === "times");
 
   function saveTitle() {
     if (title !== doc.title) startTransition(() => renameDoc(doc.id, title));
@@ -110,8 +115,8 @@ export function HabitContainer({
     void updateHabit(id, patch);
   }
 
-  const todayPct = dayPercent(habitIds, done, today);
-  const todayMsg = dayMessage(todayPct);
+  const todayPct = dayPercent(habits, done, today); // null = día libre
+  const todayMsg = todayPct === null ? null : dayMessage(todayPct);
 
   return (
     <div className="mx-auto max-w-3xl px-10 pt-10 pb-16">
@@ -148,60 +153,98 @@ export function HabitContainer({
               <span className="text-ink-faint text-sm">{prettyDate(today)}</span>
             </div>
 
-            <div className="mt-3 space-y-1.5">
-              {habits.map((h) => {
-                const isDone = done[h.id]?.has(today) ?? false;
-                const s = streak(done[h.id], today);
-                return (
-                  <button
-                    key={h.id}
-                    onClick={() => toggle(h.id, today)}
-                    disabled={readOnly}
-                    className={cn(
-                      "group/h flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                      isDone ? "" : "hover:bg-sidebar-hover"
-                    )}
-                    style={
-                      isDone
-                        ? { background: `var(--tint-${h.color}-bg)` }
-                        : undefined
-                    }
-                  >
-                    <span
+            {dueToday.length === 0 ? (
+              <p className="text-ink-faint mt-3 text-sm">
+                Hoy no toca ningún hábito. Día libre 🌙
+              </p>
+            ) : (
+              <div className="mt-3 space-y-1.5">
+                {dueToday.map((h) => {
+                  const isDone = done[h.id]?.has(today) ?? false;
+                  const s = streak(done[h.id], today, h.schedule);
+                  return (
+                    <button
+                      key={h.id}
+                      onClick={() => toggle(h.id, today)}
+                      disabled={readOnly}
                       className={cn(
-                        "flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                        isDone ? "border-transparent text-white" : "border-line"
+                        "group/h flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                        isDone ? "" : "hover:bg-sidebar-hover"
                       )}
-                      style={isDone ? { background: `var(--tint-${h.color})` } : undefined}
+                      style={
+                        isDone ? { background: `var(--tint-${h.color}-bg)` } : undefined
+                      }
                     >
-                      {isDone && <Check className="size-4" strokeWidth={3} />}
-                    </span>
-                    <span className="text-base">{h.emoji ?? "•"}</span>
-                    <span className="text-ink flex-1 text-[15px] font-medium">
-                      {h.name}
-                    </span>
-                    {s > 0 && (
-                      <span className="text-ink-soft inline-flex items-center gap-1 text-[13px]">
-                        <Flame className="size-3.5 text-orange-500" /> {s}
+                      <span
+                        className={cn(
+                          "flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors",
+                          isDone ? "border-transparent text-white" : "border-line"
+                        )}
+                        style={isDone ? { background: `var(--tint-${h.color})` } : undefined}
+                      >
+                        {isDone && <Check className="size-4" strokeWidth={3} />}
                       </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                      <span className="text-base">{h.emoji ?? "•"}</span>
+                      <span className="text-ink flex-1 text-[15px] font-medium">
+                        {h.name}
+                      </span>
+                      {s > 0 && (
+                        <span className="text-ink-soft inline-flex items-center gap-1 text-[13px]">
+                          <Flame className="size-3.5 text-orange-500" /> {s}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Progreso del día */}
-            <div className="mt-4 flex items-center gap-3">
-              <div className="bg-sidebar h-2 flex-1 overflow-hidden rounded-full">
-                <div
-                  className="bg-brand h-full rounded-full transition-all"
-                  style={{ width: `${todayPct}%` }}
-                />
+            {todayPct !== null && (
+              <div className="mt-4 flex items-center gap-3">
+                <div className="bg-sidebar h-2 flex-1 overflow-hidden rounded-full">
+                  <div
+                    className="bg-brand h-full rounded-full transition-all"
+                    style={{ width: `${todayPct}%` }}
+                  />
+                </div>
+                <span className="text-ink-soft w-28 text-right text-sm font-medium">
+                  {todayPct}%{todayMsg ? ` · ${todayMsg}` : ""}
+                </span>
               </div>
-              <span className="text-ink-soft w-28 text-right text-sm font-medium">
-                {todayPct}%{todayMsg ? ` · ${todayMsg}` : ""}
-              </span>
-            </div>
+            )}
+
+            {/* Objetivos semanales (hábitos de tipo «N veces por semana») */}
+            {weeklyGoals.length > 0 && (
+              <div className="border-line mt-4 space-y-2 border-t pt-3">
+                <p className="text-ink-faint text-[11px] font-medium uppercase tracking-[0.04em]">
+                  Esta semana
+                </p>
+                {weeklyGoals.map((h) => {
+                  const goal =
+                    h.schedule.type === "times" ? h.schedule.perWeek : 0;
+                  const n = timesThisWeek(done[h.id], today);
+                  const pct = goal ? Math.min(100, (n / goal) * 100) : 0;
+                  return (
+                    <div key={h.id} className="flex items-center gap-3">
+                      <span className="w-40 shrink-0 truncate text-[14px]">
+                        <span className="mr-1.5">{h.emoji ?? "•"}</span>
+                        {h.name}
+                      </span>
+                      <div className="bg-sidebar h-2 flex-1 overflow-hidden rounded-full">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${pct}%`, background: `var(--tint-${h.color})` }}
+                        />
+                      </div>
+                      <span className="text-ink-soft w-12 shrink-0 text-right text-[13px] font-medium">
+                        {n}/{goal}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* Últimos 7 días */}
@@ -257,6 +300,12 @@ export function HabitContainer({
                             className="text-ink min-w-0 flex-1 bg-transparent text-[14px] outline-none"
                           />
                           {!readOnly && (
+                            <SchedulePopover
+                              schedule={h.schedule}
+                              onChange={(s) => patchHabit(h.id, { schedule: s })}
+                            />
+                          )}
+                          {!readOnly && (
                             <button
                               onClick={() => removeHabit(h.id)}
                               aria-label="Eliminar hábito"
@@ -269,6 +318,10 @@ export function HabitContainer({
                       </td>
                       {days.map((d) => {
                         const isDone = done[h.id]?.has(d) ?? false;
+                        // En hábitos «weekly» los días que no tocan se atenúan
+                        // (pero siguen siendo marcables como sesión extra).
+                        const scheduled =
+                          h.schedule.type !== "weekly" || countsOnDay(h.schedule, d);
                         return (
                           <td key={d} className="px-2 py-2 text-center">
                             <button
@@ -277,11 +330,19 @@ export function HabitContainer({
                               aria-label={isDone ? "Hecho" : "Marcar"}
                               className={cn(
                                 "inline-flex size-5 items-center justify-center rounded-md border transition-colors",
-                                isDone ? "border-transparent text-white" : "border-line hover:bg-sidebar-hover"
+                                isDone
+                                  ? "border-transparent text-white"
+                                  : scheduled
+                                    ? "border-line hover:bg-sidebar-hover"
+                                    : "text-ink-ghost border-transparent"
                               )}
                               style={isDone ? { background: `var(--tint-${h.color})` } : undefined}
                             >
-                              {isDone && <Check className="size-3.5" strokeWidth={3} />}
+                              {isDone ? (
+                                <Check className="size-3.5" strokeWidth={3} />
+                              ) : scheduled ? null : (
+                                "·"
+                              )}
                             </button>
                           </td>
                         );
@@ -292,11 +353,14 @@ export function HabitContainer({
                 <tfoot>
                   <tr className="bg-sidebar/40 text-ink-faint text-[12px]">
                     <td className="px-3 py-1.5 font-medium">% del día</td>
-                    {days.map((d) => (
-                      <td key={d} className="px-2 py-1.5 text-center">
-                        {dayPercent(habitIds, done, d)}%
-                      </td>
-                    ))}
+                    {days.map((d) => {
+                      const pct = dayPercent(habits, done, d);
+                      return (
+                        <td key={d} className="px-2 py-1.5 text-center">
+                          {pct === null ? "–" : `${pct}%`}
+                        </td>
+                      );
+                    })}
                   </tr>
                 </tfoot>
               </table>
@@ -328,7 +392,7 @@ export function HabitContainer({
               Evolución
             </h2>
             <div className="border-line rounded-xl border p-4">
-              <HabitTrendChart habitIds={habitIds} done={done} days={days30} />
+              <HabitTrendChart habits={habits} done={done} days={days30} />
             </div>
           </section>
 
@@ -348,12 +412,149 @@ export function HabitContainer({
               Histórico
             </h2>
             <div className="border-line rounded-xl border p-5">
-              <HabitHeatmap habitIds={habitIds} done={done} today={today} />
+              <HabitHeatmap habits={habits} done={done} today={today} />
             </div>
           </section>
         </>
       )}
     </div>
+  );
+}
+
+const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
+
+/** Resumen corto del horario, para el botón. */
+function scheduleLabel(s: HabitSchedule): string {
+  if (s.type === "daily") return "Diario";
+  if (s.type === "times") return `${s.perWeek}×/sem`;
+  if (s.days.length === 7) return "Diario";
+  if (s.days.length === 0) return "Sin días";
+  return s.days
+    .slice()
+    .sort((a, b) => a - b)
+    .map((d) => DAY_LABELS[d])
+    .join("");
+}
+
+/** Editor de horario de un hábito: diario, días de la semana, o N por semana. */
+function SchedulePopover({
+  schedule,
+  onChange,
+}: {
+  schedule: HabitSchedule;
+  onChange: (s: HabitSchedule) => void;
+}) {
+  function toggleDay(d: number) {
+    const days =
+      schedule.type === "weekly" ? schedule.days : [0, 1, 2, 3, 4, 5, 6];
+    const next = days.includes(d)
+      ? days.filter((x) => x !== d)
+      : [...days, d];
+    onChange({ type: "weekly", days: next });
+  }
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          aria-label="Horario"
+          className="text-ink-faint hover:bg-sidebar-hover shrink-0 rounded px-1.5 py-0.5 text-[11px]"
+        >
+          {scheduleLabel(schedule)}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-56 p-2">
+        <div className="space-y-1">
+          <SchedRadio
+            label="Todos los días"
+            active={schedule.type === "daily"}
+            onClick={() => onChange({ type: "daily" })}
+          />
+          <SchedRadio
+            label="Días de la semana"
+            active={schedule.type === "weekly"}
+            onClick={() =>
+              onChange({ type: "weekly", days: schedule.type === "weekly" ? schedule.days : [0, 2, 4] })
+            }
+          />
+          {schedule.type === "weekly" && (
+            <div className="flex gap-1 px-1 pb-1">
+              {DAY_LABELS.map((label, d) => (
+                <button
+                  key={d}
+                  onClick={() => toggleDay(d)}
+                  className={cn(
+                    "flex size-6 items-center justify-center rounded-md text-[11px] font-medium",
+                    schedule.days.includes(d)
+                      ? "bg-brand text-paper"
+                      : "bg-sidebar text-ink-soft hover:bg-sidebar-hover"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <SchedRadio
+            label="N veces por semana"
+            active={schedule.type === "times"}
+            onClick={() =>
+              onChange({
+                type: "times",
+                perWeek: schedule.type === "times" ? schedule.perWeek : 3,
+              })
+            }
+          />
+          {schedule.type === "times" && (
+            <div className="flex items-center gap-2 px-1 pb-1">
+              <input
+                type="number"
+                min={1}
+                max={7}
+                value={schedule.perWeek}
+                onChange={(e) =>
+                  onChange({
+                    type: "times",
+                    perWeek: Math.min(7, Math.max(1, Number(e.target.value) || 1)),
+                  })
+                }
+                className="border-line bg-surface text-ink w-16 rounded-md border px-2 py-1 text-sm outline-none"
+              />
+              <span className="text-ink-faint text-xs">veces / semana</span>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function SchedRadio({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+        active ? "bg-sidebar-hover text-ink font-medium" : "text-ink-soft hover:bg-sidebar-hover"
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-3.5 items-center justify-center rounded-full border",
+          active ? "border-brand" : "border-line"
+        )}
+      >
+        {active && <span className="bg-brand size-2 rounded-full" />}
+      </span>
+      {label}
+    </button>
   );
 }
 

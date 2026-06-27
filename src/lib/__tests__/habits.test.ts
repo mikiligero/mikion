@@ -3,11 +3,16 @@ import {
   addDaysISO,
   buildDoneMap,
   completionRate,
+  countsOnDay,
   dayMessage,
   dayPercent,
   lastDays,
   percentSeries,
   streak,
+  timesThisWeek,
+  weekDays,
+  weekdayOf,
+  type HabitSchedule,
 } from "@/lib/habits";
 
 const TODAY = "2026-06-26"; // viernes
@@ -38,18 +43,47 @@ describe("buildDoneMap", () => {
   });
 });
 
-describe("dayPercent", () => {
+// Hábito con horario para los cálculos por día (id + schedule).
+const hb = (id: string, schedule: HabitSchedule = { type: "daily" }) => ({
+  id,
+  schedule,
+});
+
+describe("dayPercent (con horario)", () => {
   const done = buildDoneMap([
     { habitId: "a", day: TODAY },
     { habitId: "b", day: TODAY },
   ]);
-  it("redondea el % de hábitos hechos en el día", () => {
-    expect(dayPercent(["a", "b"], done, TODAY)).toBe(100);
-    expect(dayPercent(["a", "b", "c"], done, TODAY)).toBe(67); // 2/3
-    expect(dayPercent(["a", "b", "c"], done, "2026-06-25")).toBe(0);
+  it("redondea el % de hábitos hechos en el día (diarios)", () => {
+    expect(dayPercent([hb("a"), hb("b")], done, TODAY)).toBe(100);
+    expect(dayPercent([hb("a"), hb("b"), hb("c")], done, TODAY)).toBe(67); // 2/3
+    expect(dayPercent([hb("a"), hb("b"), hb("c")], done, "2026-06-25")).toBe(0);
   });
-  it("sin hábitos → 0", () => {
-    expect(dayPercent([], done, TODAY)).toBe(0);
+  it("sin hábitos → null", () => {
+    expect(dayPercent([], done, TODAY)).toBeNull();
+  });
+  it("solo cuenta los que tocan ese día; día sin ninguno → null", () => {
+    // TODAY = viernes (weekday 4). Hábito a solo los lunes (0).
+    const lun = hb("a", { type: "weekly", days: [0] });
+    const vie = hb("b", { type: "weekly", days: [4] });
+    expect(dayPercent([lun, vie], done, TODAY)).toBe(100); // solo cuenta b (hecho)
+    expect(dayPercent([lun], done, TODAY)).toBeNull(); // a no toca hoy
+  });
+  it("los de tipo «times» no cuentan por día", () => {
+    expect(dayPercent([hb("a", { type: "times", perWeek: 3 })], done, TODAY)).toBeNull();
+  });
+});
+
+describe("countsOnDay / weekdayOf", () => {
+  it("weekdayOf: lun=0 … dom=6", () => {
+    expect(weekdayOf("2026-06-22")).toBe(0);
+    expect(weekdayOf("2026-06-26")).toBe(4); // viernes
+  });
+  it("daily siempre, weekly según día, times nunca por día", () => {
+    expect(countsOnDay({ type: "daily" }, TODAY)).toBe(true);
+    expect(countsOnDay({ type: "weekly", days: [4] }, TODAY)).toBe(true);
+    expect(countsOnDay({ type: "weekly", days: [0] }, TODAY)).toBe(false);
+    expect(countsOnDay({ type: "times", perWeek: 3 }, TODAY)).toBe(false);
   });
 });
 
@@ -70,6 +104,17 @@ describe("streak", () => {
     expect(streak(undefined, TODAY)).toBe(0);
     expect(streak(new Set(["2026-06-01"]), TODAY)).toBe(0);
   });
+  it("con horario semanal cuenta solo los días que tocan", () => {
+    // Lunes y viernes. TODAY=vie 26. Hechos: vie 26, lun 22, vie 19 → racha 3.
+    const sched: HabitSchedule = { type: "weekly", days: [0, 4] };
+    const s = new Set(["2026-06-26", "2026-06-22", "2026-06-19"]);
+    expect(streak(s, TODAY, sched)).toBe(3);
+    // Si falta el lunes 22, la racha se rompe tras el viernes 26 → 1.
+    expect(streak(new Set(["2026-06-26", "2026-06-19"]), TODAY, sched)).toBe(1);
+  });
+  it("los de tipo «times» no tienen racha", () => {
+    expect(streak(new Set([TODAY]), TODAY, { type: "times", perWeek: 3 })).toBe(0);
+  });
 });
 
 describe("percentSeries", () => {
@@ -79,12 +124,42 @@ describe("percentSeries", () => {
       { habitId: "b", day: "2026-06-25" },
       { habitId: "a", day: "2026-06-26" },
     ]);
-    const s = percentSeries(["a", "b"], done, ["2026-06-24", "2026-06-25", "2026-06-26"]);
+    const s = percentSeries(
+      [hb("a"), hb("b")],
+      done,
+      ["2026-06-24", "2026-06-25", "2026-06-26"]
+    );
     expect(s).toEqual([
       { day: "2026-06-24", percent: 0 },
       { day: "2026-06-25", percent: 100 },
       { day: "2026-06-26", percent: 50 },
     ]);
+  });
+});
+
+describe("completionRate (con horario)", () => {
+  it("semanal: cuenta sobre los días que tocaban", () => {
+    // Lunes/viernes. Rango lun22..dom28. Días que tocan: 22(lun),26(vie) → 2.
+    const sched: HabitSchedule = { type: "weekly", days: [0, 4] };
+    const days = [
+      "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25",
+      "2026-06-26", "2026-06-27", "2026-06-28",
+    ];
+    const done = new Set(["2026-06-22"]); // hecho 1 de 2 que tocaban
+    expect(completionRate(done, days, sched)).toBe(50);
+  });
+});
+
+describe("weekDays / timesThisWeek", () => {
+  it("weekDays devuelve lun→dom de la semana del día", () => {
+    expect(weekDays(TODAY)).toEqual([
+      "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25",
+      "2026-06-26", "2026-06-27", "2026-06-28",
+    ]);
+  });
+  it("timesThisWeek cuenta las marcas de la semana actual", () => {
+    const done = new Set(["2026-06-22", "2026-06-26", "2026-06-15"]); // el 15 es otra semana
+    expect(timesThisWeek(done, TODAY)).toBe(2);
   });
 });
 

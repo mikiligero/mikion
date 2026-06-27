@@ -12,17 +12,18 @@ import {
 import { MONTHS, WEEKDAYS, monthMatrix, isoDay } from "@/lib/calendar-utils";
 import { cn } from "@/lib/utils";
 
-/** Gráfica de área del % diario sobre un rango de días. SVG propio (sin libs). */
+/** Gráfica de área del % diario sobre un rango de días. SVG propio (sin libs).
+ * Los días libres (sin hábitos que tocan) se omiten (la línea los salta). */
 export function HabitTrendChart({
-  habitIds,
+  habits,
   done,
   days,
 }: {
-  habitIds: string[];
+  habits: HabitDTO[];
   done: DoneMap;
   days: string[];
 }) {
-  const series = percentSeries(habitIds, done, days);
+  const series = percentSeries(habits, done, days);
   const W = 720;
   const H = 180;
   const padL = 28;
@@ -34,8 +35,14 @@ export function HabitTrendChart({
   const x = (i: number) => padL + (n <= 1 ? 0 : (i / (n - 1)) * innerW);
   const y = (p: number) => padT + innerH - (p / 100) * innerH;
 
-  const line = series.map((s, i) => `${x(i)},${y(s.percent)}`).join(" ");
-  const area = `${padL},${y(0)} ${line} ${x(n - 1)},${y(0)}`;
+  // Solo puntos con % (días que tocaban algún hábito).
+  const pts = series
+    .map((s, i) => ({ i, p: s.percent }))
+    .filter((pt): pt is { i: number; p: number } => pt.p !== null);
+  const line = pts.map((pt) => `${x(pt.i)},${y(pt.p)}`).join(" ");
+  const area = pts.length
+    ? `${x(pts[0].i)},${y(0)} ${line} ${x(pts[pts.length - 1].i)},${y(0)}`
+    : "";
 
   // Etiquetas de fecha: primero, medio y último.
   const ticks = [0, Math.floor((n - 1) / 2), n - 1].filter(
@@ -71,7 +78,7 @@ export function HabitTrendChart({
           </text>
         </g>
       ))}
-      <polygon points={area} fill="var(--brand)" opacity={0.12} />
+      {area && <polygon points={area} fill="var(--brand)" opacity={0.12} />}
       <polyline
         points={line}
         fill="none"
@@ -80,8 +87,8 @@ export function HabitTrendChart({
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {series.map((s, i) => (
-        <circle key={i} cx={x(i)} cy={y(s.percent)} r={2} fill="var(--brand)" />
+      {pts.map((pt) => (
+        <circle key={pt.i} cx={x(pt.i)} cy={y(pt.p)} r={2} fill="var(--brand)" />
       ))}
       {ticks.map((i) => (
         <text
@@ -112,7 +119,7 @@ export function HabitAnalytics({
   return (
     <div className="space-y-2.5">
       {habits.map((h) => {
-        const pct = completionRate(done[h.id], days);
+        const pct = completionRate(done[h.id], days, h.schedule);
         return (
           <div key={h.id} className="flex items-center gap-3">
             <span className="w-40 shrink-0 truncate text-[14px]">
@@ -137,11 +144,11 @@ export function HabitAnalytics({
 
 /** Heatmap mensual: cada día se tiñe según el % de hábitos hechos. Navegable. */
 export function HabitHeatmap({
-  habitIds,
+  habits,
   done,
   today,
 }: {
-  habitIds: string[];
+  habits: HabitDTO[];
   done: DoneMap;
   today: string;
 }) {
@@ -185,12 +192,15 @@ export function HabitHeatmap({
         ))}
         {weeks.flat().map(({ date, inMonth }, i) => {
           const iso = isoDay(date);
-          const pct = inMonth ? dayPercent(habitIds, done, iso) : 0;
+          const pct = inMonth ? dayPercent(habits, done, iso) : null;
           const isToday = iso === today;
+          // pct null = día libre (no tocaba nada) → celda neutra tenue.
           return (
             <div
               key={i}
-              title={inMonth ? `${date.getDate()}: ${pct}%` : ""}
+              title={
+                inMonth ? `${date.getDate()}: ${pct === null ? "libre" : pct + "%"}` : ""
+              }
               className={cn(
                 "flex aspect-square items-center justify-center rounded-md text-[11px]",
                 !inMonth && "opacity-0",
@@ -200,10 +210,11 @@ export function HabitHeatmap({
                 inMonth
                   ? {
                       background:
-                        pct > 0
+                        pct && pct > 0
                           ? `color-mix(in srgb, var(--brand) ${pct}%, var(--sidebar))`
                           : "var(--sidebar)",
-                      color: pct >= 55 ? "white" : "var(--ink-soft)",
+                      color: pct && pct >= 55 ? "white" : "var(--ink-faint)",
+                      opacity: pct === null ? 0.4 : 1,
                     }
                   : undefined
               }
