@@ -90,13 +90,13 @@ export function newPropertyDef(type: PropertyType): PropertyDef {
       opt("Muy alto", "red", "urgent"),
     ];
   }
-  // Esfuerzo: escala de coste temporal (ascendente).
+  // Esfuerzo: escala de coste (ascendente, bajo → muy alto).
   if (type === "effort") {
     def.options = [
-      opt("5 min", "green", "xs"),
-      opt("30 min", "teal", "s"),
-      opt("2 h", "amber", "m"),
-      opt("Varios días", "red", "l"),
+      opt("Bajo", "green", "xs"),
+      opt("Medio", "amber", "s"),
+      opt("Alto", "orange", "m"),
+      opt("Muy alto", "red", "l"),
     ];
   }
   return def;

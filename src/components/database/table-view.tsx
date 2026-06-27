@@ -331,13 +331,13 @@ export function TableView({
 
   return (
     <div className="overflow-x-auto">
+      <DndContext
+        sensors={colSensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onColumnDragEnd}
+      >
       <table className="w-full border-collapse text-sm">
-        <DndContext
-          sensors={colSensors}
-          collisionDetection={closestCenter}
-          onDragEnd={onColumnDragEnd}
-        >
-          <thead>
+        <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id} className="border-line border-b">
                 <th className="w-8" />
@@ -382,7 +382,6 @@ export function TableView({
               </tr>
             ))}
           </thead>
-        </DndContext>
         <tbody>
           {table.getRowModel().rows.map((row) => {
             const header = groupHeaders.get(row.original.id);
@@ -441,6 +440,7 @@ export function TableView({
           </tr>
         </tfoot>
       </table>
+      </DndContext>
 
       {!readOnly && (
       <div className="flex w-fit items-center">

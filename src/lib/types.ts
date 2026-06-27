@@ -115,15 +115,15 @@ export const IMPACT_GROUPS: { value: ImpactGroup; label: string }[] = [
   { value: "urgent", label: "Muy alto" },
 ];
 
-// Niveles de esfuerzo (ascendente: 5 min → varios días). Permite priorizar
+// Niveles de esfuerzo (ascendente: bajo → muy alto). Permite priorizar
 // «quick wins» (impacto alto + esfuerzo bajo) y filtrarlos en los avisos.
 export type EffortGroup = "xs" | "s" | "m" | "l";
 
 export const EFFORT_GROUPS: { value: EffortGroup; label: string }[] = [
-  { value: "xs", label: "5 min" },
-  { value: "s", label: "30 min" },
-  { value: "m", label: "2 h" },
-  { value: "l", label: "Varios días" },
+  { value: "xs", label: "Bajo" },
+  { value: "s", label: "Medio" },
+  { value: "m", label: "Alto" },
+  { value: "l", label: "Muy alto" },
 ];
 
 export type OptionGroup = StatusGroup | ImpactGroup | EffortGroup;
