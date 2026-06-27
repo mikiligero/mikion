@@ -366,13 +366,16 @@ function colorDot(color?: string): string | null {
  * esfuerzo se muestran solo como bola de color. El título va como enlace markdown
  * «[Título](ruta)» si tiene `href` (lo renderizan la bandeja y Telegram). */
 function itemLine(it: DigestItem): string {
-  const dots = [colorDot(it.impactColor), colorDot(it.effortColor)].filter(
-    Boolean
-  ) as string[];
+  const im = colorDot(it.impactColor);
+  const ef = colorDot(it.effortColor);
+  const tags = [
+    im ? `Impacto ${im}` : null,
+    ef ? `Esfuerzo ${ef}` : null,
+  ].filter(Boolean);
   const meta = [
     it.dbTitle,
     it.ambito ? `- ${it.ambito}` : null,
-    dots.length ? dots.join(" - ") : null,
+    tags.length ? tags.join(" - ") : null,
     it.statusName,
   ]
     .filter(Boolean)

@@ -333,7 +333,7 @@ describe("renderDigest cuerpo con ámbito", () => {
     );
   });
 
-  it("impacto y esfuerzo salen como bolas de color (🟠 - 🟢)", () => {
+  it("impacto y esfuerzo salen con etiqueta y bola (Impacto 🟠 - Esfuerzo 🟢)", () => {
     const d = buildDigest(
       [
         item({
@@ -355,7 +355,7 @@ describe("renderDigest cuerpo con ámbito", () => {
       TODAY
     );
     expect(body).toContain(
-      "• Buscar Seguro (Iniciativas · - 🚐 Camper · 🟠 - 🟢 · Por hacer)"
+      "• Buscar Seguro (Iniciativas · - 🚐 Camper · Impacto 🟠 - Esfuerzo 🟢 · Por hacer)"
     );
   });
 });
