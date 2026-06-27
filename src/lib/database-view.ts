@@ -10,6 +10,7 @@ import type {
   ViewConfig,
 } from "@/lib/types";
 import { IMPACT_GROUPS, EFFORT_GROUPS } from "@/lib/types";
+import { dateStart } from "@/lib/calendar-utils";
 
 // Rango de cada nivel para ordenar por severidad/coste (no alfabético).
 const IMPACT_RANK: Record<string, number> = Object.fromEntries(
@@ -103,6 +104,11 @@ function sortValue(row: Row, schema: DatabaseSchema, s: Sort): string | number {
     // Ordena por coste ascendente (5 min→varios días); sin valor al final.
     const g = findOption(prop, v)?.group;
     return g && g in EFFORT_RANK ? EFFORT_RANK[g] : -Infinity;
+  }
+  if (prop.type === "date") {
+    // Acepta fecha simple o rango [inicio, fin]; ordena por el inicio (ISO, que
+    // ordena cronológicamente como texto). Sin fecha → al final.
+    return dateStart(v) ?? "￿";
   }
   if (prop.type === "select" || prop.type === "status" || prop.type === "ambito") {
     return findOption(prop, v)?.name ?? "";

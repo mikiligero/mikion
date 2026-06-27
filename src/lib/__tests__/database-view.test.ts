@@ -24,6 +24,7 @@ const schema: DatabaseSchema = {
     },
     { id: "num", name: "Número", type: "number" },
     { id: "chk", name: "Listo", type: "checkbox" },
+    { id: "due", name: "Entrega", type: "date", dateRange: true },
   ],
 };
 
@@ -71,12 +72,12 @@ describe("visibleProperties", () => {
       hiddenProperties: ["num"],
       propertyOrder: ["status", "title"],
     });
-    expect(props.map((p) => p.id)).toEqual(["status", "title", "chk"]);
+    expect(props.map((p) => p.id)).toEqual(["status", "title", "chk", "due"]);
   });
 
   it("sin config devuelve todas en orden de esquema", () => {
     const props = visibleProperties(schema, { filters: [], sorts: [] });
-    expect(props.map((p) => p.id)).toEqual(["title", "status", "num", "chk"]);
+    expect(props.map((p) => p.id)).toEqual(["title", "status", "num", "chk", "due"]);
   });
 });
 
@@ -146,6 +147,27 @@ describe("applyView · orden", () => {
         sorts: [{ propertyId: "status", direction: "asc" }],
       }).map((r) => r.id)
     ).toEqual(["r1", "r3", "r2"]);
+  });
+
+  it("ordena por fecha (simple y rango), con vacíos al final", () => {
+    const dated = [
+      row("d1", { due: "2026-06-20" }, "a0"),
+      row("d2", { due: ["2026-06-05", "2026-06-25"] }, "a1"), // rango → ordena por inicio (05)
+      row("d3", {}, "a2"), // sin fecha
+      row("d4", { due: "2026-06-10" }, "a3"),
+    ];
+    expect(
+      applyView(dated, schema, {
+        filters: [],
+        sorts: [{ propertyId: "due", direction: "asc" }],
+      }).map((r) => r.id)
+    ).toEqual(["d2", "d4", "d1", "d3"]); // 05, 10, 20, (vacío)
+    expect(
+      applyView(dated, schema, {
+        filters: [],
+        sorts: [{ propertyId: "due", direction: "desc" }],
+      }).map((r) => r.id)
+    ).toEqual(["d3", "d1", "d4", "d2"]); // vacío primero al invertir
   });
 });
 
