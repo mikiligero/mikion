@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   addDaysISO,
   buildDoneMap,
+  completionRate,
   dayMessage,
   dayPercent,
   lastDays,
+  percentSeries,
   streak,
 } from "@/lib/habits";
 
@@ -67,6 +69,33 @@ describe("streak", () => {
   it("vacío o sin nada reciente → 0", () => {
     expect(streak(undefined, TODAY)).toBe(0);
     expect(streak(new Set(["2026-06-01"]), TODAY)).toBe(0);
+  });
+});
+
+describe("percentSeries", () => {
+  it("mapea cada día a su % (para la gráfica)", () => {
+    const done = buildDoneMap([
+      { habitId: "a", day: "2026-06-25" },
+      { habitId: "b", day: "2026-06-25" },
+      { habitId: "a", day: "2026-06-26" },
+    ]);
+    const s = percentSeries(["a", "b"], done, ["2026-06-24", "2026-06-25", "2026-06-26"]);
+    expect(s).toEqual([
+      { day: "2026-06-24", percent: 0 },
+      { day: "2026-06-25", percent: 100 },
+      { day: "2026-06-26", percent: 50 },
+    ]);
+  });
+});
+
+describe("completionRate", () => {
+  it("% de días hechos de un hábito en el rango", () => {
+    const done = new Set(["2026-06-24", "2026-06-26"]);
+    expect(completionRate(done, ["2026-06-24", "2026-06-25", "2026-06-26", "2026-06-27"])).toBe(50);
+  });
+  it("sin registros o rango vacío → 0", () => {
+    expect(completionRate(undefined, ["2026-06-26"])).toBe(0);
+    expect(completionRate(new Set(["2026-06-26"]), [])).toBe(0);
   });
 });
 

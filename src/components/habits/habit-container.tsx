@@ -18,6 +18,11 @@ import {
   streak,
   type HabitDTO,
 } from "@/lib/habits";
+import {
+  HabitTrendChart,
+  HabitAnalytics,
+  HabitHeatmap,
+} from "@/components/habits/habit-charts";
 import { WEEKDAYS } from "@/lib/calendar-utils";
 import { SELECT_COLORS } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -56,6 +61,7 @@ export function HabitContainer({
 
   const habitIds = useMemo(() => habits.map((h) => h.id), [habits]);
   const days = useMemo(() => lastDays(today, 7), [today]);
+  const days30 = useMemo(() => lastDays(today, 30), [today]);
 
   function saveTitle() {
     if (title !== doc.title) startTransition(() => renameDoc(doc.id, title));
@@ -314,6 +320,36 @@ export function HabitContainer({
                 </button>
               </div>
             )}
+          </section>
+
+          {/* Evolución (últimos 30 días) */}
+          <section className="mt-8">
+            <h2 className="font-serif text-ink mb-3 text-[20px] font-[560]">
+              Evolución
+            </h2>
+            <div className="border-line rounded-xl border p-4">
+              <HabitTrendChart habitIds={habitIds} done={done} days={days30} />
+            </div>
+          </section>
+
+          {/* Analítica por hábito (30 días) */}
+          <section className="mt-8">
+            <h2 className="font-serif text-ink mb-3 text-[20px] font-[560]">
+              Analítica <span className="text-ink-faint text-sm font-normal">· últimos 30 días</span>
+            </h2>
+            <div className="border-line rounded-xl border p-5">
+              <HabitAnalytics habits={habits} done={done} days={days30} />
+            </div>
+          </section>
+
+          {/* Histórico (heatmap mensual) */}
+          <section className="mt-8">
+            <h2 className="font-serif text-ink mb-3 text-[20px] font-[560]">
+              Histórico
+            </h2>
+            <div className="border-line rounded-xl border p-5">
+              <HabitHeatmap habitIds={habitIds} done={done} today={today} />
+            </div>
           </section>
         </>
       )}

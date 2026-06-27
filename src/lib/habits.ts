@@ -67,6 +67,25 @@ export function streak(
   return count;
 }
 
+/** Serie temporal del % diario sobre un rango de días (para la gráfica). */
+export function percentSeries(
+  habitIds: string[],
+  done: DoneMap,
+  days: string[]
+): { day: string; percent: number }[] {
+  return days.map((day) => ({ day, percent: dayPercent(habitIds, done, day) }));
+}
+
+/** % de cumplimiento de UN hábito en un rango (días hechos / días). */
+export function completionRate(
+  done: Set<string> | undefined,
+  days: string[]
+): number {
+  if (!done || days.length === 0) return 0;
+  const n = days.filter((d) => done.has(d)).length;
+  return Math.round((n / days.length) * 100);
+}
+
 /** Mensaje motivador según el % del día (estilo de los trackers). */
 export function dayMessage(percent: number): string | null {
   if (percent >= 100) return "¡Lo hiciste! 🎉";
