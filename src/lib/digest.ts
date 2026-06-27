@@ -21,9 +21,11 @@ export const BUCKETS: { value: Bucket; label: string }[] = [
 export type DigestItem = {
   title: string;
   dbTitle: string;
-  dayISO: string;
+  dayISO: string | null; // null = sin fecha
   statusName?: string;
   ambito?: string; // nombre de la opción de la columna «Ámbito», si existe
+  impactColor?: string; // color de la opción de Impacto (para la «bola»)
+  effortColor?: string; // color de la opción de Esfuerzo (para la «bola»)
   href?: string; // ruta a la fila (/p/{docId}/{rowId}) → tarea como enlace
   done: boolean;
 };
@@ -207,13 +209,20 @@ export function dayLabel(dayISO: string, today: string): string {
   return `${WEEKDAYS[weekdayMon0(dayISO)]} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
 }
 
-const byDayAsc = (a: DigestItem, b: DigestItem) =>
-  a.dayISO < b.dayISO ? -1 : a.dayISO > b.dayISO ? 1 : 0;
+// Orden por fecha ascendente; las tareas sin fecha (null) van al final.
+const byDayAsc = (a: DigestItem, b: DigestItem) => {
+  if (a.dayISO === b.dayISO) return 0;
+  if (a.dayISO === null) return 1;
+  if (b.dayISO === null) return -1;
+  return a.dayISO < b.dayISO ? -1 : 1;
+};
 
-/** Agrupa items por día (orden cronológico, alfabético dentro del día). */
+/** Agrupa items por día (orden cronológico, alfabético dentro del día). Solo
+ * recibe tareas con fecha (las de los tramos). */
 function groupByDay(items: DigestItem[], today: string): DigestGroup[] {
   const byDay = new Map<string, DigestItem[]>();
   for (const it of items) {
+    if (it.dayISO === null) continue;
     if (!byDay.has(it.dayISO)) byDay.set(it.dayISO, []);
     byDay.get(it.dayISO)!.push(it);
   }
@@ -235,19 +244,24 @@ export function buildDigest(
 ): Digest {
   const want = new Set(buckets);
   const bucketItems = items.filter((it) => {
+    if (it.dayISO === null) return false;
     const b = bucketOfDay(it.dayISO, today);
     return b !== null && want.has(b);
   });
   const inBucket = new Set(bucketItems);
 
-  // Las N más antiguas (fecha ascendente); las que ya salen por tramo no se
-  // repiten aquí (se muestran en su día).
+  // «Pendientes acumuladas»: las N más antiguas que NO salen ya por tramo y que
+  // son realmente viejas → atrasadas (fecha pasada) o sin fecha. Nunca futuras.
+  // Orden: fecha ascendente y, al final, las que no tienen fecha.
   let oldest: DigestItem[] = [];
   if (oldestCount > 0) {
-    oldest = [...items]
+    oldest = items
+      .filter(
+        (it) =>
+          !inBucket.has(it) && (it.dayISO === null || it.dayISO < today)
+      )
       .sort(byDayAsc)
-      .slice(0, oldestCount)
-      .filter((it) => !inBucket.has(it));
+      .slice(0, oldestCount);
   }
 
   return {
@@ -337,13 +351,28 @@ export function digestTitle(n: number, opts: DigestTitleOpts): string {
   return `🔔 ${prefix}${sep}${time}`;
 }
 
-/** Línea de una tarea: «• Título (BD · Ámbito - X · Estado)». El título va como
- * enlace markdown «[Título](ruta)» si la tarea tiene `href` (lo renderizan la
- * bandeja con <Link> y Telegram con <a>). */
+// Color de opción (clave de SELECT_COLORS) → emoji de «bola», para mostrar
+// impacto/esfuerzo de forma visual en texto plano (bandeja y Telegram).
+const COLOR_DOT: Record<string, string> = {
+  gray: "⚪", brown: "🟤", orange: "🟠", amber: "🟡", green: "🟢",
+  blue: "🔵", purple: "🟣", rose: "🔴", red: "🔴", teal: "🟢", default: "⚪",
+};
+function colorDot(color?: string): string | null {
+  if (!color) return null;
+  return COLOR_DOT[color] ?? "⚪";
+}
+
+/** Línea de una tarea: «• Título (BD · - Ámbito · 🟠 - 🟢 · Estado)». Impacto y
+ * esfuerzo se muestran solo como bola de color. El título va como enlace markdown
+ * «[Título](ruta)» si tiene `href` (lo renderizan la bandeja y Telegram). */
 function itemLine(it: DigestItem): string {
+  const dots = [colorDot(it.impactColor), colorDot(it.effortColor)].filter(
+    Boolean
+  ) as string[];
   const meta = [
     it.dbTitle,
-    it.ambito ? `Ámbito - ${it.ambito}` : null,
+    it.ambito ? `- ${it.ambito}` : null,
+    dots.length ? dots.join(" - ") : null,
     it.statusName,
   ]
     .filter(Boolean)
@@ -364,10 +393,11 @@ export function renderDigest(
     (g) => `${g.label}\n${g.items.map(itemLine).join("\n")}`
   );
   if (digest.oldest.length) {
-    const lines = digest.oldest.map(
-      (it) => `${itemLine(it)} — ${dayLabel(it.dayISO, today)}`
-    );
-    sections.push(`Tareas antiguas:\n${lines.join("\n")}`);
+    const lines = digest.oldest.map((it) => {
+      const when = it.dayISO ? dayLabel(it.dayISO, today) : "sin fecha";
+      return `${itemLine(it)} — ${when}`;
+    });
+    sections.push(`Pendientes acumuladas:\n${lines.join("\n")}`);
   }
   return { title, body: sections.join("\n\n") };
 }

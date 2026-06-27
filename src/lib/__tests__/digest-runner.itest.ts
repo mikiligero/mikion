@@ -184,15 +184,17 @@ describe("computeUserDigest · tramos", () => {
     expect(d.total).toBe(2);
   });
 
-  it("oldestCount rescata tareas atrasadas aunque el tramo sea solo hoy", async () => {
+  it("oldestCount rescata atrasadas y sin fecha, pero NO futuras", async () => {
     await addRow({ [P.title]: "Vieja", [P.date]: day(-30), [P.status]: "st-todo" });
+    await addRow({ [P.title]: "Sin fecha", [P.status]: "st-todo" }); // sin fecha
+    await addRow({ [P.title]: "Futura", [P.date]: day(20), [P.status]: "st-todo" });
     const d = await computeUserDigest(
       userId,
-      rule({ buckets: ["today"], oldestCount: 3 }),
+      rule({ buckets: ["today"], oldestCount: 5 }),
       NOW
     );
-    expect(d.total).toBe(1);
-    expect(d.oldest.map((i) => i.title)).toEqual(["Vieja"]);
+    // Vieja (atrasada) + Sin fecha; Futura queda fuera.
+    expect(d.oldest.map((i) => i.title)).toEqual(["Vieja", "Sin fecha"]);
   });
 });
 

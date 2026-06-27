@@ -19,13 +19,15 @@ import {
 // Jueves 2026-06-25 como «hoy» de referencia (semana lun 22 … dom 28).
 const TODAY = "2026-06-25";
 
-function item(p: Partial<DigestItem> & { dayISO: string }): DigestItem {
+function item(p: Partial<DigestItem> & { dayISO: string | null }): DigestItem {
   return {
     title: p.title ?? "Tarea",
     dbTitle: p.dbTitle ?? "TAREAS",
     dayISO: p.dayISO,
     statusName: p.statusName,
     ambito: p.ambito,
+    impactColor: p.impactColor,
+    effortColor: p.effortColor,
     href: p.href,
     done: p.done ?? false,
   };
@@ -88,19 +90,36 @@ describe("buildDigest", () => {
     expect(d.oldest.map((i) => i.title)).toEqual(["Vieja 1", "Vieja 2"]);
   });
 
-  it("no duplica: una más antigua que ya sale por tramo no se repite en oldest", () => {
+  it("no duplica: una atrasada que ya sale por tramo no se repite en acumuladas", () => {
     const d = buildDigest(
       [
-        item({ title: "Ayer", dayISO: "2026-06-24" }),
-        item({ title: "Hoy", dayISO: "2026-06-25" }),
+        item({ title: "Ayer", dayISO: "2026-06-24" }), // overdue → en tramo
+        item({ title: "Vieja", dayISO: "2026-05-01" }), // overdue → en tramo
       ],
       ["overdue"],
       TODAY,
       5
     );
     expect(d.total).toBe(2);
-    expect(d.groups.flatMap((g) => g.items.map((i) => i.title))).toEqual(["Ayer"]);
-    expect(d.oldest.map((i) => i.title)).toEqual(["Hoy"]); // Ayer no se repite
+    // Ambas salen por el tramo «overdue»; ninguna se repite en acumuladas.
+    expect(d.oldest).toEqual([]);
+  });
+
+  it("acumuladas: excluye futuras, incluye atrasadas y sin fecha", () => {
+    const d = buildDigest(
+      [
+        item({ title: "Hoy", dayISO: "2026-06-25" }),
+        item({ title: "Futura", dayISO: "2026-07-01" }), // no debe entrar
+        item({ title: "Atrasada", dayISO: "2026-05-10" }),
+        item({ title: "Sin fecha", dayISO: null }),
+      ],
+      ["today"],
+      TODAY,
+      5
+    );
+    // Tramo: solo Hoy. Acumuladas: Atrasada (fecha) + Sin fecha (al final).
+    expect(d.groups.flatMap((g) => g.items.map((i) => i.title))).toEqual(["Hoy"]);
+    expect(d.oldest.map((i) => i.title)).toEqual(["Atrasada", "Sin fecha"]);
   });
 
   it("varios tramos: retrasados + próximos 10 días, orden cronológico", () => {
@@ -165,7 +184,7 @@ describe("renderDigest", () => {
     expect(body).toContain("• [Panel](/p/demo/r3) (Proyectos)");
   });
 
-  it("las más antiguas en su propia sección «Tareas antiguas:» con fecha", () => {
+  it("las pendientes acumuladas en su propia sección con fecha", () => {
     const d = buildDigest(
       [
         item({ title: "Vieja", dbTitle: "Proyectos", dayISO: "2026-05-01" }),
@@ -179,7 +198,7 @@ describe("renderDigest", () => {
       { buckets: ["today"], statusGroups: ["todo"], impactGroups: [] },
       TODAY
     );
-    expect(body).toContain("Tareas antiguas:");
+    expect(body).toContain("Pendientes acumuladas:");
     expect(body).toContain("• Vieja (Proyectos) — vie 1 may");
   });
 });
@@ -310,7 +329,33 @@ describe("renderDigest cuerpo con ámbito", () => {
       TODAY
     );
     expect(body).toContain(
-      "• Panel de métricas (Proyectos · Ámbito - Crítica · En curso)"
+      "• Panel de métricas (Proyectos · - Crítica · En curso)"
+    );
+  });
+
+  it("impacto y esfuerzo salen como bolas de color (🟠 - 🟢)", () => {
+    const d = buildDigest(
+      [
+        item({
+          title: "Buscar Seguro",
+          dbTitle: "Iniciativas",
+          ambito: "🚐 Camper",
+          statusName: "Por hacer",
+          impactColor: "orange",
+          effortColor: "green",
+          dayISO: "2026-06-25",
+        }),
+      ],
+      ["today"],
+      TODAY
+    );
+    const { body } = renderDigest(
+      d,
+      { buckets: ["today"], statusGroups: ["todo"], impactGroups: [] },
+      TODAY
+    );
+    expect(body).toContain(
+      "• Buscar Seguro (Iniciativas · - 🚐 Camper · 🟠 - 🟢 · Por hacer)"
     );
   });
 });

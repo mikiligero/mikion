@@ -206,9 +206,10 @@ export async function computeUserDigest(
     }
 
     const dateVal = row.values?.[meta.dateProp.id] ?? null;
-    // El vencimiento es el fin del rango si lo hay, si no la fecha.
+    // El vencimiento es el fin del rango si lo hay, si no la fecha. Las filas sin
+    // fecha entran igual (dayISO null): solo aparecen en «pendientes acumuladas».
     const due = dateEnd(dateVal) ?? dateStart(dateVal);
-    if (!due) continue;
+    const dayISO = due ? due.slice(0, 10) : null;
 
     // Filtros del aviso: estado (lenient), impacto/esfuerzo y ámbito (estrictos).
     const stOpt = groupedOption(meta.schema, "status", row.values);
@@ -223,9 +224,11 @@ export async function computeUserDigest(
     items.push({
       title: getRowTitle(row.values, meta.schema),
       dbTitle: meta.title || "Sin título",
-      dayISO: due.slice(0, 10),
+      dayISO,
       statusName: stOpt?.name,
       ambito,
+      impactColor: imOpt?.color,
+      effortColor: efOpt?.color,
       href: `/p/${meta.docId}/${row.id}`,
       done: stOpt?.group === "done",
     });
