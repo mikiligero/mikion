@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { db } from "@/db";
-import { docs, databases, views, rows } from "@/db/schema";
+import { docs, databases, views, rows, habits } from "@/db/schema";
 import type { Block } from "@/lib/types";
 import { defaultDatabaseSchema } from "@/lib/database-utils";
 import { clampCoverZoom } from "@/lib/covers";
@@ -28,7 +28,7 @@ function revalidateShell() {
 export async function createDoc(input: {
   section: "team" | "private";
   parentId?: string | null;
-  kind?: "page" | "database" | "calendar";
+  kind?: "page" | "database" | "calendar" | "habit";
 }) {
   const parentId = input.parentId ?? null;
   // Bajo un padre (posiblemente compartido por otro usuario) se hereda su
@@ -48,7 +48,13 @@ export async function createDoc(input: {
   const kind = input.kind ?? "page";
   // Título por defecto según el tipo (las páginas quedan "Sin título").
   const defaultTitle =
-    kind === "calendar" ? "Calendario" : kind === "database" ? "Base de datos" : "";
+    kind === "calendar"
+      ? "Calendario"
+      : kind === "database"
+        ? "Base de datos"
+        : kind === "habit"
+          ? "Hábitos"
+          : "";
 
   const orderKey = await nextOrderKey(workspaceId, section, parentId);
   const [doc] = await db
@@ -75,6 +81,20 @@ export async function createDoc(input: {
       type: "table",
       config: { filters: [], sorts: [] },
     });
+  }
+
+  // Una página de hábitos arranca con algunos ejemplos para entender el flujo.
+  if (doc.kind === "habit") {
+    const seed = [
+      { name: "Beber agua", emoji: "💧", color: "blue" },
+      { name: "Ejercicio", emoji: "🏃", color: "orange" },
+      { name: "Leer", emoji: "📖", color: "green" },
+    ];
+    let key: string | null = null;
+    for (const h of seed) {
+      key = generateKeyBetween(key, null);
+      await db.insert(habits).values({ docId: doc.id, ...h, orderKey: key });
+    }
   }
 
   revalidateShell();
@@ -226,7 +246,7 @@ export async function updateDocMeta(
 
 /** Estilo de página del doc activo (para los controles de la barra superior). */
 export async function getDocStyle(docId: string): Promise<{
-  kind: "page" | "database" | "calendar";
+  kind: "page" | "database" | "calendar" | "habit";
   font: "default" | "serif" | "mono";
   fullWidth: boolean;
   smallText: boolean;
@@ -253,7 +273,7 @@ export type InsertableDoc = {
   id: string;
   title: string;
   emoji: string | null;
-  kind: "page" | "database" | "calendar";
+  kind: "page" | "database" | "calendar" | "habit";
   /** Para docs de tipo BD: el id de la base de datos (para incrustarla). */
   databaseId: string | null;
 };

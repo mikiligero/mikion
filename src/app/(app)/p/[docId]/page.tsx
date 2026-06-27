@@ -10,6 +10,9 @@ import { getRowTitle } from "@/lib/database-utils";
 import { listPeople } from "@/lib/people";
 import { PageEditor } from "@/components/editor/page-editor";
 import { DatabaseContainer } from "@/components/database/database-container";
+import { HabitContainer } from "@/components/habits/habit-container";
+import { listHabitData } from "@/lib/actions/habits";
+import { madridToday } from "@/lib/digest";
 import { TeamCalendar, type CalEvent } from "@/components/calendar/team-calendar";
 import type { Block, Filter, Sort } from "@/lib/types";
 
@@ -135,6 +138,19 @@ export default async function DocPage({
         mentionUsers={mentionUsers}
         readOnly={readOnly}
         embedOverride={parseEmbedOverride(sp)}
+      />
+    );
+  }
+
+  if (doc.kind === "habit") {
+    const { habits, logs } = await listHabitData(doc.id);
+    return (
+      <HabitContainer
+        doc={{ id: doc.id, emoji: doc.emoji, title: doc.title }}
+        habits={habits}
+        logs={logs}
+        today={madridToday()}
+        readOnly={readOnly}
       />
     );
   }

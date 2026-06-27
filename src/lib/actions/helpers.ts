@@ -254,7 +254,7 @@ export async function getSharedTreeForUser(userId: string): Promise<{
     id: string;
     parent_id: string | null;
     section: "team" | "private";
-    kind: "page" | "database" | "calendar";
+    kind: "page" | "database" | "calendar" | "habit";
     emoji: string | null;
     title: string;
     is_favorite: boolean;

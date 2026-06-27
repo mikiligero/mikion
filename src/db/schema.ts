@@ -80,7 +80,12 @@ export const verifications = pgTable("verifications", {
 // ---------------------------------------------------------------------------
 
 export const docSection = pgEnum("doc_section", ["team", "private"]);
-export const docKind = pgEnum("doc_kind", ["page", "database", "calendar"]);
+export const docKind = pgEnum("doc_kind", [
+  "page",
+  "database",
+  "calendar",
+  "habit",
+]);
 export const viewType = pgEnum("view_type", [
   "table",
   "board",
@@ -429,6 +434,42 @@ export const digestRules = pgTable(
   (t) => [index("digest_rules_user_idx").on(t.userId)]
 );
 
+// Hábitos: cada doc de kind='habit' agrupa una lista de hábitos configurables.
+export const habits = pgTable(
+  "habits",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    docId: text("doc_id")
+      .notNull()
+      .references(() => docs.id, { onDelete: "cascade" }),
+    name: text("name").notNull().default(""),
+    emoji: text("emoji"),
+    color: text("color").notNull().default("green"), // clave de SELECT_COLORS
+    orderKey: text("order_key").notNull().default("a0"),
+    archivedAt: timestamp("archived_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("habits_doc_idx").on(t.docId)]
+);
+
+// Registro de cumplimiento: una fila por hábito y día marcado.
+export const habitLogs = pgTable(
+  "habit_logs",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    habitId: text("habit_id")
+      .notNull()
+      .references(() => habits.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // "YYYY-MM-DD" (zona Europe/Madrid)
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("habit_logs_habit_day_idx").on(t.habitId, t.day)]
+);
+
 // ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
@@ -445,3 +486,5 @@ export type Comment = typeof comments.$inferSelect;
 export type HomeTask = typeof homeTasks.$inferSelect;
 export type Version = typeof versions.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type Habit = typeof habits.$inferSelect;
+export type HabitLog = typeof habitLogs.$inferSelect;

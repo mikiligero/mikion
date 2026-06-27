@@ -22,7 +22,7 @@ export type TrashItem = {
   type: "doc" | "row";
   title: string;
   emoji: string | null;
-  kind?: "page" | "database" | "calendar";
+  kind?: "page" | "database" | "calendar" | "habit";
   deletedAt: string;
 };
 

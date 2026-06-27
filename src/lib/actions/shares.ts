@@ -10,7 +10,7 @@ import {
   createNotification,
 } from "./helpers";
 
-type DocKind = "page" | "database" | "calendar";
+type DocKind = "page" | "database" | "calendar" | "habit";
 
 export type Collaborator = {
   userId: string;

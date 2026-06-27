@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type DocStyle = {
-  kind: "page" | "database" | "calendar";
+  kind: "page" | "database" | "calendar" | "habit";
   font: "default" | "serif" | "mono";
   fullWidth: boolean;
   smallText: boolean;

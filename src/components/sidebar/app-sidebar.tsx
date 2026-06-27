@@ -14,6 +14,7 @@ import {
   FileText,
   Database,
   Calendar,
+  CircleCheck,
   ChevronDown,
   PanelLeftClose,
 } from "lucide-react";
@@ -45,7 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type DocKind = "page" | "database" | "calendar";
+type DocKind = "page" | "database" | "calendar" | "habit";
 
 type Props = {
   workspace: { id: string; name: string };
@@ -514,6 +515,9 @@ function CreateMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onPick("calendar")}>
           <Calendar className="size-4" /> Calendario
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onPick("habit")}>
+          <CircleCheck className="size-4" /> Hábitos
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

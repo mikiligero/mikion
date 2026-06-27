@@ -11,7 +11,7 @@ export type PaletteDoc = {
   id: string;
   title: string;
   emoji: string | null;
-  kind: "page" | "database" | "calendar";
+  kind: "page" | "database" | "calendar" | "habit";
 };
 export type PaletteRow = { id: string; docId: string; title: string };
 
@@ -73,7 +73,7 @@ export type ContentResult = {
   id: string;
   title: string;
   emoji: string | null;
-  kind: "page" | "database" | "calendar";
+  kind: "page" | "database" | "calendar" | "habit";
   snippet: string;
 };
 
