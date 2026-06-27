@@ -25,12 +25,13 @@ import {
   type SharedByMe,
   type SharedWithMe,
 } from "@/lib/actions/shares";
+import { exportUserData } from "@/lib/actions/export-data";
 import { toast } from "sonner";
 import { signOut, deleteUser } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { docIcon } from "@/components/sidebar/doc-icon";
-import { LogOut, X, Plus, Trash2, Send } from "lucide-react";
+import { LogOut, X, Plus, Trash2, Send, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export function SettingsForm({
   ambitoOptions: string[];
 }) {
   const [section, setSection] = useState<
-    "account" | "prefs" | "notifications" | "shares"
+    "account" | "prefs" | "notifications" | "shares" | "data"
   >("account");
 
   return (
@@ -128,6 +129,9 @@ export function SettingsForm({
         >
           Compartido
         </RailItem>
+        <RailItem active={section === "data"} onClick={() => setSection("data")}>
+          Datos
+        </RailItem>
       </nav>
 
       {/* Panel */}
@@ -142,8 +146,10 @@ export function SettingsForm({
             rules={rules}
             ambitoOptions={ambitoOptions}
           />
-        ) : (
+        ) : section === "shares" ? (
           <SharesPanel shares={shares} />
+        ) : (
+          <DataPanel />
         )}
       </div>
     </div>
@@ -996,6 +1002,56 @@ function RuleCard({
         </Button>
       </div>
     </div>
+  );
+}
+
+function DataPanel() {
+  const [exporting, setExporting] = useState(false);
+
+  async function onExport() {
+    setExporting(true);
+    try {
+      const { filename, json } = await exportUserData();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Datos exportados ✅");
+    } catch {
+      toast.error("No se pudieron exportar los datos");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <section className="space-y-1">
+      <h2 className="font-serif text-ink mb-4 text-[20px] font-[560]">Datos</h2>
+
+      <div className="border-line border-b py-3.5">
+        <p className="text-ink text-sm font-medium">
+          Exportar todos mis datos (JSON)
+        </p>
+        <p className="text-ink-faint mt-0.5 max-w-prose text-xs">
+          Descarga un volcado completo de tu espacio: páginas y su contenido,
+          bases de datos (esquema, vistas y filas), comentarios, personas,
+          tareas de inicio, avisos y notificaciones recientes. Útil para
+          reportar incidencias. No incluye contraseñas ni el chat_id de Telegram.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-3"
+          disabled={exporting}
+          onClick={onExport}
+        >
+          <Download className="size-4" />
+          {exporting ? "Exportando…" : "Descargar JSON"}
+        </Button>
+      </div>
+    </section>
   );
 }
 
