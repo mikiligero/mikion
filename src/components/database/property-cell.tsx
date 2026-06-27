@@ -104,8 +104,14 @@ function relativeLabel(d: Date): string {
   if (diff === 0) return "Hoy";
   if (diff === 1) return "Mañana";
   if (diff === -1) return "Ayer";
-  if (diff > 0) return `En ${diff} días`;
-  return `Hace ${-diff} días`;
+  if (diff === 7) return "En una semana";
+  if (diff === -7) return "Hace una semana";
+  if (diff > 1 && diff < 7) return `En ${diff} días`;
+  if (diff < -1 && diff > -7) return `Hace ${-diff} días`;
+  // Más allá de una semana: fecha exacta (corta; con año si es otro).
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const base = `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
+  return sameYear ? base : `${base} ${d.getFullYear()}`;
 }
 
 function formatOne(iso: string, fmt: DateFormat, withTime: boolean): string {

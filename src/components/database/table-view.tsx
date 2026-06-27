@@ -55,7 +55,12 @@ import type {
   SelectOption,
   ViewConfig,
 } from "@/lib/types";
-import { PROPERTY_TYPES, randomSelectColor, isSystemProperty } from "@/lib/types";
+import {
+  PROPERTY_TYPES,
+  DATE_FORMATS,
+  randomSelectColor,
+  isSystemProperty,
+} from "@/lib/types";
 import {
   groupRows,
   visibleProperties,
@@ -750,6 +755,24 @@ function ColumnHeaderMenu({
         )}
         {prop.type === "date" && (
           <>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Formato</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {DATE_FORMATS.map((f) => (
+                  <DropdownMenuCheckboxItem
+                    key={f.value}
+                    checked={(prop.dateFormat ?? "full") === f.value}
+                    onCheckedChange={() =>
+                      startTransition(() =>
+                        updateProperty(databaseId, prop.id, { dateFormat: f.value })
+                      )
+                    }
+                  >
+                    {f.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuCheckboxItem
               checked={!!prop.includeTime}
               onCheckedChange={(c) =>
